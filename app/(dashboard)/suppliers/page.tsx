@@ -1,13 +1,40 @@
-import { Truck } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { SuppliersClient } from "./suppliers-client";
+import type { Product, Supplier } from "@/lib/types";
 
-export default function SuppliersPage() {
+export default async function SuppliersPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [profileRes, suppliersRes, productsRes, purchasesRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase.from("suppliers").select("*").order("name"),
+      supabase
+        .from("products")
+        .select("id, name, unit, is_active")
+        .order("name"),
+      supabase
+        .from("purchases")
+        .select(
+          "*, supplier:suppliers(name), receiver:profiles(full_name), purchase_items(*, product:products(name, unit))"
+        )
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
+
+  if (!profileRes.data) redirect("/login");
+  if (!["admin", "manager"].includes(profileRes.data.role)) redirect("/pos");
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <Truck className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">Suppliers</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 4</p>
-      </div>
-    </div>
+    <SuppliersClient
+      suppliers={(suppliersRes.data as Supplier[]) ?? []}
+      products={(productsRes.data as Product[]) ?? []}
+      purchases={(purchasesRes.data as any[]) ?? []}
+    />
   );
 }
