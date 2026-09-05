@@ -1,13 +1,46 @@
-import { Package } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { InventoryClient } from "./inventory-client";
+import type { Category, Product, Profile } from "@/lib/types";
 
-export default function InventoryPage() {
+export default async function InventoryPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [profileRes, productsRes, categoriesRes, batchesRes, adjustmentsRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      supabase
+        .from("product_stock")
+        .select("*, category:categories(name)")
+        .order("name"),
+      supabase.from("categories").select("*").order("name"),
+      supabase
+        .from("stock_batches")
+        .select("*, product:products(name, unit)")
+        .order("received_date", { ascending: false }),
+      supabase
+        .from("stock_adjustments")
+        .select("*, product:products(name), adjuster:profiles(full_name)")
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
+
+  if (!profileRes.data) redirect("/login");
+
+  // Role check: only admin and manager can access inventory
+  if (!["admin", "manager"].includes(profileRes.data.role)) redirect("/pos");
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">Inventory</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 3</p>
-      </div>
-    </div>
+    <InventoryClient
+      profile={profileRes.data as Profile}
+      products={(productsRes.data as Product[]) ?? []}
+      categories={(categoriesRes.data as Category[]) ?? []}
+      batches={(batchesRes.data as any[]) ?? []}
+      adjustments={(adjustmentsRes.data as any[]) ?? []}
+    />
   );
 }
