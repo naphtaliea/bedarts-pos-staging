@@ -149,3 +149,13 @@ export interface PaymentEntry {
   amount: number;
   reference: string;
 }
+
+export interface StoreSettings {
+  id: number;
+  store_name: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  receipt_footer: string | null;
+  updated_at: string;
+}

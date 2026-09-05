@@ -1,13 +1,18 @@
-import { ShoppingCart } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { POSClient } from "./pos-client";
+import type { Profile } from "@/lib/types";
 
-export default function POSPage() {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">POS</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 2</p>
-      </div>
-    </div>
-  );
+export default async function POSPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  return <POSClient cashier={profile as Profile} />;
 }
