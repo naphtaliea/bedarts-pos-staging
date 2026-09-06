@@ -23,8 +23,6 @@ export default async function CashierLayout({
     redirect("/login");
   }
 
-  if (profile.role !== "cashier") redirect("/pos");
-
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <CashierHeader profile={profile as Profile} />
