@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
-import { ArrowRight, ShoppingCart, Package, BarChart3, Snowflake } from "lucide-react";
+import { ArrowRight, ShoppingCart, Package, BarChart3 } from "lucide-react";
 
 const RED = "#AB1509";
 const YELLOW = "#fff7d3";
@@ -31,18 +31,7 @@ export default async function Home() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "1.5rem 2.5rem",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: RED,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Snowflake size={16} color={YELLOW} />
-          </div>
-          <span style={{ color: "white", fontWeight: 700, fontSize: "0.875rem", letterSpacing: "0.01em" }}>
-            Bedarts Cold Supplies
-          </span>
-        </div>
+        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" style={{ height: 44 }} />
         <Link href="/login" style={{
           display: "flex", alignItems: "center", gap: "0.375rem",
           color: "white", fontSize: "0.875rem", fontWeight: 600,
@@ -84,7 +73,7 @@ export default async function Home() {
             letterSpacing: "0.25em", textTransform: "uppercase",
             marginBottom: "1rem", opacity: 0.85,
           }}>
-            Ghana's Premier Cold Store
+            Always fresh&hellip;always in season
           </p>
 
           <h1 style={{
@@ -158,24 +147,24 @@ export default async function Home() {
           }}>
             {/* large left card */}
             <ProductCard
-              src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=800&q=80"
-              alt="Frozen whole chicken"
-              label="Frozen Poultry"
-              desc="Whole birds and cuts — blast-frozen and packed fresh."
+              src="https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=800&q=80"
+              alt="Fresh beef and pork cuts"
+              label="Premium Meats"
+              desc="Beef, pork, and cold cuts — sourced fresh, kept cold."
               tall
             />
             {/* two stacked right cards */}
             <ProductCard
-              src="https://images.unsplash.com/photo-1535591273668-578e31182c4f?auto=format&fit=crop&w=600&q=80"
-              alt="Fresh fish"
-              label="Fresh Fish"
-              desc="Tilapia, mackerel, and more, iced to order."
+              src="https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=80"
+              alt="Frozen whole chicken"
+              label="Frozen Poultry"
+              desc="Whole birds and cuts, blast-frozen and packed to order."
             />
             <ProductCard
               src="https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80"
-              alt="Seafood selection"
-              label="Frozen Seafood"
-              desc="Prawns, shrimp, and mixed seafood in bulk packs."
+              alt="Fresh fish and seafood"
+              label="Fish & Seafood"
+              desc="Tilapia, mackerel, prawns, and shrimp — iced to order."
             />
           </div>
         </div>
@@ -268,18 +257,7 @@ export default async function Home() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: "1rem",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: RED,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Snowflake size={14} color={YELLOW} />
-          </div>
-          <span style={{ color: YELLOW, fontWeight: 700, fontSize: "0.8125rem" }}>
-            Bedarts Cold Supplies
-          </span>
-        </div>
+        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" style={{ height: 38 }} />
         <p style={{ color: "rgba(255,247,211,0.35)", fontSize: "0.75rem", margin: 0 }}>
           © {new Date().getFullYear()} Bedarts Cold Supplies. All rights reserved.
         </p>
