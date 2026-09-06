@@ -8,6 +8,7 @@ interface ProductGridProps {
   products: Product[];
   onSelect: (product: Product) => void;
   loading?: boolean;
+  recentlyAddedId?: string | null;
 }
 
 const zoneIcon = {
@@ -22,7 +23,7 @@ const zoneColor = {
   ambient: "text-amber-500",
 };
 
-export function ProductGrid({ products, onSelect, loading }: ProductGridProps) {
+export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: ProductGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-3 xl:grid-cols-4 gap-3 content-start">
@@ -57,7 +58,9 @@ export function ProductGrid({ products, onSelect, loading }: ProductGridProps) {
               "h-24 select-none",
               outOfStock
                 ? "border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed"
-                : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-md active:scale-95 cursor-pointer"
+                : product.id === recentlyAddedId
+                  ? "border-green-400 bg-green-50 shadow-md scale-95 cursor-pointer"
+                  : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-md active:scale-95 cursor-pointer"
             )}
           >
             <div className="flex items-start justify-between w-full">

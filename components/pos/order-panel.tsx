@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, ChevronDown, UserPlus } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -32,6 +32,11 @@ export function OrderPanel({
 
   const [numpadMode, setNumpadMode] = useState<"qty" | "disc">("qty");
   const [numpadInput, setNumpadInput] = useState("");
+
+  // Reset numpad when the selected line changes (e.g. from a product tile click)
+  useEffect(() => {
+    setNumpadInput("");
+  }, [selectedLineId]);
 
   const selectedLine = items.find((i) => i.product.id === selectedLineId);
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
