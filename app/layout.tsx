@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Archivo, Abril_Fatface } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
+const abril = Abril_Fatface({ weight: "400", subsets: ["latin"], variable: "--font-abril", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Bedarts Cold Supplies",
@@ -23,7 +24,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${archivo.variable} ${abril.variable} h-full`}>
       <body className="h-full">{children}</body>
     </html>
   );
