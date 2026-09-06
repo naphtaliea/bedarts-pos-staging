@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { POSClient } from "./pos-client";
+import { POSClient } from "@/app/(dashboard)/pos/pos-client";
 import type { Category, Customer, Product, Profile } from "@/lib/types";
 
-export default async function POSPage() {
+export default async function CashierPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -21,7 +21,6 @@ export default async function POSPage() {
   ]);
 
   if (!profileRes.data) redirect("/login");
-  if (profileRes.data.role === "cashier") redirect("/cashier");
 
   return (
     <POSClient

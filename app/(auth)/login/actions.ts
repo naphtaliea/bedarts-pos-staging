@@ -18,7 +18,7 @@ export async function login(
     return { error: "Invalid email or password." };
   }
 
-  redirect("/pos");
+  redirect("/");
 }
 
 export async function logout() {
