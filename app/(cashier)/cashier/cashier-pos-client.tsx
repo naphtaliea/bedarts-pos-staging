@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Search } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
@@ -69,8 +69,8 @@ export function CashierPOSClient({
     setBuffer("");
   }, [selectedLineId]);
 
-  // Scroll selected order line into view whenever selection changes
-  useEffect(() => {
+  // Scroll selected order line into view after DOM paint
+  useLayoutEffect(() => {
     selectedRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedLineId]);
 
@@ -117,9 +117,9 @@ export function CashierPOSClient({
 
       <div className="flex flex-1 min-h-0 p-3 gap-3 lg:p-4 lg:gap-4">
         {/* LEFT — Order panel */}
-        <section className="flex flex-col gap-3 w-full lg:w-[40%] min-w-0">
-          {/* Order lines card */}
-          <div className="flex-1 min-h-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+        <section className="flex flex-col gap-2.5 w-full lg:w-[40%] min-w-0 overflow-y-auto">
+          {/* Order lines card — capped height so numpad is always visible */}
+          <div className="shrink-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ maxHeight: "clamp(80px, 26vh, 300px)" }}>
             <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
               <span className="text-sm font-semibold text-foreground">Order</span>
               {items.length > 0 && (
@@ -195,7 +195,7 @@ export function CashierPOSClient({
           </div>
 
           {/* Selected line display — standalone card */}
-          <div className="rounded-xl border border-border bg-card px-4 py-3 min-h-[64px] flex flex-col justify-center shrink-0">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 min-h-[60px] flex flex-col justify-center shrink-0">
             {selectedLine ? (
               <>
                 <p className="text-xs text-muted-foreground truncate leading-tight">
@@ -334,6 +334,7 @@ export function CashierPOSClient({
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 pb-2">
                 {filteredProducts.map((product) => {
                   const isRecent = recentlyAddedId === product.id;
+                  const isActive = selectedLineId === product.id;
                   const isLowStock =
                     product.stock_quantity !== undefined &&
                     product.stock_quantity < product.low_stock_threshold;
@@ -344,8 +345,12 @@ export function CashierPOSClient({
                       key={product.id}
                       onClick={() => handleAddProduct(product)}
                       className={cn(
-                        "rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer hover:border-primary hover:shadow-md transition-all select-none",
-                        isRecent ? "border-green-400 scale-95" : "border-border"
+                        "rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer transition-all select-none",
+                        isActive
+                          ? "border-primary ring-2 ring-primary/20 shadow-md"
+                          : isRecent
+                          ? "border-green-400 scale-95"
+                          : "border-border hover:border-primary hover:shadow-md"
                       )}
                     >
                       {/* Image / placeholder area */}
