@@ -58,7 +58,7 @@ export function Cart() {
                     onChange={(e) =>
                       updateQty(item.product.id, parseFloat(e.target.value) || 1)
                     }
-                    className="w-12 h-7 text-center text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-12 h-7 text-center text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-red-700"
                   />
                   <button
                     onClick={() => updateQty(item.product.id, item.quantity + 1)}
@@ -79,7 +79,7 @@ export function Cart() {
                       min={0}
                       placeholder="0.00"
                       autoFocus
-                      className="w-20 h-6 text-xs border border-slate-300 rounded px-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 h-6 text-xs border border-slate-300 rounded px-1 focus:outline-none focus:ring-1 focus:ring-red-700"
                       onBlur={(e) => {
                         updateItemDiscount(
                           item.product.id,
@@ -96,7 +96,7 @@ export function Cart() {
                 ) : (
                   <button
                     onClick={() => setEditingDiscount(item.product.id)}
-                    className="text-xs text-slate-400 hover:text-blue-600 flex items-center gap-1"
+                    className="text-xs text-slate-400 hover:text-red-700 flex items-center gap-1"
                   >
                     <Tag className="w-3 h-3" />
                     {item.discount_amount > 0
@@ -143,7 +143,7 @@ export function Cart() {
                 setDiscount(parseFloat(e.target.value) || 0);
               }}
               placeholder="0.00"
-              className="w-20 text-right text-sm border border-slate-200 rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-20 text-right text-sm border border-slate-200 rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-red-700"
             />
           </div>
         </div>

@@ -54,29 +54,43 @@ export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: Pr
             onClick={() => !outOfStock && onSelect(product)}
             disabled={outOfStock}
             className={cn(
-              "relative flex flex-col items-start justify-between p-3 rounded-xl border text-left transition-all",
-              "h-24 select-none",
+              "relative flex flex-col p-0 rounded-xl border text-left transition-all overflow-hidden bg-white",
+              "h-36 select-none",
               outOfStock
-                ? "border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed"
+                ? "border-slate-100 opacity-50 cursor-not-allowed grayscale-[50%]"
                 : product.id === recentlyAddedId
-                  ? "border-green-400 bg-green-50 shadow-md scale-95 cursor-pointer"
-                  : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-md active:scale-95 cursor-pointer"
+                  ? "border-green-400 shadow-md scale-95 cursor-pointer"
+                  : "border-slate-200 hover:border-[#AB1509] hover:shadow-md active:scale-95 cursor-pointer"
             )}
           >
-            <div className="flex items-start justify-between w-full">
-              <p className="text-xs font-semibold text-slate-800 leading-tight line-clamp-2 flex-1 pr-1">
-                {product.name}
-              </p>
-              <Icon className={cn("w-3.5 h-3.5 shrink-0 mt-0.5", zoneColor[product.temperature_zone])} />
+            <div className="relative w-full h-20 bg-slate-50 shrink-0 border-b border-slate-100">
+              {product.image_url ? (
+                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                  <Icon className="w-6 h-6 opacity-30" />
+                </div>
+              )}
+              {/* Floating zone icon */}
+              <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm">
+                <Icon className={cn("w-3.5 h-3.5", zoneColor[product.temperature_zone])} />
+              </div>
             </div>
 
-            <div className="w-full">
-              <p className="text-sm font-bold text-blue-700">
-                GH₵{product.selling_price.toFixed(2)}
+            <div className="flex flex-col flex-1 p-2.5 justify-between w-full">
+              <p className="text-xs font-semibold text-slate-800 leading-tight line-clamp-2">
+                {product.name}
               </p>
-              <p className="text-xs text-slate-400">
-                {outOfStock ? "Out of stock" : `${product.stock_quantity} ${product.unit}`}
-              </p>
+              
+              <div className="flex items-end justify-between w-full mt-1">
+                <p className="text-sm font-bold text-[#AB1509] leading-none">
+                  GH₵{product.selling_price.toFixed(2)}
+                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">/{product.unit}</span>
+                </p>
+                <p className="text-[10px] font-medium text-slate-400 leading-none text-right">
+                  {outOfStock ? "Out" : `${product.stock_quantity}${product.unit}`}
+                </p>
+              </div>
             </div>
           </button>
         );

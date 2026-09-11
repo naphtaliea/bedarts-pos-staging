@@ -41,21 +41,14 @@ export function OrderPanel({
   const selectedLine = items.find((i) => i.product.id === selectedLineId);
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
-  const handleNumpadInput = (key: string) => {
-    const next = numpadInput === "0" ? key : numpadInput + key;
+  const handleKey = (key: string) => {
+    let next = numpadInput;
+    if (key === "backspace") next = next.slice(0, -1);
+    else if (key === "00") next = (next === "" || next === "0") ? "0" : next + "00";
+    else if (key === ".") next = next.includes(".") ? next : (next || "0") + ".";
+    else next = next === "0" ? key : next + key;
     setNumpadInput(next);
     applyNumpad(next);
-  };
-
-  const handleBackspace = () => {
-    const next = numpadInput.slice(0, -1);
-    setNumpadInput(next);
-    applyNumpad(next);
-  };
-
-  const handleClear = () => {
-    setNumpadInput("");
-    applyNumpad("");
   };
 
   const applyNumpad = (val: string) => {
@@ -90,7 +83,7 @@ export function OrderPanel({
           <select
             value={selectedCustomerId ?? ""}
             onChange={(e) => onCustomerChange(e.target.value || null)}
-            className="w-full h-9 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full h-9 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-red-700"
           >
             <option value="">Walk-in Customer</option>
             {customers.map((c) => (
@@ -127,7 +120,7 @@ export function OrderPanel({
                   onClick={() => handleLineClick(item.product.id)}
                   className={cn(
                     "grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2.5 cursor-pointer transition-colors",
-                    isSelected ? "bg-blue-50 border-l-2 border-blue-600" : "hover:bg-slate-50"
+                    isSelected ? "bg-red-50 border-l-2 border-[#AB1509]" : "hover:bg-slate-50"
                   )}
                 >
                   <div className="min-w-0">
@@ -160,14 +153,7 @@ export function OrderPanel({
 
       {/* Numpad */}
       {items.length > 0 && (
-        <Numpad
-          mode={numpadMode}
-          onModeChange={(m) => { setNumpadMode(m); setNumpadInput(""); }}
-          onInput={handleNumpadInput}
-          onBackspace={handleBackspace}
-          onClear={handleClear}
-          currentValue={currentNumpadValue}
-        />
+        <Numpad onKey={handleKey} />
       )}
 
       {/* Totals + charge */}
@@ -203,7 +189,7 @@ export function OrderPanel({
               "flex-1 py-3 rounded-xl font-bold text-base transition-all",
               items.length === 0
                 ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                : "bg-blue-700 text-white hover:bg-blue-800 active:scale-95 shadow-sm"
+                : "bg-[#AB1509] text-white hover:bg-red-900 active:scale-95 shadow-sm"
             )}
           >
             {items.length === 0 ? "Add items" : `Charge ${formatCurrency(total)}`}

@@ -17,7 +17,7 @@ export function CategoryTabs({ categories, selected, onSelect }: CategoryTabsPro
         className={cn(
           "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
           selected === null
-            ? "bg-blue-700 text-white"
+            ? "bg-[#AB1509] text-white"
             : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
         )}
       >
@@ -30,7 +30,7 @@ export function CategoryTabs({ categories, selected, onSelect }: CategoryTabsPro
           className={cn(
             "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
             selected === cat.id
-              ? "bg-blue-700 text-white"
+              ? "bg-[#AB1509] text-white"
               : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
           )}
         >

@@ -97,7 +97,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
                             onClick={() => update(i, "method", m.key)}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               p.method === m.key
-                                ? "bg-blue-700 text-white"
+                                ? "bg-[#AB1509] text-white"
                                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                             }`}
                           >
@@ -158,7 +158,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
           {payments.length < 3 && (
             <button
               onClick={addPayment}
-              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="flex items-center gap-2 text-sm text-[#AB1509] hover:text-red-800 font-medium"
             >
               <Plus className="w-4 h-4" />
               Add payment method (split)

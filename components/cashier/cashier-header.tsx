@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Snowflake, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { logout } from "@/app/(auth)/login/actions";
 import type { Profile } from "@/lib/types";
 
@@ -23,12 +23,9 @@ export function CashierHeader({ profile }: { profile: Profile }) {
   }, []);
 
   return (
-    <header className="flex items-center justify-between px-5 h-12 bg-slate-950 border-b border-slate-800 shrink-0">
+    <header className="flex items-center justify-between px-5 h-12 bg-[#1c0a07] shrink-0">
       <div className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-blue-700">
-          <Snowflake className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-sm font-bold text-white">Bedarts Cold Supplies</span>
+        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-6" />
       </div>
 
       <span className="text-sm font-mono font-medium text-slate-300 tabular-nums">

@@ -53,10 +53,10 @@ export function ProductSearch() {
           onFocus={() => results.length > 0 && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Search products by name…"
-          className="w-full pl-9 pr-4 h-11 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full pl-9 pr-4 h-11 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-700"
         />
         {loading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-red-700 border-t-transparent rounded-full animate-spin" />
         )}
       </div>
 
@@ -86,7 +86,7 @@ export function ProductSearch() {
                 <span className="text-sm font-semibold text-slate-900">
                   GH₵{product.selling_price.toFixed(2)}
                 </span>
-                <Plus className="w-4 h-4 text-blue-600" />
+                <Plus className="w-4 h-4 text-[#AB1509]" />
               </div>
             </button>
           ))}

@@ -31,6 +31,7 @@ export interface Product {
   is_active: boolean;
   created_at: string;
   stock_quantity?: number;
+  image_url?: string;
 }
 
 export interface StockBatch {

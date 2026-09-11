@@ -26,12 +26,8 @@ export function POSClient({
   initialCustomers,
 }: POSClientProps) {
   const [categories] = useState(initialCategories);
-  const [products, setProducts] = useState(initialProducts);
-  const [customers] = useState(initialCustomers);
-
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
@@ -47,26 +43,12 @@ export function POSClient({
   const clearCart = useCartStore((s) => s.clearCart);
   const addItem = useCartStore((s) => s.addItem);
 
-  // Reload products when category or search changes
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      const supabase = createClient();
-      let query = supabase
-        .from("product_stock")
-        .select("*, category:categories(name)")
-        .eq("is_active", true)
-        .order("name");
-
-      if (selectedCategory) query = query.eq("category_id", selectedCategory);
-      if (search.trim()) query = query.ilike("name", `%${search.trim()}%`);
-
-      const { data } = await query.limit(60);
-      setProducts((data as Product[]) ?? []);
-      setLoading(false);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [selectedCategory, search]);
+  // Client-side filtering for zero-latency search and offline support
+  const filteredProducts = initialProducts.filter((p) => {
+    const matchesCategory = selectedCategory ? p.category_id === selectedCategory : true;
+    const matchesSearch = search.trim() === "" || p.name.toLowerCase().includes(search.trim().toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleProductSelect = (product: Product) => {
     addItem(product);
@@ -76,6 +58,9 @@ export function POSClient({
   };
 
   const handleConfirmSale = async (payments: PaymentEntry[]) => {
+    // Open window synchronously during the click event to bypass popup blockers
+    const win = window.open("about:blank", "_blank");
+
     const { saleId } = await submitSale({
       items,
       payments,
@@ -91,13 +76,16 @@ export function POSClient({
     clearCart();
     setSelectedLineId(null);
     setSelectedCustomerId(null);
-    await printReceipt(saleId);
+    await printReceipt(saleId, win);
   };
 
-  const printReceipt = async (saleId: string) => {
+  const printReceipt = async (saleId: string, preOpenedWindow?: Window | null) => {
     try {
       const { sale, settings } = await getSaleForReceipt(saleId);
-      if (!sale || !settings) return;
+      if (!sale || !settings) {
+        if (preOpenedWindow) preOpenedWindow.close();
+        return;
+      }
       const pdfBytes = await generateReceipt({
         sale,
         items: sale.sale_items ?? [],
@@ -108,20 +96,27 @@ export function POSClient({
       });
       const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
+      
+      let win = preOpenedWindow;
       if (!win) {
-        // Popup blocked — keep URL so cashier can open it manually
+        win = window.open(url, "_blank");
+      } else {
+        win.location.href = url;
+      }
+
+      if (!win) {
+        // Popup blocked completely
         setBlockedReceiptUrl(url);
       } else {
         setTimeout(() => URL.revokeObjectURL(url), 30000);
       }
     } catch {
-      // Non-blocking — sale is saved
+      if (preOpenedWindow) preOpenedWindow.close();
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100">
+    <div className="flex flex-col h-full bg-[#fdfbf7]">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shrink-0">
         <div className="flex-1">
@@ -137,7 +132,7 @@ export function POSClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="w-full pl-9 pr-3 h-9 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+            className="w-full pl-9 pr-3 h-9 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-700 focus:bg-white"
           />
         </div>
       </div>
@@ -179,9 +174,8 @@ export function POSClient({
           )}
 
           <ProductGrid
-            products={products}
+            products={filteredProducts}
             onSelect={handleProductSelect}
-            loading={loading}
             recentlyAddedId={recentlyAddedId}
           />
         </div>
@@ -189,7 +183,7 @@ export function POSClient({
         {/* Right: order panel */}
         <div className="w-72 xl:w-80 shrink-0 flex flex-col border-l border-slate-200">
           <OrderPanel
-            customers={customers}
+            customers={initialCustomers}
             selectedCustomerId={selectedCustomerId}
             onCustomerChange={setSelectedCustomerId}
             onCharge={() => setShowPayment(true)}
