@@ -223,6 +223,18 @@ export function CashierPOSClient({
             )}
           </div>
 
+          {/* Compact totals — always visible, no card */}
+          <div className="flex items-baseline justify-between shrink-0 px-1">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {items.length > 0 ? `Sub ${formatCurrency(subtotalVal)}` : ""}
+            </span>
+            <span className="text-xl font-bold text-primary tabular-nums">
+              {items.length > 0
+                ? `₵${totalVal.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : ""}
+            </span>
+          </div>
+
           {/* Mode buttons — floating on gray background, no card wrapper */}
           <div className="grid grid-cols-3 gap-2 shrink-0">
             {(["Qty", "Disc", "Price"] as const).map((m) => (
@@ -245,39 +257,14 @@ export function CashierPOSClient({
             ))}
           </div>
 
-          {/* Numpad — floating on gray background, no card wrapper */}
+          {/* Numpad — Pay button lives in 4th column below backspace */}
           <div className="shrink-0">
-            <Numpad onKey={pressKey} disabled={!selectedLineId} />
-          </div>
-
-          {/* Totals + Payment */}
-          <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2 shrink-0">
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between text-muted-foreground">
-                <dt>Subtotal</dt>
-                <dd className="tabular-nums">{formatCurrency(subtotalVal)}</dd>
-              </div>
-              <div className="flex items-baseline justify-between border-t border-border pt-2">
-                <dt className="text-base font-semibold text-foreground">Total</dt>
-                <dd>
-                  <span className="text-lg font-light text-primary">₵</span>
-                  <span className="text-3xl font-bold text-primary tabular-nums ml-0.5">
-                    {totalVal.toLocaleString("en-GH", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </span>
-                </dd>
-              </div>
-            </dl>
-
-            <button
-              onClick={() => router.push("/cashier/payment")}
-              disabled={items.length === 0}
-              className="w-full h-12 bg-primary text-primary-foreground rounded-xl text-base font-semibold transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Proceed to Payment
-            </button>
+            <Numpad
+              onKey={pressKey}
+              disabled={!selectedLineId}
+              onPay={() => router.push("/cashier/payment")}
+              payDisabled={items.length === 0}
+            />
           </div>
         </section>
 
