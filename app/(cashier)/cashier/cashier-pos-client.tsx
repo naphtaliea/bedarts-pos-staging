@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Search } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
@@ -63,9 +63,15 @@ export function CashierPOSClient({
 
   const selectedLine = items.find((i) => i.product.id === selectedLineId);
   const categoryMap = Object.fromEntries(initialCategories.map((c) => [c.id, c.name]));
+  const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBuffer("");
+  }, [selectedLineId]);
+
+  // Scroll selected order line into view whenever selection changes
+  useEffect(() => {
+    selectedRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedLineId]);
 
   const pressKey = (key: string) => {
@@ -138,6 +144,7 @@ export function CashierPOSClient({
                   return (
                     <div
                       key={item.product.id}
+                      ref={isSelected ? selectedRowRef : null}
                       onClick={() => setSelectedLineId(item.product.id)}
                       className={cn(
                         "grid grid-cols-2 gap-2 px-3 py-2.5 cursor-pointer transition-colors border-b border-border last:border-b-0",
@@ -227,7 +234,7 @@ export function CashierPOSClient({
                 }}
                 disabled={!selectedLineId}
                 className={cn(
-                  "h-12 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40",
+                  "h-10 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40",
                   mode === m
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border bg-card text-foreground hover:bg-secondary"
@@ -244,8 +251,8 @@ export function CashierPOSClient({
           </div>
 
           {/* Totals + Payment */}
-          <div className="rounded-xl border border-border bg-card p-4 space-y-3 shrink-0">
-            <dl className="space-y-1.5 text-sm">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-2 shrink-0">
+            <dl className="space-y-1 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <dt>Subtotal</dt>
                 <dd className="tabular-nums">{formatCurrency(subtotalVal)}</dd>
@@ -253,8 +260,8 @@ export function CashierPOSClient({
               <div className="flex items-baseline justify-between border-t border-border pt-2">
                 <dt className="text-base font-semibold text-foreground">Total</dt>
                 <dd>
-                  <span className="text-xl font-light text-primary">₵</span>
-                  <span className="text-4xl font-bold text-primary tabular-nums ml-0.5">
+                  <span className="text-lg font-light text-primary">₵</span>
+                  <span className="text-3xl font-bold text-primary tabular-nums ml-0.5">
                     {totalVal.toLocaleString("en-GH", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
@@ -267,7 +274,7 @@ export function CashierPOSClient({
             <button
               onClick={() => router.push("/cashier/payment")}
               disabled={items.length === 0}
-              className="w-full h-14 bg-primary text-primary-foreground rounded-xl text-base font-semibold transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-primary text-primary-foreground rounded-xl text-base font-semibold transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Proceed to Payment
             </button>

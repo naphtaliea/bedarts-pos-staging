@@ -20,7 +20,7 @@ export function Numpad({ onKey, disabled = false }: NumpadProps) {
             onClick={() => onKey(key)}
             disabled={disabled}
             className={cn(
-              "h-14 rounded-xl border border-border bg-card text-lg font-medium text-foreground",
+              "h-12 rounded-xl border border-border bg-card text-base font-medium text-foreground",
               "transition-colors hover:bg-secondary active:scale-95 disabled:opacity-40 shadow-sm"
             )}
           >
