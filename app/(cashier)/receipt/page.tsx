@@ -1,10 +1,21 @@
 import { redirect } from "next/navigation";
 import { getSaleForReceipt } from "@/app/(dashboard)/pos/actions";
 import { ReceiptClient } from "./receipt-client";
+import type { StoreSettings } from "@/lib/types";
 
 interface ReceiptPageProps {
   searchParams: Promise<{ sale?: string }>;
 }
+
+const DEFAULT_SETTINGS: StoreSettings = {
+  id: 1,
+  store_name: "Bedarts Cold Supplies",
+  address: null,
+  phone: null,
+  email: null,
+  receipt_footer: "Thank you for shopping with us!",
+  updated_at: "",
+};
 
 export default async function ReceiptPage({ searchParams }: ReceiptPageProps) {
   const { sale: saleId } = await searchParams;
@@ -17,12 +28,8 @@ export default async function ReceiptPage({ searchParams }: ReceiptPageProps) {
 
   return (
     <ReceiptClient
-      saleId={saleId}
       sale={sale}
-      storeName={settings?.store_name ?? "Bedarts Cold Supplies"}
-      storeAddress={settings?.address ?? null}
-      storePhone={settings?.phone ?? null}
-      receiptFooter={settings?.receipt_footer ?? null}
+      settings={settings ?? DEFAULT_SETTINGS}
     />
   );
 }

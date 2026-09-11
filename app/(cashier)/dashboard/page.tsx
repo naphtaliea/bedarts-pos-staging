@@ -24,6 +24,12 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -86,7 +92,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <PosTopBar cashierName="" showBack backHref="/cashier" />
+      <PosTopBar cashierName={profile?.full_name ?? ""} showBack backHref="/cashier" />
 
       <main className="flex-1 p-4 lg:p-6 space-y-6 max-w-5xl mx-auto w-full">
         <div>
