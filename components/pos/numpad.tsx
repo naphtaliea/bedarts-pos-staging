@@ -39,7 +39,8 @@ export function Numpad({ onKey, disabled = false, onPay, payDisabled }: NumpadPr
           disabled={disabled}
           aria-label="Backspace"
           className={cn(
-            "h-10 flex items-center justify-center rounded-xl border border-border bg-secondary text-foreground",
+            onPay ? "h-10" : "flex-1",
+            "flex items-center justify-center rounded-xl border border-border bg-secondary text-foreground",
             "transition-colors hover:bg-border active:scale-95 disabled:opacity-40 shadow-sm"
           )}
         >

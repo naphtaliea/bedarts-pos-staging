@@ -119,7 +119,7 @@ export function CashierPOSClient({
         {/* LEFT — Order panel */}
         <section className="flex flex-col gap-2.5 w-full lg:w-[40%] min-w-0 overflow-y-auto">
           {/* Order lines card — capped height so numpad is always visible */}
-          <div className="shrink-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ maxHeight: "clamp(80px, 26vh, 300px)" }}>
+          <div className="shrink-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ maxHeight: "clamp(80px, 20vh, 240px)" }}>
             <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
               <span className="text-sm font-semibold text-foreground">Order</span>
               {items.length > 0 && (
