@@ -47,6 +47,8 @@ export function CashierPOSClient({
   const [category, setCategory] = useState<string | null>(null);
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
 
+  const selectedLine = items.find((i) => i.product.id === selectedLineId);
+
   // Reset buffer when selected line changes
   useEffect(() => {
     setBuffer("");
@@ -189,17 +191,44 @@ export function CashierPOSClient({
             )}
           </div>
 
-          {/* Mode buttons + Numpad */}
-          <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+          {/* Selected line display + Mode buttons + Numpad */}
+          <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+            {/* Selected product / input display */}
+            <div className="rounded-lg bg-secondary px-3 py-2.5 min-h-[54px] flex flex-col justify-center">
+              {selectedLine ? (
+                <>
+                  <p className="text-xs text-muted-foreground truncate leading-tight">
+                    {selectedLine.product.name}
+                  </p>
+                  <div className="flex items-baseline justify-between mt-0.5">
+                    <span className="text-xs text-muted-foreground">{mode}</span>
+                    <span className="text-2xl font-bold text-foreground tabular-nums">
+                      {buffer !== ""
+                        ? buffer
+                        : mode === "Qty"
+                          ? String(selectedLine.quantity)
+                          : mode === "Disc"
+                            ? String(selectedLine.discount_amount)
+                            : selectedLine.unit_price.toFixed(2)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center">
+                  Select a product to edit
+                </p>
+              )}
+            </div>
+
             {/* Mode buttons */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {(["Qty", "Disc", "Price"] as const).map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMode(m)}
+                  onClick={() => { setMode(m); setBuffer(""); }}
                   disabled={!selectedLineId}
                   className={cn(
-                    "py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-40",
+                    "py-1.5 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-40",
                     mode === m
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border bg-card text-foreground hover:bg-secondary"
@@ -208,14 +237,6 @@ export function CashierPOSClient({
                   {m}
                 </button>
               ))}
-            </div>
-
-            {/* Buffer display */}
-            <div className="rounded-lg bg-secondary px-3 py-2 text-right">
-              <span className="text-xs text-muted-foreground mr-1">{mode}</span>
-              <span className="text-lg font-bold text-foreground tabular-nums">
-                {buffer || "0"}
-              </span>
             </div>
 
             <Numpad onKey={pressKey} disabled={!selectedLineId} />
