@@ -67,7 +67,7 @@ function expiryMessage(days: number): string {
 
 function EmptyCard({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-400">
+    <div className="rounded-xl border border-border bg-secondary px-4 py-3 text-xs text-muted-foreground">
       {message}
     </div>
   );
@@ -92,14 +92,14 @@ function ExpiryCard({ batch, days }: ExpiryCardProps) {
           aria-hidden
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900 truncate">
+          <p className="text-sm font-semibold text-foreground truncate">
             {batch.product.name}
           </p>
-          <p className="mt-0.5 text-xs text-slate-600">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {batch.quantity_remaining} {batch.product.unit} remaining
           </p>
           <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted-foreground">
               Expires {formatDateOnly(batch.expiry_date!)}
             </span>
             <span
@@ -142,7 +142,7 @@ function StockCard({ product }: StockCardProps) {
           />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900 truncate">
+          <p className="text-sm font-semibold text-foreground truncate">
             {product.name}
           </p>
           {isOut ? (
@@ -150,7 +150,7 @@ function StockCard({ product }: StockCardProps) {
               Out of Stock
             </p>
           ) : (
-            <p className="mt-0.5 text-xs text-slate-600">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {product.stock_quantity} {product.unit} remaining &mdash; threshold{" "}
               {product.low_stock_threshold} {product.unit}
             </p>
@@ -191,7 +191,7 @@ export function AlertsPanel({ products, batches }: AlertsPanelProps) {
     <div className="space-y-6">
       {/* ---- Section 1: Expiring Soon ---- */}
       <section>
-        <h3 className="text-base font-semibold text-slate-900 mb-3">
+        <h3 className="text-base font-semibold text-foreground mb-3">
           Expiring Soon (&le;&nbsp;7 days)
         </h3>
         {expiringBatches.length === 0 ? (
@@ -207,7 +207,7 @@ export function AlertsPanel({ products, batches }: AlertsPanelProps) {
 
       {/* ---- Section 2: Low Stock ---- */}
       <section>
-        <h3 className="text-base font-semibold text-slate-900 mb-3">
+        <h3 className="text-base font-semibold text-foreground mb-3">
           Low Stock
         </h3>
         {noStockAlerts ? (

@@ -40,7 +40,7 @@ const REASON_OPTIONS: ReasonOption[] = [
     value: "correction",
     label: "Correction",
     description: "Adds stock",
-    selectedClass: "bg-blue-700 text-white border-blue-700",
+    selectedClass: "bg-primary text-white border-primary",
   },
   {
     value: "return",
@@ -51,14 +51,14 @@ const REASON_OPTIONS: ReasonOption[] = [
 ];
 
 const SELECT_CLASS = cn(
-  "flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900",
-  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+  "flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground",
+  "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
   "disabled:cursor-not-allowed disabled:opacity-50"
 );
 
 const TEXTAREA_CLASS = cn(
-  "flex w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 resize-none",
-  "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+  "flex w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none",
+  "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
   "disabled:cursor-not-allowed disabled:opacity-50"
 );
 
@@ -132,16 +132,16 @@ export function AdjustmentDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-md mx-4 bg-card rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">
             Stock Adjustment
           </h2>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -155,7 +155,7 @@ export function AdjustmentDialog({
         >
           {/* Product */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">
+            <label className="block text-xs font-medium text-muted-foreground">
               Product
             </label>
             <select
@@ -177,7 +177,7 @@ export function AdjustmentDialog({
 
           {/* Reason toggle */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">
+            <label className="block text-xs font-medium text-muted-foreground">
               Reason
             </label>
             <div className="flex gap-2">
@@ -190,7 +190,7 @@ export function AdjustmentDialog({
                     "flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
                     form.reason === value
                       ? selectedClass
-                      : "bg-white border-slate-300 text-slate-600 hover:bg-slate-50"
+                      : "bg-card border-border text-muted-foreground hover:bg-secondary"
                   )}
                 >
                   {label}
@@ -201,7 +201,7 @@ export function AdjustmentDialog({
 
           {/* Quantity */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">
+            <label className="block text-xs font-medium text-muted-foreground">
               Quantity
             </label>
             <Input
@@ -215,7 +215,7 @@ export function AdjustmentDialog({
               }
               placeholder="0.000"
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               For write-offs, stock will be deducted. For corrections/returns,
               stock will be added.
             </p>
@@ -223,7 +223,7 @@ export function AdjustmentDialog({
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-medium text-slate-600">
+            <label className="block text-xs font-medium text-muted-foreground">
               Notes (optional)
             </label>
             <textarea
@@ -244,7 +244,7 @@ export function AdjustmentDialog({
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
           <Button
             type="button"
             variant="outline"

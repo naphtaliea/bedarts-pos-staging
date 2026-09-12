@@ -117,13 +117,13 @@ export function PurchaseFormDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-lg font-semibold text-slate-900">New Purchase</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="text-lg font-semibold text-foreground">New Purchase</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -134,13 +134,13 @@ export function PurchaseFormDialog({
           {/* Section 1 — Supplier & Notes */}
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-muted-foreground">
                 Supplier <span className="text-red-500">*</span>
               </label>
               <select
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">Select supplier…</option>
                 {suppliers.map((s) => (
@@ -152,7 +152,7 @@ export function PurchaseFormDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-muted-foreground">
                 Notes
               </label>
               <textarea
@@ -160,7 +160,7 @@ export function PurchaseFormDialog({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Optional notes…"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700 resize-none"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
             </div>
           </div>
@@ -181,14 +181,14 @@ export function PurchaseFormDialog({
                     ].map((heading) => (
                       <th
                         key={heading}
-                        className="pb-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 pr-3 last:pr-0"
+                        className="pb-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground pr-3 last:pr-0"
                       >
                         {heading}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {items.map((item, index) => (
                     <tr key={index} className="align-top">
                       {/* Product */}
@@ -198,7 +198,7 @@ export function PurchaseFormDialog({
                           onChange={(e) =>
                             updateItem(index, "product_id", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
+                          className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="">Select…</option>
                           {activeProducts.map((p) => (
@@ -263,7 +263,7 @@ export function PurchaseFormDialog({
 
                       {/* Total */}
                       <td className="py-2 pr-3 w-28">
-                        <div className="flex h-9 items-center text-sm font-medium text-slate-700 tabular-nums">
+                        <div className="flex h-9 items-center text-sm font-medium text-foreground tabular-nums">
                           {formatCurrency(lineTotal(item))}
                         </div>
                       </td>
@@ -273,7 +273,7 @@ export function PurchaseFormDialog({
                         {items.length > 1 && (
                           <button
                             onClick={() => removeItem(index)}
-                            className="flex h-9 w-8 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                            className="flex h-9 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -287,7 +287,7 @@ export function PurchaseFormDialog({
 
             <button
               onClick={addItem}
-              className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Item
@@ -302,9 +302,9 @@ export function PurchaseFormDialog({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-slate-200 px-6 py-4 flex justify-between items-center">
-          <div className="text-slate-900">
-            <span className="text-sm text-slate-500 mr-2">Total:</span>
+        <div className="shrink-0 border-t border-border px-6 py-4 flex justify-between items-center">
+          <div className="text-foreground">
+            <span className="text-sm text-muted-foreground mr-2">Total:</span>
             <span className="text-xl font-bold tabular-nums">
               {formatCurrency(grandTotal)}
             </span>
@@ -316,7 +316,7 @@ export function PurchaseFormDialog({
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-blue-700 hover:bg-blue-800 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {submitting ? "Saving…" : "Record Purchase"}
             </Button>

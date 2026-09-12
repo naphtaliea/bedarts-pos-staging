@@ -19,7 +19,7 @@ export function SupplierTable({
 }: SupplierTableProps) {
   if (suppliers.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
         No suppliers yet
       </div>
     );
@@ -33,38 +33,38 @@ export function SupplierTable({
             {HEADINGS.map((heading) => (
               <th
                 key={heading}
-                className="sticky top-0 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5"
+                className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
               >
                 {heading}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {suppliers.map((supplier) => (
             <tr
               key={supplier.id}
-              className="transition-colors hover:bg-slate-50"
+              className="transition-colors hover:bg-secondary"
             >
               {/* Name */}
               <td className="whitespace-nowrap px-4 py-3 pl-5">
-                <span className="text-sm font-medium text-slate-900">
+                <span className="text-sm font-medium text-foreground">
                   {supplier.name}
                 </span>
               </td>
 
               {/* Phone */}
-              <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+              <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                 {supplier.phone ?? "—"}
               </td>
 
               {/* Email */}
-              <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+              <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                 {supplier.email ?? "—"}
               </td>
 
               {/* Address */}
-              <td className="px-4 py-3 text-sm text-slate-500">
+              <td className="px-4 py-3 text-sm text-muted-foreground">
                 <span className="line-clamp-2 max-w-xs">
                   {supplier.address ?? "—"}
                 </span>
@@ -76,14 +76,14 @@ export function SupplierTable({
                   <button
                     onClick={() => onEdit(supplier)}
                     aria-label={`Edit ${supplier.name}`}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-700"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => onDelete(supplier)}
                     aria-label={`Delete ${supplier.name}`}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

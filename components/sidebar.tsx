@@ -43,20 +43,20 @@ export function Sidebar({ profile }: SidebarProps) {
   );
 
   return (
-    <aside className="flex h-full w-60 flex-col bg-slate-950 border-r border-slate-800">
+    <aside className="flex h-full w-60 flex-col bg-sidebar border-r border-white/10">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 shrink-0">
-          <Snowflake className="w-5 h-5 text-white" />
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-active shrink-0">
+          <Snowflake className="w-5 h-5 text-white" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-white truncate">Bedarts</p>
-          <p className="text-xs text-slate-500 truncate">Cold Supplies</p>
+          <p className="text-sm font-bold text-sidebar-foreground truncate">Bedarts</p>
+          <p className="text-xs text-sidebar-muted truncate">Cold Supplies</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-1" aria-label="Main navigation">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
@@ -64,14 +64,15 @@ export function Sidebar({ profile }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 active
-                  ? "bg-blue-700 text-white"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  ? "bg-sidebar-active text-white"
+                  : "text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground"
               )}
             >
-              <Icon className="w-5 h-5 shrink-0" />
+              <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
               {item.label}
             </Link>
           );
@@ -79,17 +80,17 @@ export function Sidebar({ profile }: SidebarProps) {
       </nav>
 
       {/* User + Logout */}
-      <div className="border-t border-slate-800 px-3 py-4 flex flex-col gap-1">
+      <div className="border-t border-white/10 px-3 py-4 flex flex-col gap-1">
         <div className="px-3 py-2">
-          <p className="text-sm font-medium text-white truncate">{profile.full_name}</p>
-          <p className="text-xs text-slate-500 capitalize">{profile.role}</p>
+          <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.full_name}</p>
+          <p className="text-xs text-sidebar-muted capitalize">{profile.role}</p>
         </div>
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
           >
-            <LogOut className="w-5 h-5 shrink-0" />
+            <LogOut className="w-5 h-5 shrink-0" aria-hidden="true" />
             Sign out
           </button>
         </form>

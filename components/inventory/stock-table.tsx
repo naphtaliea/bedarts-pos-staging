@@ -37,7 +37,7 @@ function StatusBadge({ status }: { status: BatchStatus }) {
   switch (status) {
     case "depleted":
       return (
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
           Depleted
         </span>
       );
@@ -64,7 +64,7 @@ function StatusBadge({ status }: { status: BatchStatus }) {
 
 function ExpiryCell({ expiry_date }: { expiry_date: string | null }) {
   if (expiry_date === null) {
-    return <span className="text-slate-400">—</span>;
+    return <span className="text-muted-foreground">—</span>;
   }
 
   const days = daysUntilExpiry(expiry_date);
@@ -97,8 +97,8 @@ function ExpiryCell({ expiry_date }: { expiry_date: string | null }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-sm text-slate-600">
-      <CalendarClock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+      <CalendarClock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       {formatShortDate(expiry_date)}
     </span>
   );
@@ -150,7 +150,7 @@ export function StockTable({ batches, productFilter }: StockTableProps) {
 
   if (sorted.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
         No stock batches yet
       </div>
     );
@@ -164,45 +164,45 @@ export function StockTable({ batches, productFilter }: StockTableProps) {
             {COLUMNS.map((heading) => (
               <th
                 key={heading}
-                className="sticky top-0 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5"
+                className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
               >
                 {heading}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {sorted.map((batch) => {
             const status = getBatchStatus(batch);
             return (
               <tr
                 key={batch.id}
-                className="transition-colors hover:bg-slate-50"
+                className="transition-colors hover:bg-secondary"
               >
                 {/* Product */}
                 <td className="whitespace-nowrap px-4 py-3 pl-5">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span className="text-sm font-medium text-foreground">
                     {batch.product.name}
                   </span>
                 </td>
 
                 {/* Received date */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                   {formatShortDate(batch.received_date)}
                 </td>
 
                 {/* Received qty */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-700">
+                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-foreground">
                   {batch.quantity_received} {batch.product.unit}
                 </td>
 
                 {/* Remaining qty */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold tabular-nums text-slate-900">
+                <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold tabular-nums text-foreground">
                   {batch.quantity_remaining} {batch.product.unit}
                 </td>
 
                 {/* Cost/Unit */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-700">
+                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-foreground">
                   {formatCurrency(batch.cost_price)}
                 </td>
 

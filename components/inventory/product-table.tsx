@@ -62,7 +62,7 @@ function StockCell({ product }: { product: Product }) {
     <span
       className={cn(
         "inline-flex items-center gap-1 text-sm",
-        isLow ? "font-medium text-red-600" : "text-slate-700"
+        isLow ? "font-medium text-red-600" : "text-foreground"
       )}
     >
       {isLow && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
@@ -79,7 +79,7 @@ export function ProductTable({
 }: ProductTableProps) {
   if (products.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
         No products yet
       </div>
     );
@@ -102,28 +102,28 @@ export function ProductTable({
             ].map((heading) => (
               <th
                 key={heading}
-                className="sticky top-0 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5"
+                className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
               >
                 {heading}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {products.map((product) => (
             <tr
               key={product.id}
-              className="hover:bg-slate-50 transition-colors"
+              className="hover:bg-secondary transition-colors"
             >
               {/* Name */}
               <td className="whitespace-nowrap px-4 py-3 pl-5">
-                <span className="text-sm font-medium text-slate-900">
+                <span className="text-sm font-medium text-foreground">
                   {product.name}
                 </span>
               </td>
 
               {/* Category */}
-              <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+              <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                 {product.category?.name ?? "—"}
               </td>
 
@@ -133,12 +133,12 @@ export function ProductTable({
               </td>
 
               {/* Selling Price */}
-              <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-700">
+              <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-foreground">
                 {formatCurrency(product.selling_price)}
               </td>
 
               {/* Cost Price */}
-              <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-slate-500">
+              <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-muted-foreground">
                 {formatCurrency(product.cost_price)}
               </td>
 
@@ -154,7 +154,7 @@ export function ProductTable({
                     Active
                   </span>
                 ) : (
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                  <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                     Inactive
                   </span>
                 )}
@@ -166,7 +166,7 @@ export function ProductTable({
                   <button
                     onClick={() => onEdit(product)}
                     aria-label={`Edit ${product.name}`}
-                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -177,7 +177,7 @@ export function ProductTable({
                         ? `Deactivate ${product.name}`
                         : `Activate ${product.name}`
                     }
-                    className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   >
                     {product.is_active ? (
                       <EyeOff className="h-4 w-4" />

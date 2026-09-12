@@ -146,16 +146,16 @@ function CategoryManagerDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+      <div className="w-full max-w-sm mx-4 bg-card rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">
             Manage Categories
           </h2>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -164,7 +164,7 @@ function CategoryManagerDialog({
         {/* Category list — scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {categories.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">
+            <p className="text-sm text-muted-foreground text-center py-6">
               No categories yet
             </p>
           ) : (
@@ -172,14 +172,14 @@ function CategoryManagerDialog({
               {categories.map((cat) => (
                 <li
                   key={cat.id}
-                  className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-slate-50 group"
+                  className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-secondary group"
                 >
-                  <span className="text-sm text-slate-800">{cat.name}</span>
+                  <span className="text-sm text-foreground">{cat.name}</span>
                   <button
                     onClick={() => handleDelete(cat.id)}
                     disabled={deletingId === cat.id}
                     aria-label={`Delete ${cat.name}`}
-                    className="rounded p-1 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                    className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -196,7 +196,7 @@ function CategoryManagerDialog({
         </div>
 
         {/* Add category footer */}
-        <div className="border-t border-slate-100 px-6 py-4">
+        <div className="border-t border-border px-6 py-4">
           <form onSubmit={handleAdd} className="flex gap-2">
             <input
               ref={inputRef}
@@ -204,12 +204,12 @@ function CategoryManagerDialog({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New category name"
-              className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <button
               type="submit"
               disabled={adding || !newName.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Add
@@ -359,14 +359,14 @@ export function InventoryClient({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCategoryManager(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
           >
             <Tag className="h-3.5 w-3.5" />
             Manage Categories
           </button>
           <button
             onClick={() => setShowProductForm("create")}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Product
@@ -378,7 +378,7 @@ export function InventoryClient({
       return (
         <button
           onClick={() => setShowReceiveStock(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           Receive Stock
@@ -389,7 +389,7 @@ export function InventoryClient({
       return (
         <button
           onClick={() => setShowAdjustment(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           Log Adjustment
@@ -412,12 +412,12 @@ export function InventoryClient({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products…"
-              className="h-9 w-full max-w-xs rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="h-9 w-full max-w-xs rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             <ProductTable
               products={filteredProducts}
               categories={categories}
@@ -437,7 +437,7 @@ export function InventoryClient({
             <select
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
-              className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value="">All Products</option>
               {products.map((p) => (
@@ -449,7 +449,7 @@ export function InventoryClient({
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             <StockTable batches={batches} productFilter={productFilter} />
           </div>
         </div>
@@ -458,9 +458,9 @@ export function InventoryClient({
 
     if (activeTab === "adjustments") {
       return (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           {adjustments.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-sm text-slate-400">
+            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
               No adjustments logged yet
             </div>
           ) : (
@@ -472,7 +472,7 @@ export function InventoryClient({
                       (heading) => (
                         <th
                           key={heading}
-                          className="sticky top-0 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5"
+                          className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
                         >
                           {heading}
                         </th>
@@ -480,21 +480,21 @@ export function InventoryClient({
                     )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {adjustments.map((adj) => {
                     const isPositive = adj.quantity_change > 0;
                     return (
                       <tr
                         key={adj.id}
-                        className="hover:bg-slate-50 transition-colors"
+                        className="hover:bg-secondary transition-colors"
                       >
                         {/* Date */}
-                        <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-slate-500">
+                        <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-muted-foreground">
                           {formatDate(adj.created_at)}
                         </td>
 
                         {/* Product */}
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-slate-900">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground">
                           {adj.product.name}
                         </td>
 
@@ -516,14 +516,14 @@ export function InventoryClient({
                         </td>
 
                         {/* Notes */}
-                        <td className="px-4 py-3 text-sm text-slate-500 max-w-xs truncate">
+                        <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">
                           {adj.notes ?? (
-                            <span className="text-slate-300">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
 
                         {/* Adjusted By */}
-                        <td className="whitespace-nowrap px-4 py-3 pr-5 text-sm text-slate-500">
+                        <td className="whitespace-nowrap px-4 py-3 pr-5 text-sm text-muted-foreground">
                           {adj.adjuster.full_name}
                         </td>
                       </tr>
@@ -554,10 +554,10 @@ export function InventoryClient({
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 gap-4 flex-wrap">
+      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between shrink-0 gap-4 flex-wrap">
         {/* Left: title + tabs */}
         <div className="flex items-center gap-6">
-          <h1 className="text-lg font-bold text-slate-900 shrink-0">
+          <h1 className="text-lg font-bold text-foreground shrink-0">
             Inventory
           </h1>
 
@@ -571,8 +571,8 @@ export function InventoryClient({
                   onClick={() => setActiveTab(tab.id)}
                   className={`relative px-3 py-1.5 text-sm font-medium transition-colors rounded-t ${
                     isActive
-                      ? "text-blue-700 after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-blue-700"
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "text-primary after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-primary"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {tab.label}
@@ -594,8 +594,8 @@ export function InventoryClient({
         <div
           className={`fixed top-5 right-5 z-[100] flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg transition-all ${
             toast.type === "success"
-              ? "bg-green-600 text-white"
-              : "bg-red-600 text-white"
+              ? "bg-success text-white"
+              : "bg-destructive text-destructive-foreground"
           }`}
         >
           {toast.message}

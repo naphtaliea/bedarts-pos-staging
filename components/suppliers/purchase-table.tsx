@@ -34,7 +34,7 @@ const HEADINGS = ["Date", "Supplier", "Received By", "Items", "Total", "Actions"
 export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
   if (purchases.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
         No purchases recorded yet
       </div>
     );
@@ -48,46 +48,46 @@ export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
             {HEADINGS.map((heading) => (
               <th
                 key={heading}
-                className="sticky top-0 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5"
+                className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
               >
                 {heading}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-border">
           {purchases.map((purchase) => {
             const itemCount = purchase.purchase_items?.length ?? 0;
 
             return (
               <tr
                 key={purchase.id}
-                className="transition-colors hover:bg-slate-50"
+                className="transition-colors hover:bg-secondary"
               >
                 {/* Date */}
-                <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-slate-500">
+                <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-muted-foreground">
                   {formatDate(purchase.created_at)}
                 </td>
 
                 {/* Supplier */}
                 <td className="whitespace-nowrap px-4 py-3">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span className="text-sm font-medium text-foreground">
                     {purchase.supplier.name}
                   </span>
                 </td>
 
                 {/* Received By */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                   {purchase.receiver.full_name}
                 </td>
 
                 {/* Items */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                   {itemCount === 1 ? "1 item" : `${itemCount} items`}
                 </td>
 
                 {/* Total */}
-                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums font-medium text-slate-700">
+                <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums font-medium text-foreground">
                   {formatCurrency(purchase.total_amount)}
                 </td>
 
@@ -96,7 +96,7 @@ export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
                   <button
                     onClick={() => onViewDetail(purchase)}
                     aria-label="View purchase details"
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   >
                     <Eye className="h-4 w-4" />
                   </button>

@@ -143,7 +143,7 @@ export function SuppliersClient({
       return (
         <button
           onClick={() => setShowSupplierForm("create")}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           Add Supplier
@@ -154,7 +154,7 @@ export function SuppliersClient({
       return (
         <button
           onClick={() => setShowPurchaseForm(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           New Purchase
@@ -169,7 +169,7 @@ export function SuppliersClient({
   function renderTabContent() {
     if (activeTab === "suppliers") {
       return (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <SupplierTable
             suppliers={suppliers}
             onEdit={(supplier) => setShowSupplierForm(supplier)}
@@ -181,7 +181,7 @@ export function SuppliersClient({
 
     if (activeTab === "purchases") {
       return (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <PurchaseTable
             purchases={purchases}
             onViewDetail={(purchase) => setSelectedPurchase(purchase)}
@@ -198,10 +198,10 @@ export function SuppliersClient({
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 gap-4 flex-wrap">
+      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between shrink-0 gap-4 flex-wrap">
         {/* Left: title + tabs */}
         <div className="flex items-center gap-6">
-          <h1 className="text-lg font-bold text-slate-900 shrink-0">
+          <h1 className="text-lg font-bold text-foreground shrink-0">
             Suppliers
           </h1>
 
@@ -215,8 +215,8 @@ export function SuppliersClient({
                   onClick={() => setActiveTab(tab.id)}
                   className={`relative px-3 py-1.5 text-sm font-medium transition-colors rounded-t ${
                     isActive
-                      ? "text-blue-700 after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-blue-700"
-                      : "text-slate-500 hover:text-slate-700"
+                      ? "text-primary after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-primary"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {tab.label}
@@ -238,8 +238,8 @@ export function SuppliersClient({
         <div
           className={`fixed top-5 right-5 z-[100] flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg transition-all ${
             toast.type === "success"
-              ? "bg-green-600 text-white"
-              : "bg-red-600 text-white"
+              ? "bg-success text-white"
+              : "bg-destructive text-destructive-foreground"
           }`}
         >
           {toast.message}
