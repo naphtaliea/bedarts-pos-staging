@@ -124,9 +124,9 @@ export function CashierPOSClient({
 
       <div className="flex flex-1 min-h-0 p-3 gap-3 lg:p-4 lg:gap-4">
         {/* LEFT — Order panel */}
-        <section className="flex flex-col gap-2.5 w-full lg:w-[40%] min-w-0 overflow-y-auto">
-          {/* Order lines card — capped height so numpad is always visible */}
-          <div className="shrink-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col" style={{ maxHeight: "clamp(80px, 20vh, 240px)" }}>
+        <section className="flex flex-col gap-2.5 w-full lg:w-[40%] min-w-0">
+          {/* Order lines — expands to fill all space above the fixed numpad */}
+          <div className="flex-1 min-h-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
             <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
               <span className="text-sm font-semibold text-foreground">Order</span>
               {items.length > 0 && (
