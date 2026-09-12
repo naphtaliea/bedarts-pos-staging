@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Printer, ShoppingCart } from "lucide-react";
+import { Printer, ShoppingCart, ClipboardList } from "lucide-react";
 import { generateReceipt } from "@/lib/pdf/receipt";
 import { formatCurrency } from "@/lib/utils";
 import type { Sale, StoreSettings } from "@/lib/types";
@@ -42,6 +42,16 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-start py-10 px-4">
+      {/* Back link */}
+      <div className="w-full max-w-md mb-4">
+        <Link
+          href="/cashier/orders"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ClipboardList className="w-4 h-4" />
+          Back to Orders
+        </Link>
+      </div>
       {/* Receipt card */}
       <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* Store header */}
@@ -145,21 +155,30 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-3 mt-6 w-full max-w-md">
+      <div className="flex flex-col gap-3 mt-6 w-full max-w-md">
         <button
           onClick={handlePrint}
-          className="flex-1 flex items-center justify-center gap-2 h-12 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
+          className="flex items-center justify-center gap-2 h-12 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
         >
           <Printer className="w-4 h-4" />
           Print Receipt
         </button>
-        <Link
-          href="/cashier"
-          className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-colors"
-        >
-          <ShoppingCart className="w-4 h-4" />
-          New Order
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/cashier"
+            className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-colors"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            New Order
+          </Link>
+          <Link
+            href="/cashier/orders"
+            className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-colors"
+          >
+            <ClipboardList className="w-4 h-4" />
+            View Orders
+          </Link>
+        </div>
       </div>
     </div>
   );

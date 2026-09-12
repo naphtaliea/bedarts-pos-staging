@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { formatCurrency } from "@/lib/utils";
@@ -112,6 +114,7 @@ export default async function OrdersPage() {
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Total
                     </th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -150,6 +153,15 @@ export default async function OrdersPage() {
                         </td>
                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground">
                           {formatCurrency(order.total_amount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/cashier/receipt?sale=${order.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Receipt
+                          </Link>
                         </td>
                       </tr>
                     );
