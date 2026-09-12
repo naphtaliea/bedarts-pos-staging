@@ -69,7 +69,6 @@ export function CashierPOSClient({
     setBuffer("");
   }, [selectedLineId]);
 
-  // Scroll selected order line into view after DOM paint
   useLayoutEffect(() => {
     selectedRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedLineId]);
@@ -98,6 +97,14 @@ export function CashierPOSClient({
   };
 
   const handleAddProduct = (product: Product) => {
+    // Already focused on this product — no-op, use numpad to edit
+    if (selectedLineId === product.id) return;
+    // In cart but not selected — just select it, don't increment
+    const alreadyInCart = items.some((i) => i.product.id === product.id);
+    if (alreadyInCart) {
+      setSelectedLineId(product.id);
+      return;
+    }
     addItem(product);
     setSelectedLineId(product.id);
     setRecentlyAddedId(product.id);
@@ -177,6 +184,7 @@ export function CashierPOSClient({
                             removeItem(item.product.id);
                             if (selectedLineId === item.product.id) setSelectedLineId(null);
                           }}
+                          aria-label={`Remove ${item.product.name}`}
                           className={cn(
                             "p-1 rounded transition-colors",
                             isSelected
@@ -184,7 +192,7 @@ export function CashierPOSClient({
                               : "hover:bg-destructive/10 text-destructive"
                           )}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -194,7 +202,7 @@ export function CashierPOSClient({
             )}
           </div>
 
-          {/* Selected line display — standalone card */}
+          {/* Selected line display */}
           <div className="rounded-xl border border-border bg-card px-4 py-3 min-h-[60px] flex flex-col justify-center shrink-0">
             {selectedLine ? (
               <>
@@ -223,7 +231,7 @@ export function CashierPOSClient({
             )}
           </div>
 
-          {/* Compact totals — always visible, no card */}
+          {/* Compact totals */}
           <div className="flex items-baseline justify-between shrink-0 px-1">
             <span className="text-xs text-muted-foreground tabular-nums">
               {items.length > 0 ? `Sub ${formatCurrency(subtotalVal)}` : ""}
@@ -235,7 +243,7 @@ export function CashierPOSClient({
             </span>
           </div>
 
-          {/* Mode buttons — floating on gray background, no card wrapper */}
+          {/* Mode buttons */}
           <div className="grid grid-cols-3 gap-2 shrink-0">
             {(["Qty", "Disc", "Price"] as const).map((m) => (
               <button
@@ -246,7 +254,7 @@ export function CashierPOSClient({
                 }}
                 disabled={!selectedLineId}
                 className={cn(
-                  "h-10 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40",
+                  "h-11 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-40",
                   mode === m
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border bg-card text-foreground hover:bg-secondary"
@@ -257,7 +265,7 @@ export function CashierPOSClient({
             ))}
           </div>
 
-          {/* Numpad — Pay button lives in 4th column below backspace */}
+          {/* Numpad */}
           <div className="shrink-0">
             <Numpad
               onKey={pressKey}
@@ -272,8 +280,10 @@ export function CashierPOSClient({
         <section className="flex flex-col gap-3 flex-1 min-w-0">
           {/* Search */}
           <div className="relative shrink-0">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <label htmlFor="product-search" className="sr-only">Search products</label>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
             <input
+              id="product-search"
               type="text"
               placeholder="Search products…"
               value={search}
@@ -282,33 +292,37 @@ export function CashierPOSClient({
             />
           </div>
 
-          {/* Category pills */}
-          <div className="flex gap-2 overflow-x-auto pb-1 shrink-0">
-            <button
-              onClick={() => setCategory(null)}
-              className={cn(
-                "shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                category === null
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-foreground hover:bg-secondary"
-              )}
-            >
-              All
-            </button>
-            {initialCategories.map((cat) => (
+          {/* Category pills with right-fade scroll hint */}
+          <div className="relative shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-1 pr-8">
               <button
-                key={cat.id}
-                onClick={() => setCategory(cat.id)}
+                onClick={() => setCategory(null)}
                 className={cn(
                   "shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                  category === cat.id
+                  category === null
                     ? "bg-primary text-primary-foreground"
                     : "bg-card border border-border text-foreground hover:bg-secondary"
                 )}
               >
-                {cat.name}
+                All
               </button>
-            ))}
+              {initialCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={cn(
+                    "shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                    category === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border text-foreground hover:bg-secondary"
+                  )}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+            {/* Fade hint indicating more pills exist to the right */}
+            <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none" aria-hidden="true" />
           </div>
 
           {/* Product grid */}
@@ -332,11 +346,11 @@ export function CashierPOSClient({
                       key={product.id}
                       onClick={() => handleAddProduct(product)}
                       className={cn(
-                        "rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer transition-all select-none",
+                        "rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer transition-all select-none motion-reduce:transition-none",
                         isActive
                           ? "border-primary ring-2 ring-primary/20 shadow-md"
                           : isRecent
-                          ? "border-green-400 scale-95"
+                          ? "border-green-400 scale-95 motion-reduce:scale-100"
                           : "border-border hover:border-primary hover:shadow-md"
                       )}
                     >
@@ -359,6 +373,7 @@ export function CashierPOSClient({
                               "text-3xl font-bold select-none",
                               isRecent ? "text-green-600" : text
                             )}
+                            aria-hidden="true"
                           >
                             {product.name.charAt(0).toUpperCase()}
                           </span>

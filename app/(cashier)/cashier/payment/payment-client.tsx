@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Banknote, Smartphone, CreditCard, AlertCircle } from "lucide-react";
+import { Banknote, Smartphone, CreditCard, AlertCircle, Loader2 } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { Numpad } from "@/components/pos/numpad";
@@ -12,12 +12,24 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, PaymentEntry } from "@/lib/types";
 
-const QUICK_TENDER = ["5", "10", "20", "50", "100", "200"];
+/** Generates up to 6 round GHS amounts at or above the total, ascending. */
+function getQuickTenders(total: number): string[] {
+  const unique = new Set<number>();
+  for (const step of [5, 10, 20, 50, 100, 200, 500]) {
+    const v = Math.ceil(total / step) * step;
+    if (v >= total) unique.add(v);
+    if (unique.size >= 6) break;
+  }
+  return [...unique]
+    .sort((a, b) => a - b)
+    .slice(0, 6)
+    .map((v) => (Number.isInteger(v) ? String(v) : v.toFixed(2)));
+}
 
 const METHOD_OPTIONS: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
-  { value: "cash", label: "Cash", icon: <Banknote className="w-5 h-5" /> },
-  { value: "momo", label: "Mobile Money", icon: <Smartphone className="w-5 h-5" /> },
-  { value: "pos_machine", label: "POS Machine", icon: <CreditCard className="w-5 h-5" /> },
+  { value: "cash", label: "Cash", icon: <Banknote className="w-5 h-5" aria-hidden="true" /> },
+  { value: "momo", label: "Mobile Money", icon: <Smartphone className="w-5 h-5" aria-hidden="true" /> },
+  { value: "pos_machine", label: "POS Machine", icon: <CreditCard className="w-5 h-5" aria-hidden="true" /> },
 ];
 
 interface PaymentClientProps {
@@ -37,7 +49,6 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Redirect to POS if cart is empty (e.g. after back navigation post-payment)
   useEffect(() => {
     if (items.length === 0) {
       router.replace("/cashier");
@@ -50,6 +61,8 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
     method === "cash" && tenderedNum > 0 && tenderedNum < totalVal
       ? totalVal - tenderedNum
       : 0;
+
+  const quickTenders = getQuickTenders(totalVal);
 
   const pressTender = (key: string) => {
     if (key === "backspace") return setTendered((t) => t.slice(0, -1));
@@ -97,6 +110,34 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
       <div className="flex flex-1 min-h-0 p-3 gap-3 lg:p-4 lg:gap-4">
         {/* LEFT — Payment panel */}
         <section className="flex flex-col gap-3 w-full lg:w-[55%] min-w-0 overflow-y-auto">
+          {/* Mobile-only collapsible order summary */}
+          <details className="lg:hidden rounded-xl border border-border bg-card overflow-hidden shrink-0">
+            <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none">
+              <span className="text-sm font-semibold text-foreground">
+                Order · {items.length} {items.length === 1 ? "item" : "items"}
+              </span>
+              <span className="text-sm font-bold text-primary tabular-nums">
+                {formatCurrency(totalVal)}
+              </span>
+            </summary>
+            <div className="border-t border-border divide-y divide-border max-h-48 overflow-y-auto">
+              {items.map((item) => {
+                const lineTotal = Math.max(0, item.quantity * item.unit_price - item.discount_amount);
+                return (
+                  <div key={item.product.id} className="flex items-baseline justify-between px-4 py-2 gap-2">
+                    <span className="text-sm text-foreground min-w-0 truncate">
+                      <span className="text-muted-foreground mr-1">{item.quantity}×</span>
+                      {item.product.name}
+                    </span>
+                    <span className="text-sm font-medium tabular-nums shrink-0">
+                      {formatCurrency(lineTotal)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+
           {/* Method selector */}
           <div className="rounded-xl border border-border bg-card p-4 shrink-0">
             <p className="text-sm font-semibold text-foreground mb-3">Payment Method</p>
@@ -147,11 +188,11 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
                 )}
               </div>
 
-              {/* Quick-tender + numpad */}
+              {/* Quick-tender (dynamic amounts based on total) + numpad */}
               <div className="rounded-xl border border-border bg-card p-4 shrink-0">
                 <p className="text-xs text-muted-foreground mb-2">Quick tender (GHS)</p>
                 <div className="grid grid-cols-6 gap-2 mb-3">
-                  {QUICK_TENDER.map((amt) => (
+                  {quickTenders.map((amt) => (
                     <button
                       key={amt}
                       onClick={() => setTendered(amt)}
@@ -187,7 +228,7 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
           {/* Error */}
           {error && (
             <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive shrink-0">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
@@ -196,13 +237,20 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
           <button
             onClick={handleConfirm}
             disabled={!isValid || isProcessing}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-xl text-base font-semibold transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="w-full h-14 bg-primary text-primary-foreground rounded-xl text-base font-semibold transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center justify-center gap-2"
           >
-            {isProcessing ? "Processing…" : `Confirm Payment · ${formatCurrency(totalVal)}`}
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                Processing…
+              </>
+            ) : (
+              `Confirm Payment · ${formatCurrency(totalVal)}`
+            )}
           </button>
         </section>
 
-        {/* RIGHT — Order summary */}
+        {/* RIGHT — Order summary (desktop only) */}
         <section className="hidden lg:flex flex-col gap-3 flex-1 min-w-0">
           <div className="rounded-xl border border-border bg-card flex-1 min-h-0 overflow-hidden flex flex-col">
             <div className="px-4 py-3 border-b border-border shrink-0">

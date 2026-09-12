@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Printer, ShoppingCart, ClipboardList } from "lucide-react";
+import { Printer, ShoppingCart, ClipboardList, AlertCircle, ArrowLeft } from "lucide-react";
 import { generateReceipt } from "@/lib/pdf/receipt";
 import { formatCurrency } from "@/lib/utils";
 import type { Sale, StoreSettings } from "@/lib/types";
@@ -18,20 +19,32 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
+  const [printError, setPrintError] = useState<string | null>(null);
+
   const handlePrint = async () => {
-    const pdfBytes = await generateReceipt({
-      sale,
-      items: sale.sale_items ?? [],
-      payments: sale.payments ?? [],
-      cashierName: sale.cashier?.full_name ?? "Cashier",
-      customerName: sale.customer?.name ?? undefined,
-      settings,
-    });
-    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    if (!win) alert("Please allow popups to open the receipt PDF.");
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    setPrintError(null);
+    try {
+      const pdfBytes = await generateReceipt({
+        sale,
+        items: sale.sale_items ?? [],
+        payments: sale.payments ?? [],
+        cashierName: sale.cashier?.full_name ?? "Cashier",
+        customerName: sale.customer?.name ?? undefined,
+        settings,
+      });
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (!win) {
+        setPrintError(
+          "Popups are blocked. Allow popups for this site in your browser settings, then try again."
+        );
+      } else {
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      }
+    } catch {
+      setPrintError("Could not generate receipt PDF. Please try again.");
+    }
   };
 
   const saleRef = `#${sale.id.slice(0, 8).toUpperCase()}`;
@@ -48,10 +61,11 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
           href="/cashier/orders"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ClipboardList className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to Orders
         </Link>
       </div>
+
       {/* Receipt card */}
       <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* Store header */}
@@ -154,13 +168,24 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
         </div>
       </div>
 
+      {/* Print error */}
+      {printError && (
+        <div
+          role="alert"
+          className="w-full max-w-md mt-4 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{printError}</span>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex flex-col gap-3 mt-6 w-full max-w-md">
         <button
           onClick={handlePrint}
           className="flex items-center justify-center gap-2 h-12 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
         >
-          <Printer className="w-4 h-4" />
+          <Printer className="w-4 h-4" aria-hidden="true" />
           Print Receipt
         </button>
         <div className="flex gap-3">
@@ -168,14 +193,14 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
             href="/cashier"
             className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-colors"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-4 h-4" aria-hidden="true" />
             New Order
           </Link>
           <Link
             href="/cashier/orders"
             className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-colors"
           >
-            <ClipboardList className="w-4 h-4" />
+            <ClipboardList className="w-4 h-4" aria-hidden="true" />
             View Orders
           </Link>
         </div>

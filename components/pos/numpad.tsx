@@ -23,8 +23,8 @@ export function Numpad({ onKey, disabled = false, onPay, payDisabled }: NumpadPr
             onClick={() => onKey(key)}
             disabled={disabled}
             className={cn(
-              "h-10 rounded-xl border border-border bg-card text-base font-medium text-foreground",
-              "transition-colors hover:bg-secondary active:scale-95 disabled:opacity-40 shadow-sm"
+              "h-11 rounded-xl border border-border bg-card text-base font-medium text-foreground",
+              "transition-colors hover:bg-secondary active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40 shadow-sm"
             )}
           >
             {key}
@@ -39,12 +39,12 @@ export function Numpad({ onKey, disabled = false, onPay, payDisabled }: NumpadPr
           disabled={disabled}
           aria-label="Backspace"
           className={cn(
-            onPay ? "h-10" : "flex-1",
+            onPay ? "h-11" : "flex-1",
             "flex items-center justify-center rounded-xl border border-border bg-secondary text-foreground",
-            "transition-colors hover:bg-border active:scale-95 disabled:opacity-40 shadow-sm"
+            "transition-colors hover:bg-border active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40 shadow-sm"
           )}
         >
-          <Delete className="w-5 h-5" />
+          <Delete className="w-5 h-5" aria-hidden="true" />
         </button>
 
         {onPay && (
@@ -55,10 +55,10 @@ export function Numpad({ onKey, disabled = false, onPay, payDisabled }: NumpadPr
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-1 rounded-xl",
               "bg-primary text-primary-foreground font-bold text-xs",
-              "transition-colors hover:bg-primary/90 active:scale-95 disabled:opacity-40 shadow-sm"
+              "transition-colors hover:bg-primary/90 active:scale-95 motion-reduce:active:scale-100 disabled:opacity-40 shadow-sm"
             )}
           >
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="w-5 h-5" aria-hidden="true" />
             <span className="leading-none">Pay</span>
           </button>
         )}
