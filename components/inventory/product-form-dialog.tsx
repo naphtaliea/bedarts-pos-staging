@@ -48,7 +48,7 @@ function getDefaultForm(product: Product | null): ProductFormData {
   return {
     name: "",
     category_id: null,
-    unit: "",
+    unit: "kg",
     selling_price: 0,
     cost_price: 0,
     temperature_zone: "chilled",
