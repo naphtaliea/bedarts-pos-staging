@@ -19,7 +19,7 @@ export default async function Home() {
       .eq("id", user.id)
       .single();
     if (profile?.role === "cashier") redirect("/cashier");
-    redirect("/pos");
+    redirect("/dashboard");
   }
 
   return (

@@ -19,7 +19,7 @@ interface ReceiveStockData {
 
 interface ReceiveStockDialogProps {
   products: Product[];
-  suppliers: Supplier[];
+  suppliers: Pick<Supplier, "id" | "name">[];
   onClose: () => void;
   onSave: (data: ReceiveStockData) => Promise<void>;
   defaultProductId?: string;

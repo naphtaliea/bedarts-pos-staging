@@ -19,7 +19,7 @@ import {
   adjustStock,
 } from "./actions";
 import { formatDate } from "@/lib/utils";
-import type { Category, Product, Profile, StockAdjustment } from "@/lib/types";
+import type { Category, Product, Profile, StockAdjustment, Supplier } from "@/lib/types";
 import type { StockBatch } from "@/lib/types";
 
 // ─── Local row types ───────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ interface InventoryClientProps {
   categories: Category[];
   batches: StockBatchRow[];
   adjustments: AdjustmentRow[];
-  suppliers: { id: string; name: string }[];
+  suppliers: Pick<Supplier, "id" | "name">[];
 }
 
 // ─── Tab type ──────────────────────────────────────────────────────────────────

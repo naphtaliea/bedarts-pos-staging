@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  LayoutDashboard,
   ShoppingCart,
   Package,
   Users,
@@ -24,6 +25,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager"] },
   { label: "POS", href: "/pos", icon: ShoppingCart, roles: ["admin", "manager", "cashier"] },
   { label: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "manager"] },
   { label: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager"] },
@@ -59,7 +61,9 @@ export function Sidebar({ profile }: SidebarProps) {
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1" aria-label="Main navigation">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname.startsWith(item.href);
+          const active = item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
