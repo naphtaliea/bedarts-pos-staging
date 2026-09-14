@@ -2,7 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "pos",
-	"account_id": "f309bbcad2717a0169c52b108206fd23",
+	"account_id": "c2b75b61233b1a1a81438b0b7e7235de",
 	"compatibility_date": "2026-09-11",
 	"compatibility_flags": [
 		"nodejs_compat",
