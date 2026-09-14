@@ -106,6 +106,11 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
   if (sale.discount_amount > 0) {
     twoCol("Discount", `-${formatCurrency(sale.discount_amount)}`, regular, 8);
   }
+  if (settings.tax_enabled && settings.tax_rate > 0) {
+    const taxable = sale.subtotal - sale.discount_amount;
+    const taxAmt = taxable * (settings.tax_rate / 100);
+    twoCol(`Tax (${settings.tax_rate}%)`, formatCurrency(taxAmt), regular, 8);
+  }
   twoCol("TOTAL", formatCurrency(sale.total_amount), bold, 10);
 
   rule();

@@ -142,6 +142,16 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
                 <span className="tabular-nums text-amber-600">−{formatCurrency(sale.discount_amount)}</span>
               </div>
             )}
+            {settings.tax_enabled && settings.tax_rate > 0 && (() => {
+              const taxable = sale.subtotal - sale.discount_amount;
+              const taxAmt = taxable * (settings.tax_rate / 100);
+              return (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Tax ({settings.tax_rate}%)</span>
+                  <span className="tabular-nums">{formatCurrency(taxAmt)}</span>
+                </div>
+              );
+            })()}
             <div className="flex justify-between text-base font-bold text-foreground pt-1 border-t border-border">
               <span>TOTAL</span>
               <span className="tabular-nums text-primary">{formatCurrency(sale.total_amount)}</span>
