@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   full_name   text NOT NULL,
   role        text NOT NULL CHECK (role IN ('admin', 'manager', 'cashier')),
   is_active   boolean NOT NULL DEFAULT true,
+  pin         text,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -218,7 +219,10 @@ CREATE POLICY "cashiers_read_own_sales" ON sales
 
 CREATE POLICY "cashiers_create_sales" ON sales
   FOR INSERT TO authenticated
-  WITH CHECK (cashier_id = auth.uid());
+  WITH CHECK (
+    cashier_id = auth.uid()
+    OR get_user_role() IN ('admin', 'manager')
+  );
 
 CREATE POLICY "managers_admins_void_sales" ON sales
   FOR UPDATE TO authenticated
@@ -333,6 +337,28 @@ CREATE POLICY "admins_managers_manage_adjustments" ON stock_adjustments
   WITH CHECK (get_user_role() IN ('admin', 'manager'));
 
 -- ============================================================
+-- PRODUCT PACKAGES (box / fixed-quantity pricing)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS product_packages (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id  uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  label       text NOT NULL,
+  quantity    numeric(12, 3) NOT NULL CHECK (quantity > 0),
+  price       numeric(12, 2) NOT NULL CHECK (price >= 0),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE product_packages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "authenticated_read_packages" ON product_packages
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "admins_managers_manage_packages" ON product_packages
+  FOR ALL TO authenticated
+  USING  (get_user_role() IN ('admin', 'manager'))
+  WITH CHECK (get_user_role() IN ('admin', 'manager'));
+
+-- ============================================================
 -- STORE SETTINGS (singleton row)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS store_settings (
@@ -342,6 +368,8 @@ CREATE TABLE IF NOT EXISTS store_settings (
   phone           text,
   email           text,
   receipt_footer  text DEFAULT 'Thank you for shopping with us!',
+  tax_rate        numeric(5, 2)  NOT NULL DEFAULT 0,
+  tax_enabled     boolean        NOT NULL DEFAULT false,
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
@@ -568,6 +596,54 @@ REVOKE ALL ON FUNCTION complete_sale(jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION void_sale(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION complete_sale(jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION void_sale(uuid, text) TO authenticated;
+
+-- Atomic FEFO batch deduction (called from submitSale server action)
+CREATE OR REPLACE FUNCTION deduct_batch_stock(p_batch_id uuid, p_deduct numeric)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE stock_batches
+  SET quantity_remaining = quantity_remaining - p_deduct
+  WHERE id = p_batch_id
+    AND quantity_remaining >= p_deduct;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Insufficient stock in batch %', p_batch_id;
+  END IF;
+END;
+$$;
+
+-- PIN verification for cashier login (never exposes the raw pin column)
+CREATE OR REPLACE FUNCTION verify_cashier_pin(p_cashier_id uuid, p_pin text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_stored_pin text;
+BEGIN
+  SELECT pin INTO v_stored_pin
+  FROM profiles
+  WHERE id        = p_cashier_id
+    AND is_active = true
+    AND role      = 'cashier';
+
+  IF v_stored_pin IS NULL THEN
+    RETURN false;
+  END IF;
+
+  RETURN v_stored_pin = p_pin;
+END;
+$$;
+
+REVOKE ALL  ON FUNCTION deduct_batch_stock(uuid, numeric) FROM PUBLIC;
+REVOKE ALL  ON FUNCTION verify_cashier_pin(uuid, text)   FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION deduct_batch_stock(uuid, numeric) TO authenticated;
+GRANT EXECUTE ON FUNCTION verify_cashier_pin(uuid, text)   TO authenticated;
 
 -- ============================================================
 -- SEED DATA — Default categories
