@@ -15,6 +15,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   email: null,
   receipt_footer: "Thank you for shopping with us!",
   updated_at: "",
+  tax_rate: 0,
+  tax_enabled: false,
 };
 
 export default async function ReceiptPage({ searchParams }: ReceiptPageProps) {

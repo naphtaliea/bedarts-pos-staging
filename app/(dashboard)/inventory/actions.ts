@@ -113,6 +113,29 @@ export async function receiveStock(data: {
   return {};
 }
 
+// ─── Product Packages ─────────────────────────────────────────────────────────
+
+export async function createProductPackage(data: {
+  product_id: string;
+  label: string;
+  quantity: number;
+  price: number;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("product_packages").insert(data);
+  if (error) return { error: error.message };
+  revalidatePath("/inventory");
+  return {};
+}
+
+export async function deleteProductPackage(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("product_packages").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/inventory");
+  return {};
+}
+
 // ─── Stock Adjustments ────────────────────────────────────────────────────────
 
 export async function adjustStock(data: {

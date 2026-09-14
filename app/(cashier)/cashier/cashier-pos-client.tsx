@@ -2,17 +2,19 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Search } from "lucide-react";
+import { Trash2, Search, X } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
+import type { OrderTab } from "@/lib/pos-store";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { Numpad } from "@/components/pos/numpad";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Profile, Category, Product } from "@/lib/types";
+import type { Profile, Category, Product, ProductPackage } from "@/lib/types";
 
 interface CashierPOSClientProps {
   cashier: Profile;
   initialCategories: Category[];
   initialProducts: Product[];
+  initialPackages: ProductPackage[];
 }
 
 function getCategoryStyle(categoryName: string): { bg: string; text: string } {
@@ -36,11 +38,17 @@ export function CashierPOSClient({
   cashier,
   initialCategories,
   initialProducts,
+  initialPackages,
 }: CashierPOSClientProps) {
   const router = useRouter();
 
   const {
     items,
+    tabs,
+    activeTabId,
+    addTab,
+    removeTab,
+    setActiveTab,
     addItem,
     removeItem,
     updateQty,
@@ -60,6 +68,7 @@ export function CashierPOSClient({
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
+  const [packageModal, setPackageModal] = useState<Product | null>(null);
 
   const selectedLine = items.find((i) => i.product.id === selectedLineId);
   const categoryMap = Object.fromEntries(initialCategories.map((c) => [c.id, c.name]));
@@ -98,17 +107,38 @@ export function CashierPOSClient({
     }
   };
 
+  const productPackages = (product: Product) =>
+    initialPackages.filter((pkg) => pkg.product_id === product.id);
+
   const handleAddProduct = (product: Product) => {
-    // Already focused on this product — no-op, use numpad to edit
     if (selectedLineId === product.id) return;
-    // In cart but not selected — just select it, don't increment
     const alreadyInCart = items.some((i) => i.product.id === product.id);
-    if (alreadyInCart) {
-      setSelectedLineId(product.id);
-      return;
-    }
+    if (alreadyInCart) { setSelectedLineId(product.id); return; }
+
+    // If product has packages, show the picker modal
+    const pkgs = productPackages(product);
+    if (pkgs.length > 0) { setPackageModal(product); return; }
+
     addItem(product);
     setSelectedLineId(product.id);
+    setRecentlyAddedId(product.id);
+    setTimeout(() => setRecentlyAddedId(null), 600);
+  };
+
+  const handleAddLoose = (product: Product) => {
+    addItem(product);
+    setSelectedLineId(product.id);
+    setPackageModal(null);
+    setRecentlyAddedId(product.id);
+    setTimeout(() => setRecentlyAddedId(null), 600);
+  };
+
+  const handleAddPackage = (product: Product, pkg: ProductPackage) => {
+    const unitPrice = pkg.price / pkg.quantity;
+    addItem({ ...product, selling_price: unitPrice });
+    updateQty(product.id, pkg.quantity);
+    setSelectedLineId(product.id);
+    setPackageModal(null);
     setRecentlyAddedId(product.id);
     setTimeout(() => setRecentlyAddedId(null), 600);
   };
@@ -123,6 +153,43 @@ export function CashierPOSClient({
   return (
     <div className="flex flex-col h-screen bg-background">
       <PosTopBar cashierName={cashier.full_name} />
+
+      {/* Order tabs */}
+      <div className="flex items-center gap-1 px-3 pt-2 border-b border-border bg-card overflow-x-auto shrink-0">
+        {tabs.map((tab: OrderTab) => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <div
+              key={tab.id}
+              className={cn(
+                "flex items-center gap-1 shrink-0 rounded-t-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-b-2",
+                isActive
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => { setActiveTab(tab.id); setSelectedLineId(null); }}
+            >
+              <span>{tab.name}</span>
+              {tabs.length > 1 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeTab(tab.id); setSelectedLineId(null); }}
+                  className="ml-0.5 rounded hover:bg-destructive/10 hover:text-destructive p-0.5 transition-colors"
+                  aria-label={`Close ${tab.name}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+        <button
+          onClick={() => { addTab(); setSelectedLineId(null); }}
+          className="shrink-0 flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-lg"
+          aria-label="New order"
+        >
+          <span className="text-base leading-none">+</span>
+        </button>
+      </div>
 
       <div className="flex flex-1 min-h-0 p-3 gap-3 lg:p-4 lg:gap-4">
         {/* LEFT — Order panel */}
@@ -413,6 +480,60 @@ export function CashierPOSClient({
           </div>
         </section>
       </div>
+
+      {/* Package picker modal */}
+      {packageModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+          onClick={(e) => e.target === e.currentTarget && setPackageModal(null)}
+        >
+          <div className="w-full max-w-sm bg-card rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl">
+            <h3 className="text-sm font-semibold text-foreground mb-1">{packageModal.name}</h3>
+            <p className="text-xs text-muted-foreground mb-4">Choose how to add this product</p>
+            <div className="space-y-2">
+              {/* Loose / per-unit option */}
+              <button
+                onClick={() => handleAddLoose(packageModal)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:bg-secondary transition-colors text-left"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Loose · per {packageModal.unit}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Enter quantity on numpad</p>
+                </div>
+                <p className="text-sm font-bold text-accent tabular-nums">
+                  {formatCurrency(packageModal.selling_price)}
+                </p>
+              </button>
+              {/* Package options */}
+              {productPackages(packageModal).map((pkg) => (
+                <button
+                  key={pkg.id}
+                  onClick={() => handleAddPackage(packageModal, pkg)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{pkg.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pkg.quantity} {packageModal.unit} · {formatCurrency(pkg.price / pkg.quantity)}/{packageModal.unit}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-primary tabular-nums">
+                    {formatCurrency(pkg.price)}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPackageModal(null)}
+              className="w-full mt-3 h-10 rounded-xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

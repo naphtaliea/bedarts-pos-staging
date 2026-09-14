@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { InventoryClient } from "./inventory-client";
-import type { Category, Product, Profile } from "@/lib/types";
+import type { Category, Product, ProductPackage, Profile } from "@/lib/types";
 
 export default async function InventoryPage() {
   const supabase = await createClient();
@@ -10,7 +10,7 @@ export default async function InventoryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profileRes, productsRes, categoriesRes, batchesRes, adjustmentsRes, suppliersRes] =
+  const [profileRes, productsRes, categoriesRes, batchesRes, adjustmentsRes, suppliersRes, packagesRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase
@@ -28,6 +28,7 @@ export default async function InventoryPage() {
         .order("created_at", { ascending: false })
         .limit(200),
       supabase.from("suppliers").select("id, name").order("name"),
+      supabase.from("product_packages").select("*").order("label"),
     ]);
 
   if (!profileRes.data) redirect("/login");
@@ -43,6 +44,7 @@ export default async function InventoryPage() {
       batches={(batchesRes.data as any[]) ?? []}
       adjustments={(adjustmentsRes.data as any[]) ?? []}
       suppliers={(suppliersRes.data as any[]) ?? []}
+      packages={(packagesRes.data as ProductPackage[]) ?? []}
     />
   );
 }

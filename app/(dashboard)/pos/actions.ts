@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import type { CartItem, PaymentEntry } from "@/lib/types";
 
@@ -17,6 +18,11 @@ export async function submitSale(args: SubmitSaleArgs) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
+
+  // PIN session overrides auth user for cashier identification
+  const cookieStore = await cookies();
+  const pinCashierId = cookieStore.get("cashier_session")?.value;
+  const cashierId = pinCashierId ?? user.id;
 
   const { items, payments, subtotal, discount, total, customerId } = args;
 
@@ -40,7 +46,7 @@ export async function submitSale(args: SubmitSaleArgs) {
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
     .insert({
-      cashier_id: user.id,
+      cashier_id: cashierId,
       customer_id: customerId || null,
       subtotal,
       discount_amount: discount,

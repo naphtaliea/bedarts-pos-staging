@@ -1,13 +1,58 @@
-import { BarChart3 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { ReportsClient } from "./reports-client";
 
-export default function ReportsPage() {
+export const revalidate = 0;
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (!["admin", "manager"].includes(profile?.role ?? "")) redirect("/pos");
+
+  const params = await searchParams;
+
+  const today = new Date();
+  const toDate = params.to ?? today.toISOString().split("T")[0];
+  const fromDate = params.from ?? (() => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 29);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const [salesRes, adjustmentsRes] = await Promise.all([
+    supabase
+      .from("sales")
+      .select(
+        `id, total_amount, discount_amount, subtotal, created_at, status,
+         cashier:profiles!sales_cashier_id_fkey(full_name),
+         payments(method, amount),
+         sale_items(total_price, quantity, unit_price, product:products(name, cost_price, category:categories(name)))`
+      )
+      .gte("created_at", `${fromDate}T00:00:00.000Z`)
+      .lte("created_at", `${toDate}T23:59:59.999Z`)
+      .order("created_at", { ascending: false }),
+
+    supabase
+      .from("stock_adjustments")
+      .select("quantity_change, reason, created_at, product:products(name)")
+      .gte("created_at", `${fromDate}T00:00:00.000Z`)
+      .lte("created_at", `${toDate}T23:59:59.999Z`)
+      .order("created_at", { ascending: false }),
+  ]);
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">Reports</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 6</p>
-      </div>
-    </div>
+    <ReportsClient
+      fromDate={fromDate}
+      toDate={toDate}
+      sales={(salesRes.data ?? []) as any[]}
+      adjustments={(adjustmentsRes.data ?? []) as any[]}
+    />
   );
 }

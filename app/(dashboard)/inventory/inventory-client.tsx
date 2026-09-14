@@ -19,7 +19,7 @@ import {
   adjustStock,
 } from "./actions";
 import { formatDate } from "@/lib/utils";
-import type { Category, Product, Profile, StockAdjustment, Supplier } from "@/lib/types";
+import type { Category, Product, ProductPackage, Profile, StockAdjustment, Supplier } from "@/lib/types";
 import type { StockBatch } from "@/lib/types";
 
 // ─── Local row types ───────────────────────────────────────────────────────────
@@ -42,6 +42,7 @@ interface InventoryClientProps {
   batches: StockBatchRow[];
   adjustments: AdjustmentRow[];
   suppliers: Pick<Supplier, "id" | "name">[];
+  packages: ProductPackage[];
 }
 
 // ─── Tab type ──────────────────────────────────────────────────────────────────
@@ -231,6 +232,7 @@ export function InventoryClient({
   batches,
   adjustments,
   suppliers,
+  packages,
 }: InventoryClientProps) {
   const router = useRouter();
 
@@ -612,8 +614,14 @@ export function InventoryClient({
             showProductForm === "create" ? null : (showProductForm as Product)
           }
           categories={categories}
+          packages={
+            showProductForm !== "create" && showProductForm !== null
+              ? packages.filter((p) => p.product_id === (showProductForm as Product).id)
+              : []
+          }
           onClose={() => setShowProductForm(null)}
           onSave={handleSaveProduct}
+          onPackagesChange={() => router.refresh()}
         />
       )}
 

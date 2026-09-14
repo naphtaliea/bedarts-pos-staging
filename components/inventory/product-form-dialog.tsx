@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Category, Product } from "@/lib/types";
+import { Category, Product, ProductPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { createProductPackage, deleteProductPackage } from "@/app/(dashboard)/inventory/actions";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductFormData {
   name: string;
@@ -20,8 +22,10 @@ interface ProductFormData {
 interface ProductFormDialogProps {
   product: Product | null;
   categories: Category[];
+  packages?: ProductPackage[];
   onClose: () => void;
   onSave: (data: ProductFormData) => Promise<void>;
+  onPackagesChange?: () => void;
 }
 
 const ZONE_OPTIONS: {
@@ -59,8 +63,10 @@ function getDefaultForm(product: Product | null): ProductFormData {
 export function ProductFormDialog({
   product,
   categories,
+  packages = [],
   onClose,
   onSave,
+  onPackagesChange,
 }: ProductFormDialogProps) {
   const isEdit = product !== null;
 
@@ -69,6 +75,10 @@ export function ProductFormDialog({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [newPkg, setNewPkg] = useState({ label: "", quantity: "", price: "" });
+  const [pkgSaving, setPkgSaving] = useState(false);
+  const [pkgError, setPkgError] = useState<string | null>(null);
 
   // Re-sync if the product prop changes (e.g. parent swaps which product to edit)
   useEffect(() => {
@@ -81,6 +91,34 @@ export function ProductFormDialog({
     value: ProductFormData[K]
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleAddPackage() {
+    if (!product?.id) return;
+    const qty = parseFloat(newPkg.quantity);
+    const price = parseFloat(newPkg.price);
+    if (!newPkg.label.trim() || !qty || !price) {
+      setPkgError("Label, quantity, and price are required.");
+      return;
+    }
+    setPkgError(null);
+    setPkgSaving(true);
+    const res = await createProductPackage({
+      product_id: product.id,
+      label: newPkg.label.trim(),
+      quantity: qty,
+      price,
+    });
+    setPkgSaving(false);
+    if (res.error) { setPkgError(res.error); return; }
+    setNewPkg({ label: "", quantity: "", price: "" });
+    onPackagesChange?.();
+  }
+
+  async function handleDeletePackage(id: string) {
+    const res = await deleteProductPackage(id);
+    if (res.error) setPkgError(res.error);
+    else onPackagesChange?.();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -265,6 +303,89 @@ export function ProductFormDialog({
               Alert when stock falls below this quantity
             </p>
           </div>
+
+          {/* Packages — edit mode only */}
+          {isEdit && product?.id && (
+            <div className="space-y-3 border-t border-border pt-4">
+              <label className="block text-xs font-medium text-muted-foreground">
+                Box / Package Options
+              </label>
+
+              {/* Existing packages */}
+              {packages.length > 0 && (
+                <div className="space-y-1.5">
+                  {packages.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2"
+                    >
+                      <div className="text-sm text-foreground">
+                        <span className="font-medium">{pkg.label}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          {pkg.quantity} {form.unit} · {formatCurrency(pkg.price)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePackage(pkg.id)}
+                        className="rounded p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                        aria-label="Delete package"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new package */}
+              <div className="grid grid-cols-[1fr_80px_90px_auto] gap-2 items-end">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Label</label>
+                  <Input
+                    value={newPkg.label}
+                    onChange={(e) => setNewPkg((p) => ({ ...p, label: e.target.value }))}
+                    placeholder="e.g. Box of 10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Qty</label>
+                  <Input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={newPkg.quantity}
+                    onChange={(e) => setNewPkg((p) => ({ ...p, quantity: e.target.value }))}
+                    placeholder="10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Price (GH₵)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={newPkg.price}
+                    onChange={(e) => setNewPkg((p) => ({ ...p, price: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPackage}
+                  disabled={pkgSaving}
+                  className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  aria-label="Add package"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              {pkgError && (
+                <p className="text-xs text-red-500">{pkgError}</p>
+              )}
+            </div>
+          )}
 
           {/* Error */}
           {error && (

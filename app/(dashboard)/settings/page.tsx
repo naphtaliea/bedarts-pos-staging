@@ -1,13 +1,29 @@
-import { Settings } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { SettingsClient } from "./settings-client";
+import type { Profile, Category, Supplier, StoreSettings } from "@/lib/types";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  if (!profile || profile.role !== "admin") redirect("/dashboard");
+
+  const [settingsRes, usersRes, categoriesRes, suppliersRes] = await Promise.all([
+    supabase.from("store_settings").select("*").eq("id", 1).single(),
+    supabase.from("profiles").select("*").order("full_name"),
+    supabase.from("categories").select("*").order("name"),
+    supabase.from("suppliers").select("*").order("name"),
+  ]);
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <Settings className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">Settings</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 7</p>
-      </div>
-    </div>
+    <SettingsClient
+      settings={settingsRes.data as StoreSettings}
+      users={(usersRes.data as Profile[]) ?? []}
+      categories={(categoriesRes.data as Category[]) ?? []}
+      suppliers={(suppliersRes.data as Supplier[]) ?? []}
+    />
   );
 }

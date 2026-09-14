@@ -9,6 +9,16 @@ export interface Profile {
   full_name: string;
   role: Role;
   is_active: boolean;
+  pin: string | null;
+  created_at: string;
+}
+
+export interface ProductPackage {
+  id: string;
+  product_id: string;
+  label: string;
+  quantity: number;
+  price: number;
   created_at: string;
 }
 
@@ -158,5 +168,7 @@ export interface StoreSettings {
   phone: string | null;
   email: string | null;
   receipt_footer: string | null;
+  tax_rate: number;
+  tax_enabled: boolean;
   updated_at: string;
 }

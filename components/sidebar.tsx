@@ -9,6 +9,7 @@ import {
   Users,
   Truck,
   BarChart3,
+  ReceiptText,
   Settings,
   Snowflake,
   LogOut,
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { label: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager"] },
   { label: "Suppliers", href: "/suppliers", icon: Truck, roles: ["admin", "manager"] },
   { label: "Reports", href: "/reports", icon: BarChart3, roles: ["admin", "manager"] },
+  { label: "Refunds", href: "/refunds", icon: ReceiptText, roles: ["admin"] },
   { label: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ];
 
@@ -61,9 +63,10 @@ export function Sidebar({ profile }: SidebarProps) {
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1" aria-label="Main navigation">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href === "/dashboard"
-            ? pathname === "/dashboard"
-            : pathname.startsWith(item.href);
+          const active =
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
