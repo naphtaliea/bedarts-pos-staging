@@ -20,6 +20,22 @@ export async function submitSale(args: SubmitSaleArgs) {
 
   const { items, payments, subtotal, discount, total, customerId } = args;
 
+  // Bug #25 fix: validate stock server-side before creating the sale
+  for (const item of items) {
+    const { data: stock } = await supabase
+      .from("product_stock")
+      .select("stock_quantity, name")
+      .eq("id", item.product.id)
+      .single();
+
+    if (!stock) throw new Error(`Product not found: ${item.product.name}`);
+    if (stock.stock_quantity < item.quantity) {
+      throw new Error(
+        `Only ${stock.stock_quantity} ${item.product.unit ?? "units"} of "${item.product.name}" available — requested ${item.quantity}`
+      );
+    }
+  }
+
   // Insert sale
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
@@ -60,7 +76,7 @@ export async function submitSale(args: SubmitSaleArgs) {
   const { error: paymentsErr } = await supabase.from("payments").insert(paymentRows);
   if (paymentsErr) throw new Error(paymentsErr.message);
 
-  // Deduct stock (FIFO — oldest batches first)
+  // Bug #23 fix: atomic stock deduction via DB function (FEFO — oldest batches first)
   for (const item of items) {
     let remaining = item.quantity;
     const { data: batches } = await supabase
@@ -74,10 +90,11 @@ export async function submitSale(args: SubmitSaleArgs) {
     for (const batch of batches ?? []) {
       if (remaining <= 0) break;
       const deduct = Math.min(remaining, batch.quantity_remaining);
-      await supabase
-        .from("stock_batches")
-        .update({ quantity_remaining: batch.quantity_remaining - deduct })
-        .eq("id", batch.id);
+      const { error } = await supabase.rpc("deduct_batch_stock", {
+        p_batch_id: batch.id,
+        p_deduct: deduct,
+      });
+      if (error) throw new Error(`Stock deduction failed: ${error.message}`);
       remaining -= deduct;
     }
   }

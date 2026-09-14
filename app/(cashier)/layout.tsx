@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { OfflineSyncer } from "@/components/offline-syncer";
 
 export default async function CashierLayout({
   children,
@@ -23,5 +24,10 @@ export default async function CashierLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <OfflineSyncer />
+    </>
+  );
 }

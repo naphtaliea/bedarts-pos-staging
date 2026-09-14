@@ -4,11 +4,12 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Product } from "@/lib/types";
+import { Product, Supplier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface ReceiveStockData {
   product_id: string;
+  supplier_id: string | null;
   quantity_received: number;
   cost_price: number;
   expiry_date: string | null;
@@ -18,6 +19,7 @@ interface ReceiveStockData {
 
 interface ReceiveStockDialogProps {
   products: Product[];
+  suppliers: Supplier[];
   onClose: () => void;
   onSave: (data: ReceiveStockData) => Promise<void>;
   defaultProductId?: string;
@@ -34,6 +36,7 @@ const SELECT_CLASS = cn(
 function getDefaultForm(defaultProductId?: string): ReceiveStockData {
   return {
     product_id: defaultProductId ?? "",
+    supplier_id: null,
     quantity_received: 0,
     cost_price: 0,
     expiry_date: null,
@@ -44,6 +47,7 @@ function getDefaultForm(defaultProductId?: string): ReceiveStockData {
 
 export function ReceiveStockDialog({
   products,
+  suppliers,
   onClose,
   onSave,
   defaultProductId,
@@ -56,10 +60,7 @@ export function ReceiveStockDialog({
 
   const activeProducts = products.filter((p) => p.is_active);
 
-  function set<K extends keyof ReceiveStockData>(
-    key: K,
-    value: ReceiveStockData[K]
-  ) {
+  function set<K extends keyof ReceiveStockData>(key: K, value: ReceiveStockData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -71,9 +72,7 @@ export function ReceiveStockDialog({
       await onSave(form);
       onClose();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Try again."
-      );
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -91,9 +90,7 @@ export function ReceiveStockDialog({
       <div className="w-full max-w-md mx-4 bg-card rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">
-            Receive Stock
-          </h2>
+          <h2 className="text-base font-semibold text-foreground">Receive Stock</h2>
           <button
             onClick={onClose}
             aria-label="Close dialog"
@@ -112,7 +109,7 @@ export function ReceiveStockDialog({
           {/* Product */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Product
+              Product <span className="text-destructive">*</span>
             </label>
             <select
               required
@@ -120,13 +117,26 @@ export function ReceiveStockDialog({
               onChange={(e) => set("product_id", e.target.value)}
               className={SELECT_CLASS}
             >
-              <option value="" disabled>
-                Select a product…
-              </option>
+              <option value="" disabled>Select a product…</option>
               {activeProducts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Supplier */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Supplier
+            </label>
+            <select
+              value={form.supplier_id ?? ""}
+              onChange={(e) => set("supplier_id", e.target.value || null)}
+              className={SELECT_CLASS}
+            >
+              <option value="">No supplier / walk-in purchase</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
@@ -134,7 +144,7 @@ export function ReceiveStockDialog({
           {/* Quantity Received */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Quantity Received
+              Quantity Received <span className="text-destructive">*</span>
             </label>
             <Input
               required
@@ -142,9 +152,7 @@ export function ReceiveStockDialog({
               min={0.001}
               step={0.001}
               value={form.quantity_received === 0 ? "" : form.quantity_received}
-              onChange={(e) =>
-                set("quantity_received", parseFloat(e.target.value) || 0)
-              }
+              onChange={(e) => set("quantity_received", parseFloat(e.target.value) || 0)}
               placeholder="0.000"
             />
           </div>
@@ -152,7 +160,7 @@ export function ReceiveStockDialog({
           {/* Cost Price per Unit */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Cost Price per Unit (GH₵)
+              Cost Price per Unit (GH₵) <span className="text-destructive">*</span>
             </label>
             <Input
               required
@@ -160,9 +168,7 @@ export function ReceiveStockDialog({
               min={0}
               step={0.01}
               value={form.cost_price === 0 ? "" : form.cost_price}
-              onChange={(e) =>
-                set("cost_price", parseFloat(e.target.value) || 0)
-              }
+              onChange={(e) => set("cost_price", parseFloat(e.target.value) || 0)}
               placeholder="0.00"
             />
           </div>
@@ -170,7 +176,7 @@ export function ReceiveStockDialog({
           {/* Received Date */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Received Date
+              Received Date <span className="text-destructive">*</span>
             </label>
             <Input
               required
@@ -188,9 +194,7 @@ export function ReceiveStockDialog({
             <Input
               type="date"
               value={form.expiry_date ?? ""}
-              onChange={(e) =>
-                set("expiry_date", e.target.value || null)
-              }
+              onChange={(e) => set("expiry_date", e.target.value || null)}
             />
           </div>
 
@@ -222,19 +226,10 @@ export function ReceiveStockDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-          >
+          <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="receive-stock-form"
-            disabled={submitting}
-          >
+          <Button type="submit" form="receive-stock-form" disabled={submitting}>
             {submitting ? "Saving…" : "Receive Stock"}
           </Button>
         </div>

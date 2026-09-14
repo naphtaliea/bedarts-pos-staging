@@ -88,7 +88,9 @@ export function CashierPOSClient({
     setBuffer(next);
     const value = parseFloat(next) || 0;
     if (mode === "Qty") {
-      updateQty(selectedLineId, value || 1);
+      const selectedProduct = initialProducts.find((p) => p.id === selectedLineId);
+      const maxQty = selectedProduct?.stock_quantity ?? Infinity;
+      updateQty(selectedLineId, Math.min(value || 1, maxQty));
     } else if (mode === "Disc") {
       updateItemDiscount(selectedLineId, Math.max(0, value));
     } else {
@@ -336,22 +338,26 @@ export function CashierPOSClient({
                 {filteredProducts.map((product) => {
                   const isRecent = recentlyAddedId === product.id;
                   const isActive = selectedLineId === product.id;
-                  const isLowStock =
-                    product.stock_quantity !== undefined &&
-                    product.stock_quantity < product.low_stock_threshold;
+                  const stockQty = product.stock_quantity ?? 0;
+                  const isOutOfStock = stockQty <= 0;
+                  const isLowStock = !isOutOfStock && stockQty < product.low_stock_threshold;
                   const catName = categoryMap[product.category_id] ?? "";
                   const { bg, text } = getCategoryStyle(catName);
                   return (
                     <div
                       key={product.id}
-                      onClick={() => handleAddProduct(product)}
+                      onClick={() => !isOutOfStock && handleAddProduct(product)}
+                      aria-disabled={isOutOfStock}
                       className={cn(
-                        "rounded-xl border bg-card shadow-sm overflow-hidden cursor-pointer transition-all select-none motion-reduce:transition-none",
-                        isActive
+                        "rounded-xl border bg-card shadow-sm overflow-hidden transition-all select-none motion-reduce:transition-none",
+                        isOutOfStock
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer",
+                        !isOutOfStock && (isActive
                           ? "border-primary ring-2 ring-primary/20 shadow-md"
                           : isRecent
                           ? "border-green-400 scale-95 motion-reduce:scale-100"
-                          : "border-border hover:border-primary hover:shadow-md"
+                          : "border-border hover:border-primary hover:shadow-md")
                       )}
                     >
                       {/* Image / placeholder area */}
@@ -390,9 +396,13 @@ export function CashierPOSClient({
                           <p className="text-sm font-bold text-accent tabular-nums">
                             {formatCurrency(product.selling_price)}
                           </p>
-                          {isLowStock && (
-                            <span className="text-xs text-amber-600 font-medium">Low</span>
-                          )}
+                          {isOutOfStock ? (
+                            <span className="text-xs text-destructive font-medium">Out</span>
+                          ) : isLowStock ? (
+                            <span className="text-xs text-amber-600 font-medium">
+                              {stockQty} left
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

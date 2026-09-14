@@ -88,6 +88,7 @@ export async function deleteCategory(id: string): Promise<{ error?: string }> {
 
 export async function receiveStock(data: {
   product_id: string;
+  supplier_id: string | null;
   quantity_received: number;
   cost_price: number;
   expiry_date: string | null;
@@ -104,7 +105,7 @@ export async function receiveStock(data: {
     expiry_date: data.expiry_date,
     received_date: data.received_date,
     notes: data.notes,
-    supplier_id: null,
+    supplier_id: data.supplier_id || null,
   });
   if (error) return { error: error.message };
 

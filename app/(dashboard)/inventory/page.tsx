@@ -10,7 +10,7 @@ export default async function InventoryPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profileRes, productsRes, categoriesRes, batchesRes, adjustmentsRes] =
+  const [profileRes, productsRes, categoriesRes, batchesRes, adjustmentsRes, suppliersRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).single(),
       supabase
@@ -27,6 +27,7 @@ export default async function InventoryPage() {
         .select("*, product:products(name), adjuster:profiles(full_name)")
         .order("created_at", { ascending: false })
         .limit(200),
+      supabase.from("suppliers").select("id, name").order("name"),
     ]);
 
   if (!profileRes.data) redirect("/login");
@@ -41,6 +42,7 @@ export default async function InventoryPage() {
       categories={(categoriesRes.data as Category[]) ?? []}
       batches={(batchesRes.data as any[]) ?? []}
       adjustments={(adjustmentsRes.data as any[]) ?? []}
+      suppliers={(suppliersRes.data as any[]) ?? []}
     />
   );
 }

@@ -41,6 +41,7 @@ interface InventoryClientProps {
   categories: Category[];
   batches: StockBatchRow[];
   adjustments: AdjustmentRow[];
+  suppliers: { id: string; name: string }[];
 }
 
 // ─── Tab type ──────────────────────────────────────────────────────────────────
@@ -229,6 +230,7 @@ export function InventoryClient({
   categories,
   batches,
   adjustments,
+  suppliers,
 }: InventoryClientProps) {
   const router = useRouter();
 
@@ -313,6 +315,7 @@ export function InventoryClient({
 
   async function handleReceiveStock(data: {
     product_id: string;
+    supplier_id: string | null;
     quantity_received: number;
     cost_price: number;
     expiry_date: string | null;
@@ -617,6 +620,7 @@ export function InventoryClient({
       {showReceiveStock && (
         <ReceiveStockDialog
           products={products}
+          suppliers={suppliers}
           defaultProductId={productFilter || undefined}
           onClose={() => setShowReceiveStock(false)}
           onSave={handleReceiveStock}

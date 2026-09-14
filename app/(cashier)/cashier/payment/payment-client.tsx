@@ -77,27 +77,43 @@ export function PaymentClient({ cashierName }: PaymentClientProps) {
     if (!isValid || isProcessing) return;
     setIsProcessing(true);
     setError(null);
+
+    const payments: PaymentEntry[] = [
+      {
+        method,
+        amount: method === "cash" ? Math.max(totalVal, tenderedNum) : totalVal,
+        reference: reference.trim(),
+      },
+    ];
+
+    const payload = {
+      items,
+      payments,
+      subtotal: subtotalVal,
+      discount,
+      total: totalVal,
+      customerId: null,
+    };
+
     try {
-      const payments: PaymentEntry[] = [
-        {
-          method,
-          amount: method === "cash" ? Math.max(totalVal, tenderedNum) : totalVal,
-          reference: reference.trim(),
-        },
-      ];
-      const { saleId } = await submitSale({
-        items,
-        payments,
-        subtotal: subtotalVal,
-        discount,
-        total: totalVal,
-        customerId: null,
-      });
+      if (!navigator.onLine) throw new Error("OFFLINE_MODE");
+      
+      const { saleId } = await submitSale(payload);
       clearCart();
       router.push(`/cashier/receipt?sale=${saleId}`);
     } catch (e) {
-      setIsProcessing(false);
-      setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
+      const isNetworkError = !navigator.onLine || (e instanceof Error && (e.message === "OFFLINE_MODE" || e.message.includes("fetch") || e.message.includes("Failed to fetch")));
+      
+      if (isNetworkError) {
+        const { saveOfflineSale } = await import("@/lib/sync-queue");
+        await saveOfflineSale(payload);
+        clearCart();
+        alert("You are offline. The sale has been saved to the device and will sync automatically when the internet returns.");
+        router.push("/cashier");
+      } else {
+        setIsProcessing(false);
+        setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
+      }
     }
   };
 
