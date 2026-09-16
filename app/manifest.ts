@@ -5,10 +5,10 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Bedarts Cold Supplies",
     short_name: "Bedarts POS",
     description: "POS and Management System for Bedarts Cold Supplies",
-    start_url: "/pos",
+    start_url: "/cashier",
     display: "standalone",
-    background_color: "#020617",
-    theme_color: "#1d4ed8",
+    background_color: "#060F40",
+    theme_color: "#060F40",
     orientation: "landscape-primary",
     icons: [
       {

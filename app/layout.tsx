@@ -13,9 +13,13 @@ const bigShoulders = Big_Shoulders({
 export const metadata: Metadata = {
   title: "Bedarts Cold Supplies",
   description: "POS and Management System",
+  icons: {
+    icon: { url: "/icon.svg", type: "image/svg+xml" },
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Bedarts POS",
   },
 };
