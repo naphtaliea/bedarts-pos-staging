@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/(auth)/login/actions";
 import type { Profile } from "@/lib/types";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function CashierHeader({ profile }: { profile: Profile }) {
   const [time, setTime] = useState("");
@@ -25,7 +26,7 @@ export function CashierHeader({ profile }: { profile: Profile }) {
   return (
     <header className="flex items-center justify-between px-5 h-12 bg-sidebar shrink-0">
       <div className="flex items-center gap-2.5">
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-6" />
+        <BrandLogo className="h-6 w-auto" />
       </div>
 
       <span className="text-sm font-mono font-medium text-sidebar-muted tabular-nums">

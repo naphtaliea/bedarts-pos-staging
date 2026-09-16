@@ -1,19 +1,24 @@
-const LINES: [number, number, number, number][] = [
+const BLUE_LINES: [number, number, number, number][] = [
   [0, -33, 0, 33],
-  [-28.6, -16.5, 28.6, 16.5],
-  [28.6, -16.5, -28.6, 16.5],
+  [0, 0, 28.6, -16.5],
+  [0, 0, 28.6, 16.5],
   [0, -21, 7.8, -25.5],
   [0, -21, -7.8, -25.5],
   [0, 21, -7.8, 25.5],
   [0, 21, 7.8, 25.5],
   [18.2, -10.5, 26, -6],
   [18.2, -10.5, 18.2, -19.5],
-  [-18.2, 10.5, -26, 6],
-  [-18.2, 10.5, -18.2, 19.5],
-  [-18.2, -10.5, -18.2, -19.5],
-  [-18.2, -10.5, -26, -6],
   [18.2, 10.5, 18.2, 19.5],
   [18.2, 10.5, 26, 6],
+];
+
+const RED_LINES: [number, number, number, number][] = [
+  [0, 0, -28.6, -16.5],
+  [0, 0, -28.6, 16.5],
+  [-18.2, -10.5, -18.2, -19.5],
+  [-18.2, -10.5, -26, -6],
+  [-18.2, 10.5, -26, 6],
+  [-18.2, 10.5, -18.2, 19.5],
 ];
 
 interface Props {
@@ -37,7 +42,6 @@ export function SnowflakePattern({
 }: Props) {
   const cx = tileSize / 2;
   const cy = tileSize / 2;
-  const shadowOffset = Math.round(tileSize * 0.05);
 
   return (
     <svg
@@ -50,26 +54,21 @@ export function SnowflakePattern({
       <defs>
         <pattern id={id} width={tileSize} height={tileSize} patternUnits="userSpaceOnUse">
           <g
-            transform={`translate(${cx + shadowOffset},${cy + shadowOffset}) scale(${scale})`}
-            stroke="#CC1B14"
-            strokeWidth="5.5"
-            strokeLinecap="round"
-            fill="none"
-          >
-            {LINES.map(([x1, y1, x2, y2], i) => (
-              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
-            ))}
-          </g>
-          <g
             transform={`translate(${cx},${cy}) scale(${scale})`}
-            stroke="#1B50C0"
             strokeWidth="5.5"
             strokeLinecap="round"
             fill="none"
           >
-            {LINES.map(([x1, y1, x2, y2], i) => (
-              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
-            ))}
+            <g stroke="#1B50C0">
+              {BLUE_LINES.map(([x1, y1, x2, y2], i) => (
+                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
+              ))}
+            </g>
+            <g stroke="#CC1B14">
+              {RED_LINES.map(([x1, y1, x2, y2], i) => (
+                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
+              ))}
+            </g>
           </g>
         </pattern>
       </defs>

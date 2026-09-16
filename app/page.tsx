@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ArrowRight, ShoppingCart, Package, BarChart3 } from "lucide-react";
+import { BrandLogo, BrandIcon } from "@/components/brand-logo";
 
 const RED = "#CC1B14";
 const YELLOW = "#EEF3FF";
@@ -31,7 +32,7 @@ export default async function Home() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "1.5rem 2.5rem",
       }}>
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" style={{ height: 44 }} />
+        <BrandLogo style={{ height: 44 }} />
         <Link href="/login" style={{
           display: "flex", alignItems: "center", gap: "0.375rem",
           color: "white", fontSize: "0.875rem", fontWeight: 600,
@@ -60,6 +61,15 @@ export default async function Home() {
             rgba(171,21,9,0.35) 45%,
             rgba(0,0,0,0.15) 100%
           )`,
+        }} />
+
+        {/* Brand watermark — large snowflake, top right */}
+        <BrandIcon style={{
+          position: "absolute", top: "-5%", right: "-4%",
+          width: "clamp(260px, 38vw, 480px)",
+          height: "clamp(260px, 38vw, 480px)",
+          opacity: 0.12,
+          pointerEvents: "none",
         }} />
 
         {/* hero text — bottom-left, editorial */}
@@ -257,7 +267,7 @@ export default async function Home() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: "1rem",
       }}>
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" style={{ height: 38 }} />
+        <BrandLogo style={{ height: 38 }} />
         <p style={{ color: "rgba(255,247,211,0.35)", fontSize: "0.75rem", margin: 0 }}>
           © {new Date().getFullYear()} Bedarts Cold Supplies. All rights reserved.
         </p>

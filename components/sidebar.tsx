@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import type { Profile, Role } from "@/lib/types";
 import { logout } from "@/app/(auth)/login/actions";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
+import { BrandLogo } from "@/components/brand-logo";
 
 interface NavItem {
   label: string;
@@ -57,7 +58,7 @@ export function Sidebar({ profile }: SidebarProps) {
     <aside className="flex h-full w-60 flex-col bg-sidebar border-r border-white/10">
       {/* Logo */}
       <div className="px-5 pt-5 pb-4 border-b border-white/10">
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-9 w-auto" />
+        <BrandLogo className="h-9 w-auto" />
       </div>
 
       {/* Brand pattern strip */}

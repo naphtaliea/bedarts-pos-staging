@@ -6,6 +6,7 @@ import { Delete } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { verifyCashierPin } from "./actions";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
+import { BrandLogo } from "@/components/brand-logo";
 
 interface Cashier {
   id: string;
@@ -82,7 +83,7 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
     <div className="min-h-screen bg-sidebar flex flex-col">
       {/* Brand header */}
       <div className="flex flex-col items-center pt-10 pb-2">
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-10 w-auto mb-5" />
+        <BrandLogo className="h-10 w-auto mb-5" />
       </div>
       <SnowflakePattern id="pin-snow" opacity={0.18} rows={2} tileSize={44} />
 

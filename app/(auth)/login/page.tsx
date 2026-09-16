@@ -5,6 +5,7 @@ import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
+import { BrandLogo } from "@/components/brand-logo";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
@@ -20,11 +21,7 @@ export default function LoginPage() {
 
         {/* Content */}
         <div className="relative flex-1 flex flex-col items-center justify-center px-14 z-10">
-          <img
-            src="/logo-light.svg"
-            alt="Bedarts Cold Supplies"
-            className="w-56 mb-5"
-          />
+          <BrandLogo className="w-56 mb-5" />
           <p className="text-sidebar-muted text-center text-sm leading-relaxed max-w-[18rem]">
             Point-of-Sale &amp; Management System
           </p>
@@ -40,7 +37,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="md:hidden flex justify-center mb-8">
-            <img src="/logo.svg" alt="Bedarts Cold Supplies" className="h-12 w-auto" />
+            <BrandLogo variant="color" className="h-12 w-auto" />
           </div>
 
           <div className="mb-8">

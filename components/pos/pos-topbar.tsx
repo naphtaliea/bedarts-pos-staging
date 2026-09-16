@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Receipt, LayoutDashboard, LogOut } from "lucide-react";
 import { logout } from "@/app/(auth)/login/actions";
+import { BrandLogo } from "@/components/brand-logo";
 
 interface PosTopBarProps {
   cashierName: string;
@@ -42,7 +43,7 @@ export function PosTopBar({ cashierName, showBack, backHref, hideDashboardLink }
             <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </Link>
         )}
-        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-8 w-auto" />
+        <BrandLogo className="h-8 w-auto" />
       </div>
 
       {/* Center: cashier name */}

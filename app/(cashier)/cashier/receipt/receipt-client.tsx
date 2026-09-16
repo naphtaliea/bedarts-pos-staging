@@ -6,6 +6,7 @@ import { Printer, ShoppingCart, ClipboardList, AlertCircle, CheckCircle2 } from 
 import { generateReceipt } from "@/lib/pdf/receipt";
 import { formatCurrency } from "@/lib/utils";
 import { PosTopBar } from "@/components/pos/pos-topbar";
+import { BrandLogo } from "@/components/brand-logo";
 import type { Sale, StoreSettings } from "@/lib/types";
 
 interface ReceiptClientProps {
@@ -149,7 +150,7 @@ export function ReceiptClient({ sale, settings }: ReceiptClientProps) {
             <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
               {/* Store header */}
               <div className="bg-primary px-6 py-5 text-center">
-                <img src="/logo-light.svg" alt={settings.store_name} className="h-9 mx-auto mb-2" />
+                <BrandLogo className="h-9 mx-auto mb-2" />
                 <p className="text-white/70 text-xs">Always fresh…always in season</p>
               </div>
 
