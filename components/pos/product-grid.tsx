@@ -78,14 +78,17 @@ export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: Pr
             </div>
 
             <div className="flex flex-col flex-1 p-2.5 justify-between w-full">
-              <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2">
+              <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
                 {product.name}
               </p>
 
               <div className="flex items-end justify-between w-full mt-1">
-                <p className="text-sm font-bold text-primary leading-none">
+                <p
+                  className="text-sm text-primary leading-none"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+                >
                   GH₵{product.selling_price.toFixed(2)}
-                  <span className="text-[10px] text-muted-foreground font-normal ml-0.5">/{product.unit}</span>
+                  <span className="text-[10px] text-muted-foreground ml-0.5" style={{ fontFamily: "var(--font-sans)", fontWeight: 400 }}>/{product.unit}</span>
                 </p>
                 <p className="text-[10px] font-medium text-muted-foreground leading-none text-right">
                   {outOfStock ? "Out" : `${product.stock_quantity}${product.unit}`}

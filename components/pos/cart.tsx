@@ -47,9 +47,9 @@ export function Cart() {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                    className="w-7 h-7 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
+                    className="w-9 h-9 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
                   >
-                    <Minus className="w-3 h-3" />
+                    <Minus className="w-3.5 h-3.5" />
                   </button>
                   <input
                     type="number"
@@ -58,13 +58,13 @@ export function Cart() {
                     onChange={(e) =>
                       updateQty(item.product.id, parseFloat(e.target.value) || 1)
                     }
-                    className="w-12 h-7 text-center text-sm border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-12 h-9 text-center text-sm border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-accent"
                   />
                   <button
                     onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                    className="w-7 h-7 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
+                    className="w-9 h-9 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -78,7 +78,7 @@ export function Cart() {
                       min={0}
                       placeholder="0.00"
                       autoFocus
-                      className="w-20 h-6 text-xs border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-20 h-6 text-xs border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-accent"
                       onBlur={(e) => {
                         updateItemDiscount(
                           item.product.id,
@@ -142,7 +142,7 @@ export function Cart() {
                 setDiscount(parseFloat(e.target.value) || 0);
               }}
               placeholder="0.00"
-              className="w-20 text-right text-sm border border-border rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-20 text-right text-sm border border-border rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
         </div>
@@ -154,9 +154,14 @@ export function Cart() {
           </div>
         )}
 
-        <div className="flex justify-between text-base font-bold text-foreground pt-1 border-t border-border">
-          <span>Total</span>
-          <span>{formatCurrency(total)}</span>
+        <div className="flex justify-between items-baseline pt-1.5 border-t border-border">
+          <span className="text-sm font-semibold text-foreground">Total</span>
+          <span
+            className="text-3xl text-foreground tabular-nums leading-none"
+            style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
+          >
+            {formatCurrency(total)}
+          </span>
         </div>
       </div>
     </div>

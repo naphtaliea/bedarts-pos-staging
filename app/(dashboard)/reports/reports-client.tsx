@@ -55,7 +55,12 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   return (
     <div className="rounded-2xl border border-border bg-card px-5 py-4">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">{label}</p>
-      <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
+      <p
+        className="text-2xl text-foreground tabular-nums"
+        style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
+      >
+        {value}
+      </p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
@@ -115,7 +120,7 @@ export function ReportsClient({ fromDate, toDate, sales, adjustments, customers 
               onClick={() => setTab(t.id)}
               className={cn(
                 "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
+                tab === t.id ? "bg-accent text-white" : "text-foreground hover:bg-secondary"
               )}
             >
               {t.label}

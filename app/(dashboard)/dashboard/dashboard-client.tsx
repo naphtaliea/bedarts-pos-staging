@@ -42,7 +42,7 @@ interface DashboardClientProps {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DONUT_COLORS = ["#AB1509", "#1B50C0", "#16A34A", "#D97706", "#7C3AED", "#0891B2", "#6B7280"];
+const DONUT_COLORS = ["#CC1B14", "#1B50C0", "#16A34A", "#D97706", "#7C3AED", "#0891B2", "#6B7280"];
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -180,13 +180,13 @@ export function DashboardClient({
           label="Today's Revenue"
           value={formatCurrency(todayRevenue)}
           sub={`${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""}`}
-          accent="primary"
+          accent="accent"
         />
         <StatCard
           label="7-Day Revenue"
           value={formatCurrency(totalRevenue7d)}
           sub="last 7 days"
-          accent="primary"
+          accent="accent"
         />
         <StatCard
           label="Stock Value"
@@ -238,7 +238,7 @@ export function DashboardClient({
               />
               <YAxis hide />
               <Tooltip content={<RevenueTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-              <Bar dataKey="revenue" fill="#AB1509" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" fill="#CC1B14" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -483,14 +483,15 @@ export function DashboardClient({
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-type AccentType = "primary" | "success" | "warning" | "destructive" | "neutral";
+type AccentType = "primary" | "accent" | "success" | "warning" | "destructive" | "neutral";
 
 const ACCENT_BORDER: Record<AccentType, string> = {
-  primary: "border-l-primary",
-  success: "border-l-success",
-  warning: "border-l-warning",
+  primary:     "border-l-primary",
+  accent:      "border-l-accent",
+  success:     "border-l-success",
+  warning:     "border-l-warning",
   destructive: "border-l-destructive",
-  neutral: "border-l-border",
+  neutral:     "border-l-border",
 };
 
 function StatCard({
@@ -514,7 +515,12 @@ function StatCard({
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
         {label}
       </p>
-      <p className="text-2xl font-bold text-foreground tabular-nums leading-none">{value}</p>
+      <p
+        className="text-2xl text-foreground tabular-nums leading-none"
+        style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
+      >
+        {value}
+      </p>
       <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>
     </div>
   );

@@ -4,14 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  // Focus ring is brand blue — never red, which reads as error state
+  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
+        // Filled brand red — positive primary actions: Complete, Save, Add to Cart
         default: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-border bg-card hover:bg-secondary text-foreground",
+        // Outlined red — dangerous actions: Void, Delete. Never filled red (indistinguishable from default)
+        destructive: "border border-destructive text-destructive bg-transparent hover:bg-destructive/8 active:bg-destructive/12",
+        outline: "border border-border bg-card hover:bg-secondary text-foreground",
         ghost: "hover:bg-secondary text-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         success: "bg-success text-white hover:bg-success/90",
