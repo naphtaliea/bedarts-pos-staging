@@ -4,28 +4,55 @@ import { useActionState } from "react";
 import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Snowflake } from "lucide-react";
+import { SnowflakePattern } from "@/components/snowflake-pattern";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-700 mb-4">
-            <Snowflake className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Bedarts Cold Supplies</h1>
-          <p className="text-slate-400 text-sm mt-1">Sign in to your account</p>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Left panel — brand identity */}
+      <div className="relative hidden md:flex md:w-[55%] flex-col bg-sidebar overflow-hidden">
+        {/* Full-bleed snowflake pattern */}
+        <div className="absolute inset-0 pointer-events-none">
+          <SnowflakePattern id="login-bg" opacity={0.14} height="100%" tileSize={56} scale={0.44} />
         </div>
 
-        {/* Form */}
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8">
-          <form action={formAction} className="flex flex-col gap-4">
+        {/* Content */}
+        <div className="relative flex-1 flex flex-col items-center justify-center px-14 z-10">
+          <img
+            src="/logo-light.svg"
+            alt="Bedarts Cold Supplies"
+            className="w-56 mb-5"
+          />
+          <p className="text-sidebar-muted text-center text-sm leading-relaxed max-w-[18rem]">
+            Point-of-Sale &amp; Management System
+          </p>
+        </div>
+
+        <p className="relative z-10 pb-7 text-center text-xs text-sidebar-muted/40">
+          © {new Date().getFullYear()} Bedarts Cold Supplies
+        </p>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="md:hidden flex justify-center mb-8">
+            <img src="/logo.svg" alt="Bedarts Cold Supplies" className="h-12 w-auto" />
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-foreground">Welcome back</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Sign in to your account to continue.
+            </p>
+          </div>
+
+          <form action={formAction} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-300" htmlFor="email">
+              <label className="text-sm font-medium text-foreground" htmlFor="email">
                 Email
               </label>
               <Input
@@ -35,12 +62,11 @@ export default function LoginPage() {
                 placeholder="you@bedarts.com"
                 required
                 autoComplete="email"
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-blue-500"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-300" htmlFor="password">
+              <label className="text-sm font-medium text-foreground" htmlFor="password">
                 Password
               </label>
               <Input
@@ -50,12 +76,11 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 autoComplete="current-password"
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:ring-blue-500"
               />
             </div>
 
             {state.error.length > 0 && (
-              <p className="text-sm text-red-400 bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+              <p className="text-sm text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-3 py-2">
                 {state.error}
               </p>
             )}
@@ -63,17 +88,17 @@ export default function LoginPage() {
             <Button
               type="submit"
               size="lg"
-              className="w-full mt-2"
+              className="w-full mt-1"
               disabled={pending}
             >
               {pending ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-        </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
-          Contact your administrator to get access.
-        </p>
+          <p className="text-center text-xs text-muted-foreground/50 mt-8">
+            Contact your administrator to get access.
+          </p>
+        </div>
       </div>
     </div>
   );

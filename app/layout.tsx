@@ -1,9 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Abril_Fatface } from "next/font/google";
+import { Archivo, Big_Shoulders } from "next/font/google";
 import "./globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
-const abril = Abril_Fatface({ weight: "400", subsets: ["latin"], variable: "--font-abril", display: "swap" });
+const bigShoulders = Big_Shoulders({
+  weight: ["600", "700", "800", "900"],
+  subsets: ["latin"],
+  variable: "--font-big-shoulders",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Bedarts Cold Supplies",
@@ -16,15 +21,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1d4ed8",
+  themeColor: "#060F40",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${archivo.variable} ${abril.variable} h-full`}>
+    <html lang="en" className={`${archivo.variable} ${bigShoulders.variable} h-full`}>
       <body className="h-full">{children}</body>
     </html>
   );

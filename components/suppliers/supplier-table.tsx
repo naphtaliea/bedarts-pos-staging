@@ -83,7 +83,7 @@ export function SupplierTable({
                   <button
                     onClick={() => onDelete(supplier)}
                     aria-label={`Delete ${supplier.name}`}
-                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/8 hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

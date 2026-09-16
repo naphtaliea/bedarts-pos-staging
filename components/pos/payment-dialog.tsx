@@ -63,29 +63,28 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md mx-4 border border-border">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Payment</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Payment</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="px-6 py-4 space-y-4">
           {/* Total */}
-          <div className="bg-slate-50 rounded-xl px-4 py-3 flex justify-between items-center">
-            <span className="text-sm text-slate-600">Amount due</span>
-            <span className="text-2xl font-bold text-slate-900">{formatCurrency(total)}</span>
+          <div className="bg-secondary rounded-xl px-4 py-3 flex justify-between items-center">
+            <span className="text-sm text-muted-foreground">Amount due</span>
+            <span className="text-2xl font-bold text-foreground">{formatCurrency(total)}</span>
           </div>
 
           {/* Payment rows */}
           <div className="space-y-3">
             {payments.map((p, i) => {
               const method = METHODS.find((m) => m.key === p.method)!;
-              const Icon = method.icon;
               return (
-                <div key={i} className="border border-slate-200 rounded-xl p-3 space-y-2">
+                <div key={i} className="border border-border rounded-xl p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     {/* Method selector */}
                     <div className="flex gap-1">
@@ -97,8 +96,8 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
                             onClick={() => update(i, "method", m.key)}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               p.method === m.key
-                                ? "bg-[#AB1509] text-white"
-                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:bg-muted"
                             }`}
                           >
                             <MIcon className="w-3.5 h-3.5" />
@@ -108,7 +107,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
                       })}
                     </div>
                     {payments.length > 1 && (
-                      <button onClick={() => remove(i)} className="ml-auto text-slate-300 hover:text-red-500">
+                      <button onClick={() => remove(i)} className="ml-auto text-muted-foreground/40 hover:text-destructive">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -116,7 +115,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
 
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <label className="text-xs text-slate-500 mb-1 block">Amount (GH₵)</label>
+                      <label className="text-xs text-muted-foreground mb-1 block">Amount (GH₵)</label>
                       <Input
                         type="number"
                         min={0}
@@ -128,7 +127,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
                     </div>
                     {method.needsRef && (
                       <div className="flex-1">
-                        <label className="text-xs text-slate-500 mb-1 block">
+                        <label className="text-xs text-muted-foreground mb-1 block">
                           {p.method === "momo" ? "MoMo reference" : "Approval code"}
                         </label>
                         <Input
@@ -144,9 +143,9 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
 
                   {/* Cash change */}
                   {p.method === "cash" && payments.length === 1 && p.amount > total && (
-                    <div className="flex justify-between text-sm bg-green-50 rounded-lg px-3 py-2">
-                      <span className="text-green-700">Change to give</span>
-                      <span className="font-bold text-green-700">{formatCurrency(p.amount - total)}</span>
+                    <div className="flex justify-between text-sm bg-success/8 rounded-lg px-3 py-2">
+                      <span className="text-success">Change to give</span>
+                      <span className="font-bold text-success">{formatCurrency(p.amount - total)}</span>
                     </div>
                   )}
                 </div>
@@ -158,7 +157,7 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
           {payments.length < 3 && (
             <button
               onClick={addPayment}
-              className="flex items-center gap-2 text-sm text-[#AB1509] hover:text-red-800 font-medium"
+              className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium"
             >
               <Plus className="w-4 h-4" />
               Add payment method (split)
@@ -167,19 +166,19 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
 
           {/* Totals */}
           {payments.length > 1 && (
-            <div className="bg-slate-50 rounded-xl px-4 py-3 space-y-1">
-              <div className="flex justify-between text-sm text-slate-600">
+            <div className="bg-secondary rounded-xl px-4 py-3 space-y-1">
+              <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Total paid</span>
                 <span>{formatCurrency(totalPaid)}</span>
               </div>
               {change >= 0 && (
-                <div className="flex justify-between text-sm font-medium text-green-700">
+                <div className="flex justify-between text-sm font-medium text-success">
                   <span>Change</span>
                   <span>{formatCurrency(change)}</span>
                 </div>
               )}
               {change < 0 && (
-                <div className="flex justify-between text-sm font-medium text-red-600">
+                <div className="flex justify-between text-sm font-medium text-destructive">
                   <span>Still owed</span>
                   <span>{formatCurrency(Math.abs(change))}</span>
                 </div>
@@ -188,12 +187,12 @@ export function PaymentDialog({ total, onConfirm, onClose }: PaymentDialogProps)
           )}
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <p className="text-sm text-destructive bg-destructive/8 rounded-lg px-3 py-2">{error}</p>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 px-6 py-4 border-t border-slate-200">
+        <div className="flex gap-3 px-6 py-4 border-t border-border">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
           <Button
             onClick={handleConfirm}

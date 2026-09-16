@@ -26,7 +26,7 @@ export default async function ReportsPage({
     return d.toISOString().split("T")[0];
   })();
 
-  const [salesRes, adjustmentsRes] = await Promise.all([
+  const [salesRes, adjustmentsRes, creditCustomersRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
@@ -45,6 +45,12 @@ export default async function ReportsPage({
       .gte("created_at", `${fromDate}T00:00:00.000Z`)
       .lte("created_at", `${toDate}T23:59:59.999Z`)
       .order("created_at", { ascending: false }),
+
+    supabase
+      .from("customers")
+      .select("id, name, phone, price_group, credit_limit, credit_balance")
+      .gt("credit_balance", 0)
+      .order("credit_balance", { ascending: false }),
   ]);
 
   return (
@@ -53,6 +59,7 @@ export default async function ReportsPage({
       toDate={toDate}
       sales={(salesRes.data ?? []) as any[]}
       adjustments={(adjustmentsRes.data ?? []) as any[]}
+      customers={(creditCustomersRes.data ?? []) as any[]}
     />
   );
 }

@@ -26,86 +26,50 @@ export async function submitSale(args: SubmitSaleArgs) {
 
   const { items, payments, subtotal, discount, total, customerId } = args;
 
-  // Bug #25 fix: validate stock server-side before creating the sale
-  for (const item of items) {
-    const { data: stock } = await supabase
-      .from("product_stock")
-      .select("stock_quantity, name")
-      .eq("id", item.product.id)
-      .single();
+  // Early stock guard — single query, catches obvious overages before hitting the DB function
+  const { data: stocks } = await supabase
+    .from("product_stock")
+    .select("id, stock_quantity, name, unit")
+    .in("id", items.map((i) => i.product.id));
 
+  const stockMap = Object.fromEntries((stocks ?? []).map((s) => [s.id, s]));
+  for (const item of items) {
+    const stock = stockMap[item.product.id];
     if (!stock) throw new Error(`Product not found: ${item.product.name}`);
     if (stock.stock_quantity < item.quantity) {
       throw new Error(
-        `Only ${stock.stock_quantity} ${item.product.unit ?? "units"} of "${item.product.name}" available — requested ${item.quantity}`
+        `Only ${stock.stock_quantity} ${item.product.unit ?? "units"} of "${stock.name}" available — requested ${item.quantity}`
       );
     }
   }
 
-  // Insert sale
-  const { data: sale, error: saleErr } = await supabase
-    .from("sales")
-    .insert({
-      cashier_id: cashierId,
-      customer_id: customerId || null,
-      subtotal,
-      discount_amount: discount,
-      total_amount: total,
-      status: "completed",
-    })
-    .select()
-    .single();
-
-  if (saleErr || !sale) throw new Error(saleErr?.message ?? "Failed to create sale");
-
-  // Insert sale items
-  const saleItems = items.map((item) => ({
-    sale_id: sale.id,
+  // submit_sale_v3: atomic FEFO deduction + account credit_balance update
+  const p_items = items.map((item) => ({
     product_id: item.product.id,
     quantity: item.quantity,
     unit_price: item.unit_price,
     discount_amount: item.discount_amount,
-    total_price: Math.max(0, item.quantity * item.unit_price - item.discount_amount),
   }));
 
-  const { error: itemsErr } = await supabase.from("sale_items").insert(saleItems);
-  if (itemsErr) throw new Error(itemsErr.message);
-
-  // Insert payments
-  const paymentRows = payments.map((p) => ({
-    sale_id: sale.id,
+  const p_payments = payments.map((p) => ({
     method: p.method,
     amount: p.amount,
-    reference: p.reference?.trim() || null,
+    reference: p.reference?.trim() || "",
   }));
 
-  const { error: paymentsErr } = await supabase.from("payments").insert(paymentRows);
-  if (paymentsErr) throw new Error(paymentsErr.message);
+  const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v3", {
+    p_cashier_id: cashierId,
+    p_customer_id: customerId || null,
+    p_subtotal: subtotal,
+    p_discount: discount,
+    p_total: total,
+    p_items: p_items,
+    p_payments: p_payments,
+  });
 
-  // Bug #23 fix: atomic stock deduction via DB function (FEFO — oldest batches first)
-  for (const item of items) {
-    let remaining = item.quantity;
-    const { data: batches } = await supabase
-      .from("stock_batches")
-      .select("id, quantity_remaining")
-      .eq("product_id", item.product.id)
-      .gt("quantity_remaining", 0)
-      .order("received_date", { ascending: true })
-      .order("created_at", { ascending: true });
+  if (rpcErr) throw new Error(rpcErr.message);
 
-    for (const batch of batches ?? []) {
-      if (remaining <= 0) break;
-      const deduct = Math.min(remaining, batch.quantity_remaining);
-      const { error } = await supabase.rpc("deduct_batch_stock", {
-        p_batch_id: batch.id,
-        p_deduct: deduct,
-      });
-      if (error) throw new Error(`Stock deduction failed: ${error.message}`);
-      remaining -= deduct;
-    }
-  }
-
-  return { saleId: sale.id };
+  return { saleId: saleId as string };
 }
 
 export async function getSaleForReceipt(saleId: string) {

@@ -7,17 +7,33 @@ import { redirect } from "next/navigation";
 export async function verifyCashierPin(
   cashierId: string,
   pin: string
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; locked?: boolean; lockedUntil?: string; attemptsRemaining?: number }> {
   const supabase = await createClient();
 
-  // Use the SECURITY DEFINER RPC to verify PIN without exposing the pin column
   const { data, error } = await supabase.rpc("verify_cashier_pin", {
     p_cashier_id: cashierId,
     p_pin: pin,
   });
 
   if (error) return { error: error.message };
-  if (!data) return { error: "Incorrect PIN" };
+
+  const result = data as { success: boolean; locked?: boolean; locked_until?: string; attempts_remaining?: number };
+
+  if (result.locked) {
+    return {
+      error: "Account locked — too many incorrect attempts",
+      locked: true,
+      lockedUntil: result.locked_until,
+    };
+  }
+
+  if (!result.success) {
+    return {
+      error: "Incorrect PIN",
+      locked: false,
+      attemptsRemaining: result.attempts_remaining,
+    };
+  }
 
   const cookieStore = await cookies();
   cookieStore.set("cashier_session", cashierId, {

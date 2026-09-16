@@ -1,8 +1,12 @@
 "use client";
 
-import { AlertTriangle, Package, PackageX } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Package, PackageX, Tag } from "lucide-react";
 import { Product, StockBatch } from "@/lib/types";
-import { daysUntilExpiry, formatDateOnly } from "@/lib/utils";
+import { daysUntilExpiry, formatDateOnly, formatCurrency } from "@/lib/utils";
+import { markdownProduct } from "@/app/(dashboard)/inventory/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // ---- Extended types --------------------------------------------------------
 
@@ -10,6 +14,7 @@ type ProductWithStock = Product & { stock_quantity: number };
 
 interface StockBatchWithProduct extends Omit<StockBatch, "product"> {
   product: { name: string; unit: string };
+  product_id: string;
 }
 
 // ---- Props -----------------------------------------------------------------
@@ -38,9 +43,9 @@ interface ExpiryStyle {
 
 const EXPIRY_STYLES: Record<ExpiryUrgency, ExpiryStyle> = {
   expired: {
-    card: "bg-red-50",
+    card: "bg-destructive/8",
     border: "border-l-red-500",
-    icon: "text-red-500",
+    icon: "text-destructive",
     label: "text-red-700",
   },
   critical: {
@@ -74,13 +79,31 @@ function EmptyCard({ message }: { message: string }) {
 }
 
 interface ExpiryCardProps {
-  batch: StockBatchWithProduct;
+  batch: StockBatchWithProduct & { product_id: string };
   days: number;
 }
 
 function ExpiryCard({ batch, days }: ExpiryCardProps) {
   const urgency = getExpiryUrgency(days);
   const styles = EXPIRY_STYLES[urgency];
+
+  const [showMarkdown, setShowMarkdown] = useState(false);
+  const [newPrice, setNewPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [mdError, setMdError] = useState<string | null>(null);
+  const [mdDone, setMdDone] = useState(false);
+
+  async function handleMarkdown() {
+    const price = parseFloat(newPrice);
+    if (!price || price <= 0) { setMdError("Enter a valid price."); return; }
+    setSaving(true);
+    setMdError(null);
+    const res = await markdownProduct(batch.product_id, price);
+    setSaving(false);
+    if (res.error) { setMdError(res.error); return; }
+    setMdDone(true);
+    setShowMarkdown(false);
+  }
 
   return (
     <div
@@ -108,6 +131,47 @@ function ExpiryCard({ batch, days }: ExpiryCardProps) {
               {expiryMessage(days)}
             </span>
           </div>
+
+          {/* Mark Down inline form */}
+          {!mdDone && !showMarkdown && (
+            <button
+              onClick={() => setShowMarkdown(true)}
+              className="mt-2 flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+            >
+              <Tag className="h-3 w-3" aria-hidden /> Mark Down
+            </button>
+          )}
+          {mdDone && (
+            <p className="mt-2 text-xs font-semibold text-success">Price updated.</p>
+          )}
+          {showMarkdown && (
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                type="number"
+                min={0.01}
+                step={0.01}
+                placeholder="New selling price"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="h-7 text-xs w-36"
+              />
+              <Button
+                size="sm"
+                disabled={saving}
+                onClick={handleMarkdown}
+                className="h-7 text-xs px-3"
+              >
+                {saving ? "Saving…" : "Confirm"}
+              </Button>
+              <button
+                onClick={() => { setShowMarkdown(false); setMdError(null); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          {mdError && <p className="mt-1 text-xs text-destructive">{mdError}</p>}
         </div>
       </div>
     </div>
@@ -125,14 +189,14 @@ function StockCard({ product }: StockCardProps) {
     <div
       className={`rounded-xl border-l-4 px-4 py-3 ${
         isOut
-          ? "bg-red-50 border-l-red-500"
+          ? "bg-destructive/8 border-l-red-500"
           : "bg-yellow-50 border-l-yellow-400"
       }`}
     >
       <div className="flex items-start gap-3">
         {isOut ? (
           <PackageX
-            className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
+            className="mt-0.5 h-4 w-4 shrink-0 text-destructive"
             aria-hidden
           />
         ) : (
@@ -146,7 +210,7 @@ function StockCard({ product }: StockCardProps) {
             {product.name}
           </p>
           {isOut ? (
-            <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-red-600">
+            <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-destructive">
               Out of Stock
             </p>
           ) : (

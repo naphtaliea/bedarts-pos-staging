@@ -1,13 +1,29 @@
-import { Users } from "lucide-react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { CustomersClient } from "./customers-client";
+import type { Customer } from "@/lib/types";
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [profileRes, customersRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    supabase
+      .from("customers")
+      .select("*")
+      .order("name"),
+  ]);
+
+  if (!profileRes.data) redirect("/login");
+  if (!["admin", "manager"].includes(profileRes.data.role)) redirect("/pos");
+
   return (
-    <div className="flex h-full items-center justify-center">
-      <div className="text-center">
-        <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-slate-700">Customers</h2>
-        <p className="text-slate-400 mt-1">Coming in Phase 5</p>
-      </div>
-    </div>
+    <CustomersClient
+      customers={(customersRes.data as Customer[]) ?? []}
+    />
   );
 }

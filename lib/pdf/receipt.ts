@@ -54,6 +54,7 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
   gap(12);
   if (settings.address) { line(settings.address, left, regular, 7); gap(9); }
   if (settings.phone) { line(`Tel: ${settings.phone}`, left, regular, 7); gap(9); }
+  if (settings.vat_number) { line(`VAT Reg: ${settings.vat_number}`, left, regular, 7); gap(9); }
 
   rule();
 
@@ -69,27 +70,27 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
 
   // Column headers
   line("ITEM", left, bold, 7);
-  line("QTY", 110, bold, 7);
-  line("PRICE", 140, bold, 7);
   line("TOTAL", col2, bold, 7);
   gap(10);
 
   // Items
   for (const item of items) {
-    const name = (item.product?.name ?? "Unknown").slice(0, 22);
-    const qty = String(item.quantity);
-    const price = formatCurrency(item.unit_price);
+    const name = (item.product?.name ?? "Unknown").slice(0, 24);
     const total = formatCurrency(item.total_price);
+    const isKg = item.product?.unit === "kg";
+    const calcLine = isKg
+      ? `  ${item.quantity}kg / ${formatCurrency(item.unit_price)}`
+      : `  ${item.quantity} x ${formatCurrency(item.unit_price)}`;
 
     line(name, left, regular, 7);
-    line(qty, 110, regular, 7);
-    line(price, 140, regular, 7);
     line(total, col2, regular, 7);
     gap(9);
+    line(calcLine, left, regular, 6, rgb(0.4, 0.4, 0.4));
+    gap(8);
 
     if (item.discount_amount > 0) {
-      line(`  Discount: -${formatCurrency(item.discount_amount)}`, left, regular, 7, rgb(0.5, 0, 0));
-      gap(9);
+      line(`  Disc: -${formatCurrency(item.discount_amount)}`, left, regular, 6, rgb(0.5, 0, 0));
+      gap(8);
     }
   }
 
@@ -108,8 +109,12 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
   }
   if (settings.tax_enabled && settings.tax_rate > 0) {
     const taxable = sale.subtotal - sale.discount_amount;
-    const taxAmt = taxable * (settings.tax_rate / 100);
-    twoCol(`Tax (${settings.tax_rate}%)`, formatCurrency(taxAmt), regular, 8);
+    if (settings.vat_number) {
+      twoCol("VAT (15%)", formatCurrency(taxable * 0.15), regular, 7);
+      twoCol("NHIL/GETFL (2.5%)", formatCurrency(taxable * 0.025), regular, 7);
+    } else {
+      twoCol(`Tax (${settings.tax_rate}%)`, formatCurrency(taxable * (settings.tax_rate / 100)), regular, 8);
+    }
   }
   twoCol("TOTAL", formatCurrency(sale.total_amount), bold, 10);
 
@@ -120,8 +125,9 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
   gap(9);
   for (const p of payments) {
     const method =
-      p.method === "momo" ? "Mobile Money" :
-      p.method === "pos_machine" ? "POS Machine" : "Cash";
+      p.method === "momo"        ? "Mobile Money" :
+      p.method === "pos_machine" ? "POS Machine"  :
+      p.method === "account"     ? "On Account"   : "Cash";
     twoCol(method, formatCurrency(p.amount), regular, 7);
     if (p.reference) { line(`  Ref: ${p.reference}`, left, regular, 7); gap(9); }
   }

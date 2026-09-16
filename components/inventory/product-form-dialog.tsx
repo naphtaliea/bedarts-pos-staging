@@ -15,8 +15,10 @@ interface ProductFormData {
   unit: string;
   selling_price: number;
   cost_price: number;
+  wholesale_price: number | null;
   temperature_zone: "frozen" | "chilled" | "ambient";
   low_stock_threshold: number;
+  image_url: string | null;
 }
 
 interface ProductFormDialogProps {
@@ -45,8 +47,10 @@ function getDefaultForm(product: Product | null): ProductFormData {
       unit: product.unit,
       selling_price: product.selling_price,
       cost_price: product.cost_price,
+      wholesale_price: product.wholesale_price ?? null,
       temperature_zone: product.temperature_zone,
       low_stock_threshold: product.low_stock_threshold,
+      image_url: product.image_url ?? null,
     };
   }
   return {
@@ -55,8 +59,10 @@ function getDefaultForm(product: Product | null): ProductFormData {
     unit: "kg",
     selling_price: 0,
     cost_price: 0,
+    wholesale_price: null,
     temperature_zone: "chilled",
     low_stock_threshold: 5,
+    image_url: null,
   };
 }
 
@@ -247,8 +253,8 @@ export function ProductFormDialog({
             </div>
           </div>
 
-          {/* Prices — two-column grid */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Prices — three-column grid */}
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-muted-foreground">
                 Selling Price (GH₵)
@@ -267,6 +273,21 @@ export function ProductFormDialog({
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-muted-foreground">
+                Wholesale Price (GH₵)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.wholesale_price == null ? "" : form.wholesale_price}
+                onChange={(e) =>
+                  set("wholesale_price", e.target.value === "" ? null : parseFloat(e.target.value) || 0)
+                }
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-muted-foreground">
                 Cost Price (GH₵)
               </label>
               <Input
@@ -281,6 +302,27 @@ export function ProductFormDialog({
                 placeholder="0.00"
               />
             </div>
+          </div>
+
+          {/* Image URL */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Image URL <span className="font-normal text-muted-foreground/70">(optional)</span>
+            </label>
+            <Input
+              type="url"
+              value={form.image_url ?? ""}
+              onChange={(e) => set("image_url", e.target.value.trim() || null)}
+              placeholder="https://…"
+            />
+            {form.image_url && (
+              <img
+                src={form.image_url}
+                alt="Preview"
+                className="h-16 w-24 rounded-lg object-cover border border-border mt-1"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
           </div>
 
           {/* Low Stock Alert */}
@@ -328,7 +370,7 @@ export function ProductFormDialog({
                       <button
                         type="button"
                         onClick={() => handleDeletePackage(pkg.id)}
-                        className="rounded p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                        className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
                         aria-label="Delete package"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -382,14 +424,14 @@ export function ProductFormDialog({
               </div>
 
               {pkgError && (
-                <p className="text-xs text-red-500">{pkgError}</p>
+                <p className="text-xs text-destructive">{pkgError}</p>
               )}
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs font-medium text-destructive">
               {error}
             </p>
           )}

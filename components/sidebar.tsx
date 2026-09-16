@@ -11,12 +11,13 @@ import {
   BarChart3,
   ReceiptText,
   Settings,
-  Snowflake,
   LogOut,
+  Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Profile, Role } from "@/lib/types";
 import { logout } from "@/app/(auth)/login/actions";
+import { SnowflakePattern } from "@/components/snowflake-pattern";
 
 interface NavItem {
   label: string;
@@ -27,7 +28,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager"] },
-  { label: "POS", href: "/pos", icon: ShoppingCart, roles: ["admin", "manager", "cashier"] },
+  { label: "POS", href: "/pos", icon: ShoppingCart, roles: ["admin", "manager"] },
+  { label: "Cashier View", href: "/cashier", icon: Monitor, roles: ["admin", "manager"] },
   { label: "Inventory", href: "/inventory", icon: Package, roles: ["admin", "manager"] },
   { label: "Customers", href: "/customers", icon: Users, roles: ["admin", "manager"] },
   { label: "Suppliers", href: "/suppliers", icon: Truck, roles: ["admin", "manager"] },
@@ -46,21 +48,28 @@ export function Sidebar({ profile }: SidebarProps) {
     item.roles.includes(profile.role)
   );
 
+  const initials = profile.full_name
+    .split(" ")
+    .slice(0, 2)
+    .map((n: string) => n[0] ?? "")
+    .join("")
+    .toUpperCase();
+
   return (
     <aside className="flex h-full w-60 flex-col bg-sidebar border-r border-white/10">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-active shrink-0">
-          <Snowflake className="w-5 h-5 text-white" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-sidebar-foreground truncate">Bedarts</p>
-          <p className="text-xs text-sidebar-muted truncate">Cold Supplies</p>
-        </div>
+      <div className="px-5 pt-5 pb-4 border-b border-white/10">
+        <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-9 w-auto" />
       </div>
 
+      {/* Brand pattern strip */}
+      <SnowflakePattern id="sidebar-snow" opacity={0.2} rows={2} tileSize={48} />
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1" aria-label="Main navigation">
+      <nav
+        className="flex-1 py-3 flex flex-col gap-0.5 overflow-y-auto"
+        aria-label="Main navigation"
+      >
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const active =
@@ -73,13 +82,16 @@ export function Sidebar({ profile }: SidebarProps) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 pl-5 pr-3 py-2.5 mr-2 rounded-r-xl text-sm font-medium transition-all border-l-[3px]",
                 active
-                  ? "bg-sidebar-active text-white"
-                  : "text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground"
+                  ? "border-primary bg-primary/10 text-white"
+                  : "border-transparent text-sidebar-muted hover:bg-white/8 hover:text-white/80"
               )}
             >
-              <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+              <Icon
+                className={cn("w-5 h-5 shrink-0", active && "text-primary")}
+                aria-hidden="true"
+              />
               {item.label}
             </Link>
           );
@@ -87,17 +99,24 @@ export function Sidebar({ profile }: SidebarProps) {
       </nav>
 
       {/* User + Logout */}
-      <div className="border-t border-white/10 px-3 py-4 flex flex-col gap-1">
-        <div className="px-3 py-2">
-          <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.full_name}</p>
-          <p className="text-xs text-sidebar-muted capitalize">{profile.role}</p>
+      <div className="border-t border-white/10 px-3 pt-3 pb-4">
+        <div className="flex items-center gap-3 px-2 py-2 mb-1">
+          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0 text-xs font-bold text-white">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {profile.full_name}
+            </p>
+            <p className="text-xs text-sidebar-muted capitalize">{profile.role}</p>
+          </div>
         </div>
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
+            className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-sidebar-muted hover:bg-white/8 hover:text-sidebar-foreground transition-colors"
           >
-            <LogOut className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
             Sign out
           </button>
         </form>

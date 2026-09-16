@@ -1,19 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
-
-// ── Guard: only admin can call these ──────────────────────────────────────────
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
-  return supabase;
-}
 
 // ── Store Settings ────────────────────────────────────────────────────────────
 
@@ -22,6 +11,7 @@ export async function updateStoreSettings(data: {
   address: string | null;
   phone: string | null;
   email: string | null;
+  vat_number?: string | null;
   receipt_footer: string | null;
   tax_rate: number;
   tax_enabled: boolean;
@@ -51,10 +41,9 @@ export async function updateUserRole(
 }
 
 export async function setUserPin(userId: string, pin: string): Promise<{ error?: string }> {
-  await requireAdmin();
+  const supabase = await requireAdmin();
   if (pin.length !== 4 || !/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" };
-  const admin = createAdminClient();
-  const { error } = await admin.from("profiles").update({ pin }).eq("id", userId);
+  const { error } = await supabase.rpc("set_cashier_pin", { p_user_id: userId, p_pin: pin });
   if (error) return { error: error.message };
   revalidatePath("/settings");
   return {};
@@ -65,6 +54,8 @@ export async function clearUserPin(userId: string): Promise<{ error?: string }> 
   const admin = createAdminClient();
   const { error } = await admin.from("profiles").update({ pin: null }).eq("id", userId);
   if (error) return { error: error.message };
+  // Clear any active lockout so the next PIN starts fresh
+  await admin.from("pin_lockouts").delete().eq("cashier_id", userId);
   revalidatePath("/settings");
   return {};
 }
@@ -88,15 +79,25 @@ export async function inviteUser(
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName, role },
   });
-  if (error) return { error: error.message };
+
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("already registered") || msg.includes("already exists")) {
+      return { error: "This email is already registered. If the user needs a different role, update it from the user list." };
+    }
+    return { error: error.message };
+  }
 
   if (data.user) {
-    await admin.from("profiles").upsert({
+    const { error: upsertError } = await admin.from("profiles").upsert({
       id: data.user.id,
       full_name: fullName,
       role,
       is_active: true,
     });
+    if (upsertError) {
+      return { error: `User invited but profile could not be saved: ${upsertError.message}` };
+    }
   }
 
   revalidatePath("/settings");

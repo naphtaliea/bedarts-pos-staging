@@ -15,7 +15,7 @@ export function Cart() {
 
   if (items.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-400">
+      <div className="flex-1 flex items-center justify-center text-muted-foreground/50">
         <div className="text-center">
           <p className="text-sm">Cart is empty</p>
           <p className="text-xs mt-1">Search for products above</p>
@@ -27,7 +27,7 @@ export function Cart() {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Items */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+      <div className="flex-1 overflow-y-auto divide-y divide-border">
         {items.map((item) => {
           const lineTotal = Math.max(
             0,
@@ -37,17 +37,17 @@ export function Cart() {
             <div key={item.product.id} className="py-3 px-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {item.product.name}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     GH₵{item.unit_price.toFixed(2)} / {item.product.unit}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => updateQty(item.product.id, item.quantity - 1)}
-                    className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                    className="w-7 h-7 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -58,11 +58,11 @@ export function Cart() {
                     onChange={(e) =>
                       updateQty(item.product.id, parseFloat(e.target.value) || 1)
                     }
-                    className="w-12 h-7 text-center text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-red-700"
+                    className="w-12 h-7 text-center text-sm border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   <button
                     onClick={() => updateQty(item.product.id, item.quantity + 1)}
-                    className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                    className="w-7 h-7 rounded-md bg-secondary hover:bg-muted flex items-center justify-center"
                   >
                     <Plus className="w-3 h-3" />
                   </button>
@@ -70,16 +70,15 @@ export function Cart() {
               </div>
 
               <div className="flex items-center justify-between mt-2">
-                {/* Per-item discount */}
                 {editingDiscount === item.product.id ? (
                   <div className="flex items-center gap-1">
-                    <Tag className="w-3 h-3 text-slate-400" />
+                    <Tag className="w-3 h-3 text-muted-foreground" />
                     <input
                       type="number"
                       min={0}
                       placeholder="0.00"
                       autoFocus
-                      className="w-20 h-6 text-xs border border-slate-300 rounded px-1 focus:outline-none focus:ring-1 focus:ring-red-700"
+                      className="w-20 h-6 text-xs border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
                       onBlur={(e) => {
                         updateItemDiscount(
                           item.product.id,
@@ -96,7 +95,7 @@ export function Cart() {
                 ) : (
                   <button
                     onClick={() => setEditingDiscount(item.product.id)}
-                    className="text-xs text-slate-400 hover:text-red-700 flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
                   >
                     <Tag className="w-3 h-3" />
                     {item.discount_amount > 0
@@ -106,12 +105,12 @@ export function Cart() {
                 )}
 
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-sm font-semibold text-foreground">
                     {formatCurrency(lineTotal)}
                   </span>
                   <button
                     onClick={() => removeItem(item.product.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors"
+                    className="text-border hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -123,17 +122,17 @@ export function Cart() {
       </div>
 
       {/* Totals */}
-      <div className="border-t border-slate-200 pt-3 mt-1 space-y-1.5">
-        <div className="flex justify-between text-sm text-slate-600">
+      <div className="border-t border-border pt-3 mt-1 space-y-1.5">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>Subtotal</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
 
         {/* Order-level discount */}
-        <div className="flex justify-between items-center text-sm text-slate-600">
+        <div className="flex justify-between items-center text-sm text-muted-foreground">
           <span>Order discount</span>
           <div className="flex items-center gap-1">
-            <span className="text-xs text-slate-400">GH₵</span>
+            <span className="text-xs text-muted-foreground/60">GH₵</span>
             <input
               type="number"
               min={0}
@@ -143,19 +142,19 @@ export function Cart() {
                 setDiscount(parseFloat(e.target.value) || 0);
               }}
               placeholder="0.00"
-              className="w-20 text-right text-sm border border-slate-200 rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-red-700"
+              className="w-20 text-right text-sm border border-border rounded px-1 h-6 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
 
         {discount > 0 && (
-          <div className="flex justify-between text-sm text-red-600">
+          <div className="flex justify-between text-sm text-warning">
             <span>Discount applied</span>
             <span>-{formatCurrency(discount)}</span>
           </div>
         )}
 
-        <div className="flex justify-between text-base font-bold text-slate-900 pt-1 border-t border-slate-200">
+        <div className="flex justify-between text-base font-bold text-foreground pt-1 border-t border-border">
           <span>Total</span>
           <span>{formatCurrency(total)}</span>
         </div>

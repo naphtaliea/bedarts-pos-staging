@@ -12,6 +12,7 @@ import { AlertsPanel } from "@/components/inventory/alerts-panel";
 import {
   createProduct,
   updateProduct,
+  deleteProduct,
   toggleProductActive,
   createCategory,
   deleteCategory,
@@ -19,7 +20,7 @@ import {
   adjustStock,
 } from "./actions";
 import { formatDate } from "@/lib/utils";
-import type { Category, Product, ProductPackage, Profile, StockAdjustment, Supplier } from "@/lib/types";
+import type { AdjustmentReason, Category, Product, ProductPackage, Profile, StockAdjustment, Supplier } from "@/lib/types";
 import type { StockBatch } from "@/lib/types";
 
 // ─── Local row types ───────────────────────────────────────────────────────────
@@ -65,24 +66,24 @@ interface ToastState {
 
 // ─── Reason badge ──────────────────────────────────────────────────────────────
 
+const REASON_BADGE_MAP: Record<
+  AdjustmentReason,
+  { label: string; cls: string }
+> = {
+  write_off:  { label: "Write-off",  cls: "bg-orange-100 text-orange-700" },
+  waste:      { label: "Waste",      cls: "bg-orange-100 text-orange-700" },
+  theft:      { label: "Theft",      cls: "bg-red-100 text-red-700" },
+  damaged:    { label: "Damaged",    cls: "bg-amber-100 text-amber-700" },
+  correction: { label: "Correction", cls: "bg-accent/12 text-accent" },
+  return:     { label: "Return",     cls: "bg-blue-100 text-blue-700" },
+  found:      { label: "Found",      cls: "bg-success/12 text-success" },
+};
+
 function ReasonBadge({ reason }: { reason: StockAdjustment["reason"] }) {
-  if (reason === "write_off") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
-        Write-off
-      </span>
-    );
-  }
-  if (reason === "correction") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-        Correction
-      </span>
-    );
-  }
+  const badge = REASON_BADGE_MAP[reason] ?? { label: reason, cls: "bg-secondary text-foreground" };
   return (
-    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-      Return
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.cls}`}>
+      {badge.label}
     </span>
   );
 }
@@ -181,7 +182,7 @@ function CategoryManagerDialog({
                     onClick={() => handleDelete(cat.id)}
                     disabled={deletingId === cat.id}
                     aria-label={`Delete ${cat.name}`}
-                    className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                    className="rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/8 hover:text-destructive disabled:opacity-40"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -191,7 +192,7 @@ function CategoryManagerDialog({
           )}
 
           {error && (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="mt-3 rounded-lg bg-destructive/8 px-3 py-2 text-xs font-medium text-destructive">
               {error}
             </p>
           )}
@@ -281,8 +282,10 @@ export function InventoryClient({
     unit: string;
     selling_price: number;
     cost_price: number;
+    wholesale_price: number | null;
     temperature_zone: "frozen" | "chilled" | "ambient";
     low_stock_threshold: number;
+    image_url: string | null;
   }) {
     let result: { error?: string };
     if (showProductForm === "create") {
@@ -315,6 +318,18 @@ export function InventoryClient({
     }
   }
 
+  async function handleDeleteProduct(product: Product) {
+    const result = await deleteProduct(product.id);
+    if (result.error) {
+      showToast("error", result.error.includes("foreign key")
+        ? `"${product.name}" has sales history and cannot be deleted. Deactivate it instead.`
+        : result.error);
+    } else {
+      showToast("success", `"${product.name}" deleted.`);
+      router.refresh();
+    }
+  }
+
   async function handleReceiveStock(data: {
     product_id: string;
     supplier_id: string | null;
@@ -333,7 +348,7 @@ export function InventoryClient({
   async function handleAdjustStock(data: {
     product_id: string;
     quantity_change: number;
-    reason: "write_off" | "correction" | "return";
+    reason: AdjustmentReason;
     notes: string | null;
   }) {
     const result = await adjustStock(data);
@@ -428,6 +443,7 @@ export function InventoryClient({
               categories={categories}
               onEdit={(p) => setShowProductForm(p)}
               onToggleActive={handleToggleActive}
+              onDelete={handleDeleteProduct}
             />
           </div>
         </div>
@@ -507,7 +523,7 @@ export function InventoryClient({
                         <td className="whitespace-nowrap px-4 py-3">
                           <span
                             className={`text-sm font-semibold tabular-nums ${
-                              isPositive ? "text-green-600" : "text-red-600"
+                              isPositive ? "text-success" : "text-destructive"
                             }`}
                           >
                             {isPositive ? "+" : ""}

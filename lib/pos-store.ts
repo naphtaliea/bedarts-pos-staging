@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CartItem, Product } from "@/lib/types";
+import type { CartItem, Customer, Product } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,17 +12,19 @@ export interface OrderTab {
 }
 
 // Persisted snapshot of a tab's cart (saved when you leave the tab)
-type TabSnapshot = { items: CartItem[]; discount: number };
+type TabSnapshot = { items: CartItem[]; discount: number; customer: Customer | null };
 
 interface PosStore {
   // Active cart (flat — mirrors the active tab at all times)
   items: CartItem[];
   discount: number;
+  customer: Customer | null;
 
   // Tab list + which one is active
   tabs: OrderTab[];
   activeTabId: string;
   snapshots: Record<string, TabSnapshot>;
+  tabCounter: number; // monotonically increasing — prevents duplicate tab names
 
   // Tab management
   addTab: () => void;
@@ -36,7 +38,7 @@ interface PosStore {
   updateItemDiscount: (productId: string, discount: number) => void;
   updateItemPrice: (productId: string, price: number) => void;
   setDiscount: (discount: number) => void;
-  setCustomer: (id: string | null) => void;
+  setCustomer: (customer: Customer | null) => void;
   clearCart: () => void;
 
   // Computed (same API as before)
@@ -55,22 +57,26 @@ export const useCartStore = create<PosStore>()(
     (set, get) => ({
       items: [],
       discount: 0,
+      customer: null,
       tabs: [FIRST_TAB],
       activeTabId: FIRST_TAB.id,
       snapshots: {},
+      tabCounter: 1,
 
       // ── Tab management ───────────────────────────────────────
 
       addTab: () => {
         const s = get();
-        const tab = makeTab(`Order ${s.tabs.length + 1}`);
-        // Save current cart to snapshot of the active tab
+        const counter = s.tabCounter + 1;
+        const tab = makeTab(`Order ${counter}`);
         set({
-          snapshots: { ...s.snapshots, [s.activeTabId]: { items: s.items, discount: s.discount } },
+          snapshots: { ...s.snapshots, [s.activeTabId]: { items: s.items, discount: s.discount, customer: s.customer } },
           tabs: [...s.tabs, tab],
           activeTabId: tab.id,
+          tabCounter: counter,
           items: [],
           discount: 0,
+          customer: null,
         });
       },
 
@@ -84,29 +90,30 @@ export const useCartStore = create<PosStore>()(
         let newActiveId = s.activeTabId;
         let newItems = s.items;
         let newDiscount = s.discount;
+        let newCustomer = s.customer;
 
         if (s.activeTabId === id) {
-          // Switch to last remaining tab
-          const nextTab = remaining[remaining.length - 1];
+          // prefer the tab to the left; fall back to the first remaining tab
+          const removedIdx = s.tabs.findIndex((t) => t.id === id);
+          const nextTab = remaining[Math.max(0, removedIdx - 1)];
           newActiveId = nextTab.id;
           const snap = newSnapshots[nextTab.id];
           newItems = snap?.items ?? [];
           newDiscount = snap?.discount ?? 0;
+          newCustomer = snap?.customer ?? null;
           delete newSnapshots[nextTab.id];
         }
 
-        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount });
+        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount, customer: newCustomer });
       },
 
       setActiveTab: (id) => {
         const s = get();
         if (s.activeTabId === id) return;
-        // Save current tab to snapshot
         const newSnapshots = {
           ...s.snapshots,
-          [s.activeTabId]: { items: s.items, discount: s.discount },
+          [s.activeTabId]: { items: s.items, discount: s.discount, customer: s.customer },
         };
-        // Load the target tab's snapshot (or empty)
         const snap = s.snapshots[id];
         delete newSnapshots[id];
         set({
@@ -114,6 +121,7 @@ export const useCartStore = create<PosStore>()(
           activeTabId: id,
           items: snap?.items ?? [],
           discount: snap?.discount ?? 0,
+          customer: snap?.customer ?? null,
         });
       },
 
@@ -144,8 +152,8 @@ export const useCartStore = create<PosStore>()(
         set((s) => ({ items: s.items.map((i) => i.product.id === productId ? { ...i, unit_price: Math.max(0, price) } : i) })),
 
       setDiscount: (discount) => set({ discount: Math.max(0, discount) }),
-      setCustomer: () => {},
-      clearCart: () => set({ items: [], discount: 0 }),
+      setCustomer: (customer) => set({ customer }),
+      clearCart: () => set({ items: [], discount: 0, customer: null }),
 
       // ── Computed ─────────────────────────────────────────────
 

@@ -150,6 +150,7 @@ function StoreTab({
     address: settings.address ?? "",
     phone: settings.phone ?? "",
     email: settings.email ?? "",
+    vat_number: settings.vat_number ?? "",
     receipt_footer: settings.receipt_footer ?? "",
     tax_rate: settings.tax_rate ?? 0,
     tax_enabled: settings.tax_enabled ?? false,
@@ -163,6 +164,7 @@ function StoreTab({
       address: form.address || null,
       phone: form.phone || null,
       email: form.email || null,
+      vat_number: form.vat_number || null,
       receipt_footer: form.receipt_footer || null,
       tax_rate: form.tax_rate,
       tax_enabled: form.tax_enabled,
@@ -188,6 +190,13 @@ function StoreTab({
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </Field>
         </div>
+        <Field label="VAT / GRA Number">
+          <Input
+            value={form.vat_number}
+            onChange={(e) => setForm({ ...form, vat_number: e.target.value })}
+            placeholder="e.g. GRA-0001234567"
+          />
+        </Field>
         <Button onClick={handleSave} disabled={saving}>
           {saving ? "Saving…" : "Save Changes"}
         </Button>

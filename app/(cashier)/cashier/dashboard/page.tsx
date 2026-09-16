@@ -3,6 +3,7 @@ import { PosTopBar } from "@/components/pos/pos-topbar";
 import { formatCurrency } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { TrendingUp, ShoppingCart, Receipt } from "lucide-react";
+import { EODSection } from "./eod-section";
 
 type SaleItemWithProduct = {
   product_id: string;
@@ -36,12 +37,20 @@ export default async function DashboardPage() {
   const { data: salesData } = await supabase
     .from("sales")
     .select(
-      "id, total_amount, created_at, sale_items(product_id, quantity, products(name))"
+      "id, total_amount, created_at, sale_items(product_id, quantity, products(name)), payments(method, amount)"
     )
     .gte("created_at", today.toISOString())
     .eq("status", "completed");
 
   const sales = (salesData ?? []) as unknown as SaleRow[];
+
+  // Calculate cash sales total for EOD reconciliation
+  let cashSalesTotal = 0;
+  for (const sale of sales) {
+    for (const p of (sale as any).payments ?? []) {
+      if (p.method === "cash") cashSalesTotal += p.amount;
+    }
+  }
 
   const totalRevenue = sales.reduce((s, o) => s + o.total_amount, 0);
   const orderCount = sales.length;
@@ -160,6 +169,9 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* End of Day reconciliation */}
+        <EODSection cashSalesTotal={cashSalesTotal} />
       </main>
     </div>
   );

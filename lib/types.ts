@@ -1,8 +1,9 @@
 export type Role = "admin" | "manager" | "cashier";
 export type TemperatureZone = "frozen" | "chilled" | "ambient";
-export type PaymentMethod = "cash" | "momo" | "pos_machine";
+export type PaymentMethod = "cash" | "momo" | "pos_machine" | "account";
+export type PriceGroup = "retail" | "wholesale" | "distributor";
 export type SaleStatus = "completed" | "voided";
-export type AdjustmentReason = "write_off" | "correction" | "return";
+export type AdjustmentReason = "write_off" | "correction" | "return" | "waste" | "theft" | "damaged" | "found";
 
 export interface Profile {
   id: string;
@@ -35,6 +36,7 @@ export interface Product {
   category?: Category;
   unit: string;
   selling_price: number;
+  wholesale_price: number | null;
   cost_price: number;
   temperature_zone: TemperatureZone;
   low_stock_threshold: number;
@@ -42,6 +44,7 @@ export interface Product {
   created_at: string;
   stock_quantity?: number;
   image_url?: string;
+  has_valid_stock?: boolean;
 }
 
 export interface StockBatch {
@@ -63,6 +66,7 @@ export interface Customer {
   name: string;
   phone: string | null;
   email: string | null;
+  price_group: PriceGroup;
   credit_limit: number;
   credit_balance: number;
   created_at: string;
@@ -170,5 +174,23 @@ export interface StoreSettings {
   receipt_footer: string | null;
   tax_rate: number;
   tax_enabled: boolean;
+  vat_number: string | null;
   updated_at: string;
+}
+
+export interface CashierReconciliation {
+  id: string;
+  cashier_id: string;
+  cashier?: Profile;
+  shift_date: string;
+  opening_float: number;
+  cash_counted: number | null;
+  cash_expected: number | null;
+  cash_variance: number | null;
+  momo_total: number;
+  pos_total: number;
+  account_total: number;
+  gross_sales: number;
+  notes: string | null;
+  created_at: string;
 }

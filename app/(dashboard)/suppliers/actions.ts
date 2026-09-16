@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireManagerOrAdmin } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
 
 type SupplierData = {
@@ -15,7 +15,7 @@ type SupplierData = {
 export async function createSupplier(
   data: SupplierData
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("suppliers").insert(data);
   if (error) return { error: error.message };
@@ -28,7 +28,7 @@ export async function updateSupplier(
   id: string,
   data: SupplierData
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase
     .from("suppliers")
@@ -41,7 +41,7 @@ export async function updateSupplier(
 }
 
 export async function deleteSupplier(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("suppliers").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -64,7 +64,7 @@ export async function createPurchase(data: {
   notes: string | null;
   items: PurchaseItem[];
 }): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const {
     data: { user },

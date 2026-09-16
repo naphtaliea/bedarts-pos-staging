@@ -76,34 +76,34 @@ export function OrderPanel({
       : "";
 
   return (
-    <div className="flex flex-col h-full bg-white border-l border-slate-200">
+    <div className="flex flex-col h-full bg-card border-l border-border">
       {/* Customer selector */}
-      <div className="px-3 py-2 border-b border-slate-100">
+      <div className="px-3 py-2 border-b border-border">
         <div className="relative">
           <select
             value={selectedCustomerId ?? ""}
             onChange={(e) => onCustomerChange(e.target.value || null)}
-            className="w-full h-9 pl-3 pr-8 text-sm border border-slate-200 rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-red-700"
+            className="w-full h-9 pl-3 pr-8 text-sm border border-border rounded-lg bg-card appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">Walk-in Customer</option>
             {customers.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
       {/* Order lines */}
       <div className="flex-1 overflow-y-auto">
         {items.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-300 text-sm">
+          <div className="flex items-center justify-center h-full text-muted-foreground/40 text-sm">
             No items yet
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-border">
             {/* Header */}
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-1.5 bg-slate-50 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-1.5 bg-secondary text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               <span>Product</span>
               <span className="text-right">Qty</span>
               <span className="text-right">Price</span>
@@ -120,26 +120,26 @@ export function OrderPanel({
                   onClick={() => handleLineClick(item.product.id)}
                   className={cn(
                     "grid grid-cols-[1fr_auto_auto_auto] gap-2 px-3 py-2.5 cursor-pointer transition-colors",
-                    isSelected ? "bg-red-50 border-l-2 border-[#AB1509]" : "hover:bg-slate-50"
+                    isSelected ? "bg-primary/8 border-l-2 border-primary" : "hover:bg-secondary"
                   )}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{item.product.name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{item.product.name}</p>
                     {item.discount_amount > 0 && (
-                      <p className="text-xs text-orange-500">-{formatCurrency(item.discount_amount)}</p>
+                      <p className="text-xs text-warning">-{formatCurrency(item.discount_amount)}</p>
                     )}
                   </div>
-                  <span className="text-sm text-slate-700 text-right self-center">{item.quantity}</span>
-                  <span className="text-sm text-slate-700 text-right self-center">
+                  <span className="text-sm text-foreground text-right self-center">{item.quantity}</span>
+                  <span className="text-sm text-foreground text-right self-center">
                     {formatCurrency(item.unit_price)}
                   </span>
                   <div className="flex items-center gap-1 self-center">
-                    <span className="text-sm font-semibold text-slate-900 text-right">
+                    <span className="text-sm font-semibold text-foreground text-right">
                       {formatCurrency(lineTotal)}
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); removeItem(item.product.id); onLineSelect(null); }}
-                      className="text-slate-200 hover:text-red-500 transition-colors ml-1"
+                      className="text-border hover:text-destructive transition-colors ml-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -157,18 +157,18 @@ export function OrderPanel({
       )}
 
       {/* Totals + charge */}
-      <div className="border-t border-slate-200 px-3 py-3 space-y-1.5">
-        <div className="flex justify-between text-sm text-slate-500">
+      <div className="border-t border-border px-3 py-3 space-y-1.5">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>Subtotal</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
         {discount > 0 && (
-          <div className="flex justify-between text-sm text-orange-500">
+          <div className="flex justify-between text-sm text-warning">
             <span>Discount</span>
             <span>-{formatCurrency(discount)}</span>
           </div>
         )}
-        <div className="flex justify-between text-base font-bold text-slate-900">
+        <div className="flex justify-between text-base font-bold text-foreground">
           <span>Total</span>
           <span>{formatCurrency(total)}</span>
         </div>
@@ -177,7 +177,7 @@ export function OrderPanel({
           {items.length > 0 && (
             <button
               onClick={() => { clearCart(); onLineSelect(null); }}
-              className="px-3 py-3 rounded-xl border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-colors"
+              className="px-3 py-3 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -188,8 +188,8 @@ export function OrderPanel({
             className={cn(
               "flex-1 py-3 rounded-xl font-bold text-base transition-all",
               items.length === 0
-                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                : "bg-[#AB1509] text-white hover:bg-red-900 active:scale-95 shadow-sm"
+                ? "bg-secondary text-muted-foreground cursor-not-allowed"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-sm"
             )}
           >
             {items.length === 0 ? "Add items" : `Charge ${formatCurrency(total)}`}

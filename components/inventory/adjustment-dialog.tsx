@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 interface AdjustmentData {
   product_id: string;
   quantity_change: number;
-  reason: "write_off" | "correction" | "return";
+  reason: "waste" | "theft" | "damaged" | "correction" | "return" | "found";
   notes: string | null;
 }
 
@@ -27,26 +27,52 @@ interface ReasonOption {
   label: string;
   description: string;
   selectedClass: string;
+  /** true = stock is removed (negative change), false = stock is added */
+  deducts: boolean;
 }
 
 const REASON_OPTIONS: ReasonOption[] = [
   {
-    value: "write_off",
-    label: "Write-Off",
-    description: "Removes stock",
+    value: "waste",
+    label: "Waste",
+    description: "Expired / spoiled",
     selectedClass: "bg-orange-500 text-white border-orange-500",
+    deducts: true,
+  },
+  {
+    value: "theft",
+    label: "Theft",
+    description: "Theft / shrinkage",
+    selectedClass: "bg-red-600 text-white border-red-600",
+    deducts: true,
+  },
+  {
+    value: "damaged",
+    label: "Damaged",
+    description: "Physically damaged",
+    selectedClass: "bg-amber-600 text-white border-amber-600",
+    deducts: true,
   },
   {
     value: "correction",
     label: "Correction",
-    description: "Adds stock",
+    description: "Counting correction",
     selectedClass: "bg-primary text-white border-primary",
+    deducts: false,
   },
   {
     value: "return",
     label: "Return",
-    description: "Adds stock back",
+    description: "Returned to supplier",
+    selectedClass: "bg-blue-600 text-white border-blue-600",
+    deducts: true,
+  },
+  {
+    value: "found",
+    label: "Found",
+    description: "Found (unrecorded stock)",
     selectedClass: "bg-green-600 text-white border-green-600",
+    deducts: false,
   },
 ];
 
@@ -72,7 +98,7 @@ interface FormState {
 function getDefaultForm(): FormState {
   return {
     product_id: "",
-    reason: "write_off",
+    reason: "waste",
     quantity: 0,
     notes: "",
   };
@@ -103,7 +129,8 @@ export function AdjustmentDialog({
       return;
     }
 
-    const quantity_change = form.reason === "write_off" ? -qty : qty;
+    const option = REASON_OPTIONS.find((o) => o.value === form.reason)!;
+    const quantity_change = option.deducts ? -qty : qty;
 
     setSubmitting(true);
     try {
@@ -180,20 +207,23 @@ export function AdjustmentDialog({
             <label className="block text-xs font-medium text-muted-foreground">
               Reason
             </label>
-            <div className="flex gap-2">
-              {REASON_OPTIONS.map(({ value, label, selectedClass }) => (
+            <div className="grid grid-cols-3 gap-2">
+              {REASON_OPTIONS.map(({ value, label, description, selectedClass }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => set("reason", value)}
                   className={cn(
-                    "flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                    "py-2 px-1 rounded-lg text-xs font-semibold border transition-colors leading-tight text-center",
                     form.reason === value
                       ? selectedClass
                       : "bg-card border-border text-muted-foreground hover:bg-secondary"
                   )}
                 >
-                  {label}
+                  <span className="block">{label}</span>
+                  <span className={cn("block text-[10px] font-normal mt-0.5", form.reason === value ? "opacity-75" : "text-muted-foreground/70")}>
+                    {description}
+                  </span>
                 </button>
               ))}
             </div>
@@ -216,8 +246,7 @@ export function AdjustmentDialog({
               placeholder="0.000"
             />
             <p className="text-xs text-muted-foreground">
-              For write-offs, stock will be deducted. For corrections/returns,
-              stock will be added.
+              Waste, theft, damaged, and returns deduct stock. Correction and found add stock.
             </p>
           </div>
 
@@ -237,7 +266,7 @@ export function AdjustmentDialog({
 
           {/* Error */}
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs font-medium text-destructive">
               {error}
             </p>
           )}

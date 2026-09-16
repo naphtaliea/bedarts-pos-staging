@@ -135,7 +135,7 @@ export function PurchaseFormDialog({
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">
-                Supplier <span className="text-red-500">*</span>
+                Supplier <span className="text-destructive">*</span>
               </label>
               <select
                 value={supplierId}
@@ -273,7 +273,7 @@ export function PurchaseFormDialog({
                         {items.length > 1 && (
                           <button
                             onClick={() => removeItem(index)}
-                            className="flex h-9 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
+                            className="flex h-9 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/8 hover:text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -295,7 +295,7 @@ export function PurchaseFormDialog({
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            <p className="rounded-lg bg-destructive/8 px-3 py-2 text-sm text-destructive">
               {error}
             </p>
           )}

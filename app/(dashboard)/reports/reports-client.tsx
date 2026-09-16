@@ -16,9 +16,10 @@ interface ReportsClientProps {
   toDate: string;
   sales: any[];
   adjustments: any[];
+  customers?: any[];
 }
 
-type Tab = "overview" | "sales" | "products" | "inventory" | "cashiers" | "payments";
+type Tab = "overview" | "sales" | "products" | "inventory" | "cashiers" | "payments" | "ar";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -27,6 +28,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "inventory", label: "Inventory & Waste" },
   { id: "cashiers", label: "Cashiers" },
   { id: "payments", label: "Payments" },
+  { id: "ar", label: "AR / Credit" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,7 +92,7 @@ function exportCSV(rows: Record<string, any>[], filename: string) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function ReportsClient({ fromDate, toDate, sales, adjustments }: ReportsClientProps) {
+export function ReportsClient({ fromDate, toDate, sales, adjustments, customers = [] }: ReportsClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [localFrom, setLocalFrom] = useState(fromDate);
@@ -151,6 +153,7 @@ export function ReportsClient({ fromDate, toDate, sales, adjustments }: ReportsC
         {tab === "inventory" && <InventoryTab adjustments={adjustments} />}
         {tab === "cashiers" && <CashiersTab sales={completedSales} />}
         {tab === "payments" && <PaymentsTab sales={completedSales} />}
+        {tab === "ar" && <ARTab customers={customers} />}
       </div>
     </div>
   );
@@ -478,7 +481,7 @@ function PaymentsTab({ sales }: { sales: any[] }) {
     }
   }
 
-  const METHOD_LABELS: Record<string, string> = { cash: "Cash", momo: "Mobile Money", pos_machine: "POS Machine" };
+  const METHOD_LABELS: Record<string, string> = { cash: "Cash", momo: "Mobile Money", pos_machine: "POS Machine", account: "On Account" };
   const totalRevenue = Object.values(methodMap).reduce((s, v) => s + v.total, 0);
 
   const rows = Object.entries(methodMap)
@@ -512,6 +515,72 @@ function PaymentsTab({ sales }: { sales: any[] }) {
           </div>
         )}
       </SectionCard>
+    </div>
+  );
+}
+
+// ── AR / Credit Tab ───────────────────────────────────────────────────────────
+
+const PRICE_GROUP_LABELS: Record<string, string> = {
+  retail: "Retail",
+  wholesale: "Wholesale",
+  distributor: "Distributor",
+};
+
+const PRICE_GROUP_COLORS: Record<string, string> = {
+  retail: "bg-blue-100 text-blue-700",
+  wholesale: "bg-purple-100 text-purple-700",
+  distributor: "bg-amber-100 text-amber-700",
+};
+
+function ARTab({ customers }: { customers: any[] }) {
+  const totalOwed = customers.reduce((s, c) => s + (c.credit_balance ?? 0), 0);
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard label="Customers with Balance" value={String(customers.length)} sub="outstanding accounts" />
+        <StatCard label="Total Outstanding" value={formatCurrency(totalOwed)} sub="across all accounts" />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <p className="text-sm font-semibold text-foreground">Accounts Receivable — Outstanding Balances</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/50">
+                {["Customer", "Phone", "Price Group", "Credit Limit", "Balance Owed"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {customers.map((c) => (
+                <tr key={c.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.phone ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className={cn("inline-block rounded-full px-2 py-0.5 text-xs font-semibold", PRICE_GROUP_COLORS[c.price_group] ?? "bg-secondary text-foreground")}>
+                      {PRICE_GROUP_LABELS[c.price_group] ?? c.price_group}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatCurrency(c.credit_limit ?? 0)}</td>
+                  <td className="px-4 py-3 tabular-nums font-bold text-destructive">{formatCurrency(c.credit_balance ?? 0)}</td>
+                </tr>
+              ))}
+              {customers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    No customers with outstanding balances
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

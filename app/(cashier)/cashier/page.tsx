@@ -21,17 +21,32 @@ export default async function CashierPage() {
       .select("*, category:categories(name)")
       .eq("is_active", true)
       .order("name")
-      .limit(60),
+      .limit(200),
     supabase.from("product_packages").select("*").order("label"),
   ]);
 
   if (!profileRes.data) redirect("/login");
 
+  const validStockRes = await supabase
+    .from("stock_batches")
+    .select("product_id")
+    .gt("quantity_remaining", 0)
+    .or("expiry_date.is.null,expiry_date.gte." + new Date().toISOString().split("T")[0]);
+
+  const validProductIds = new Set(
+    (validStockRes.data ?? []).map((r: { product_id: string }) => r.product_id)
+  );
+
+  const products = ((productsRes.data as Product[]) ?? []).map((p) => ({
+    ...p,
+    has_valid_stock: validProductIds.has(p.id),
+  }));
+
   return (
     <CashierPOSClient
       cashier={profileRes.data as Profile}
       initialCategories={(categoriesRes.data as Category[]) ?? []}
-      initialProducts={(productsRes.data as Product[]) ?? []}
+      initialProducts={products}
       initialPackages={(packagesRes.data as ProductPackage[]) ?? []}
     />
   );

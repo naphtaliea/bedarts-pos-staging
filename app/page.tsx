@@ -4,9 +4,9 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ArrowRight, ShoppingCart, Package, BarChart3 } from "lucide-react";
 
-const RED = "#AB1509";
-const YELLOW = "#fff7d3";
-const DARK = "#1c0a07";
+const RED = "#CC1B14";
+const YELLOW = "#EEF3FF";
+const DARK = "#060F40";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -77,7 +77,7 @@ export default async function Home() {
           </p>
 
           <h1 style={{
-            fontFamily: "var(--font-abril)",
+            fontFamily: "var(--font-display)",
             fontSize: "clamp(3.25rem, 9vw, 7.5rem)",
             lineHeight: 0.9,
             letterSpacing: "-0.02em",
@@ -130,7 +130,7 @@ export default async function Home() {
             What we carry
           </p>
           <h2 style={{
-            fontFamily: "var(--font-abril)",
+            fontFamily: "var(--font-display)",
             fontSize: "clamp(2rem, 5vw, 3.5rem)",
             color: DARK, margin: "0 0 3rem",
             lineHeight: 1.0,
@@ -180,7 +180,7 @@ export default async function Home() {
             Built for the team
           </p>
           <h2 style={{
-            fontFamily: "var(--font-abril)",
+            fontFamily: "var(--font-display)",
             fontSize: "clamp(1.75rem, 4vw, 3rem)",
             color: DARK, margin: "0 0 3rem", lineHeight: 1.05,
           }}>
@@ -232,7 +232,7 @@ export default async function Home() {
           flexWrap: "wrap", gap: "2rem",
         }}>
           <h2 style={{
-            fontFamily: "var(--font-abril)",
+            fontFamily: "var(--font-display)",
             fontSize: "clamp(2rem, 5vw, 3.5rem)",
             color: "white", margin: 0, lineHeight: 1.0,
           }}>

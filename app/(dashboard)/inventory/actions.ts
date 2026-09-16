@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireManagerOrAdmin } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
 
 type ProductData = {
@@ -9,8 +9,10 @@ type ProductData = {
   unit: string;
   selling_price: number;
   cost_price: number;
+  wholesale_price: number | null;
   temperature_zone: "frozen" | "chilled" | "ambient";
   low_stock_threshold: number;
+  image_url: string | null;
 };
 
 // ─── Products ─────────────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ type ProductData = {
 export async function createProduct(
   data: ProductData
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("products").insert(data);
   if (error) return { error: error.message };
@@ -31,9 +33,36 @@ export async function updateProduct(
   id: string,
   data: ProductData
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
+
+  // Read current price before overwriting for history log
+  const { data: current } = await supabase
+    .from("products")
+    .select("selling_price")
+    .eq("id", id)
+    .single();
 
   const { error } = await supabase.from("products").update(data).eq("id", id);
+  if (error) return { error: error.message };
+
+  if (current && current.selling_price !== data.selling_price) {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("price_history").insert({
+      product_id: id,
+      old_price: current.selling_price,
+      new_price: data.selling_price,
+      changed_by: user?.id ?? null,
+    });
+  }
+
+  revalidatePath("/inventory");
+  return {};
+}
+
+export async function deleteProduct(id: string): Promise<{ error?: string }> {
+  const supabase = await requireManagerOrAdmin();
+
+  const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/inventory");
@@ -44,7 +73,7 @@ export async function toggleProductActive(
   id: string,
   isActive: boolean
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase
     .from("products")
@@ -61,7 +90,7 @@ export async function toggleProductActive(
 export async function createCategory(
   name: string
 ): Promise<{ id: string; name: string } | { error: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { data, error } = await supabase
     .from("categories")
@@ -75,7 +104,7 @@ export async function createCategory(
 }
 
 export async function deleteCategory(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) return { error: error.message };
@@ -95,7 +124,7 @@ export async function receiveStock(data: {
   received_date: string;
   notes: string | null;
 }): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("stock_batches").insert({
     product_id: data.product_id,
@@ -121,7 +150,7 @@ export async function createProductPackage(data: {
   quantity: number;
   price: number;
 }): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
   const { error } = await supabase.from("product_packages").insert(data);
   if (error) return { error: error.message };
   revalidatePath("/inventory");
@@ -129,7 +158,7 @@ export async function createProductPackage(data: {
 }
 
 export async function deleteProductPackage(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
   const { error } = await supabase.from("product_packages").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/inventory");
@@ -138,13 +167,46 @@ export async function deleteProductPackage(id: string): Promise<{ error?: string
 
 // ─── Stock Adjustments ────────────────────────────────────────────────────────
 
+export async function markdownProduct(
+  productId: string,
+  newPrice: number
+): Promise<{ error?: string }> {
+  const supabase = await requireManagerOrAdmin();
+
+  const { data: current } = await supabase
+    .from("products")
+    .select("selling_price")
+    .eq("id", productId)
+    .single();
+
+  const { error } = await supabase
+    .from("products")
+    .update({ selling_price: newPrice })
+    .eq("id", productId);
+  if (error) return { error: error.message };
+
+  if (current) {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("price_history").insert({
+      product_id: productId,
+      old_price: current.selling_price,
+      new_price: newPrice,
+      changed_by: user?.id ?? null,
+      notes: "Markdown from inventory alerts",
+    });
+  }
+
+  revalidatePath("/inventory");
+  return {};
+}
+
 export async function adjustStock(data: {
   product_id: string;
   quantity_change: number;
-  reason: "write_off" | "correction" | "return";
+  reason: "write_off" | "waste" | "theft" | "damaged" | "correction" | "return" | "found";
   notes: string | null;
 }): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const supabase = await requireManagerOrAdmin();
 
   const {
     data: { user },
@@ -162,7 +224,7 @@ export async function adjustStock(data: {
   if (adjErr) return { error: adjErr.message };
 
   if (data.quantity_change < 0) {
-    // Write-off: deduct from batches FIFO (oldest received_date first)
+    // Deducting reasons: remove from batches FIFO (oldest received_date first)
     let remaining = Math.abs(data.quantity_change);
 
     const { data: batches, error: batchErr } = await supabase

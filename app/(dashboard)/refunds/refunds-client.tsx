@@ -165,7 +165,7 @@ export function RefundsClient({ sales }: RefundsClientProps) {
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{error}</p>
+              <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs font-medium text-destructive">{error}</p>
             )}
 
             <div className="flex gap-2">

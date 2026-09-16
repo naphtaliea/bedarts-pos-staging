@@ -18,8 +18,8 @@ const zoneIcon = {
 };
 
 const zoneColor = {
-  frozen: "text-blue-500",
-  chilled: "text-cyan-500",
+  frozen: "text-accent",
+  chilled: "text-sky-500",
   ambient: "text-amber-500",
 };
 
@@ -28,7 +28,7 @@ export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: Pr
     return (
       <div className="grid grid-cols-3 xl:grid-cols-4 gap-3 content-start">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-slate-100 animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-secondary animate-pulse" />
         ))}
       </div>
     );
@@ -36,7 +36,7 @@ export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: Pr
 
   if (products.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
+      <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
         No products found
       </div>
     );
@@ -54,40 +54,40 @@ export function ProductGrid({ products, onSelect, loading, recentlyAddedId }: Pr
             onClick={() => !outOfStock && onSelect(product)}
             disabled={outOfStock}
             className={cn(
-              "relative flex flex-col p-0 rounded-xl border text-left transition-all overflow-hidden bg-white",
+              "relative flex flex-col p-0 rounded-xl border text-left transition-all overflow-hidden bg-card",
               "h-36 select-none",
               outOfStock
-                ? "border-slate-100 opacity-50 cursor-not-allowed grayscale-[50%]"
+                ? "border-border opacity-50 cursor-not-allowed grayscale-[50%]"
                 : product.id === recentlyAddedId
-                  ? "border-green-400 shadow-md scale-95 cursor-pointer"
-                  : "border-slate-200 hover:border-[#AB1509] hover:shadow-md active:scale-95 cursor-pointer"
+                  ? "border-success shadow-md scale-95 cursor-pointer"
+                  : "border-border hover:border-primary hover:shadow-md active:scale-95 cursor-pointer"
             )}
           >
-            <div className="relative w-full h-20 bg-slate-50 shrink-0 border-b border-slate-100">
+            <div className="relative w-full h-20 bg-secondary shrink-0 border-b border-border">
               {product.image_url ? (
                 <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
                   <Icon className="w-6 h-6 opacity-30" />
                 </div>
               )}
               {/* Floating zone icon */}
-              <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm">
+              <div className="absolute top-1.5 right-1.5 w-6 h-6 bg-card/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm">
                 <Icon className={cn("w-3.5 h-3.5", zoneColor[product.temperature_zone])} />
               </div>
             </div>
 
             <div className="flex flex-col flex-1 p-2.5 justify-between w-full">
-              <p className="text-xs font-semibold text-slate-800 leading-tight line-clamp-2">
+              <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2">
                 {product.name}
               </p>
-              
+
               <div className="flex items-end justify-between w-full mt-1">
-                <p className="text-sm font-bold text-[#AB1509] leading-none">
+                <p className="text-sm font-bold text-primary leading-none">
                   GH₵{product.selling_price.toFixed(2)}
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">/{product.unit}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal ml-0.5">/{product.unit}</span>
                 </p>
-                <p className="text-[10px] font-medium text-slate-400 leading-none text-right">
+                <p className="text-[10px] font-medium text-muted-foreground leading-none text-right">
                   {outOfStock ? "Out" : `${product.stock_quantity}${product.unit}`}
                 </p>
               </div>

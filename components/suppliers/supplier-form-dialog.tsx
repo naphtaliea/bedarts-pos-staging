@@ -114,7 +114,7 @@ export function SupplierFormDialog({
           {/* Name */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Name <span className="text-red-500">*</span>
+              Name <span className="text-destructive">*</span>
             </label>
             <Input
               required
@@ -166,7 +166,7 @@ export function SupplierFormDialog({
 
           {/* Error */}
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="rounded-lg bg-destructive/8 px-3 py-2 text-xs font-medium text-destructive">
               {error}
             </p>
           )}

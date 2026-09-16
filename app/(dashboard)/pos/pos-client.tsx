@@ -116,9 +116,9 @@ export function POSClient({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#fdfbf7]">
+    <div className="flex flex-col h-full bg-background">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shrink-0">
+      <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border shrink-0">
         <div className="flex-1">
           <CategoryTabs
             categories={categories}
@@ -127,12 +127,14 @@ export function POSClient({
           />
         </div>
         <div className="relative w-52 shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <label htmlFor="pos-product-search" className="sr-only">Search products</label>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
           <input
+            id="pos-product-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="w-full pl-9 pr-3 h-9 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-700 focus:bg-white"
+            className="w-full pl-9 pr-3 h-9 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card"
           />
         </div>
       </div>
@@ -143,11 +145,11 @@ export function POSClient({
         <div className="flex-1 overflow-y-auto p-4">
           {/* Success banner */}
           {lastSaleId && items.length === 0 && (
-            <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <div className="mb-3 bg-success/8 border border-success/20 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                <ReceiptText className="w-4 h-4 text-green-600 shrink-0" />
+                <ReceiptText className="w-4 h-4 text-success shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-green-800">
+                  <p className="text-sm font-semibold text-success">
                     Sale #{lastReceiptNum} complete
                   </p>
                   {blockedReceiptUrl ? (
@@ -155,18 +157,18 @@ export function POSClient({
                       href={blockedReceiptUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-orange-600 hover:underline font-medium"
+                      className="text-xs text-warning hover:underline font-medium"
                     >
                       Receipt blocked — click to open
                     </a>
                   ) : (
-                    <p className="text-xs text-green-600">Receipt opened for printing</p>
+                    <p className="text-xs text-success/70">Receipt opened for printing</p>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => printReceipt(lastSaleId)}
-                className="text-xs font-medium text-green-700 hover:underline shrink-0"
+                className="text-xs font-medium text-success hover:underline shrink-0"
               >
                 Reprint
               </button>
@@ -181,7 +183,7 @@ export function POSClient({
         </div>
 
         {/* Right: order panel */}
-        <div className="w-72 xl:w-80 shrink-0 flex flex-col border-l border-slate-200">
+        <div className="w-72 xl:w-80 shrink-0 flex flex-col border-l border-border">
           <OrderPanel
             customers={initialCustomers}
             selectedCustomerId={selectedCustomerId}

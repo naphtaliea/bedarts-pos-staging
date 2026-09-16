@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   address: null,
   phone: null,
   email: null,
+  vat_number: null,
   receipt_footer: "Thank you for shopping with us!",
   updated_at: "",
   tax_rate: 0,

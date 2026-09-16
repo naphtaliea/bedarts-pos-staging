@@ -43,7 +43,7 @@ function StatusBadge({ status }: { status: BatchStatus }) {
       );
     case "expired":
       return (
-        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-600">
+        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-destructive">
           Expired
         </span>
       );
@@ -55,7 +55,7 @@ function StatusBadge({ status }: { status: BatchStatus }) {
       );
     case "active":
       return (
-        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+        <span className="inline-flex items-center rounded-full bg-success/12 px-2.5 py-0.5 text-xs font-medium text-success">
           Active
         </span>
       );
@@ -71,7 +71,7 @@ function ExpiryCell({ expiry_date }: { expiry_date: string | null }) {
 
   if (days < 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-destructive">
         <CalendarClock className="h-3 w-3 shrink-0" />
         EXPIRED
       </span>
@@ -80,7 +80,7 @@ function ExpiryCell({ expiry_date }: { expiry_date: string | null }) {
 
   if (days <= 3) {
     return (
-      <span className="inline-flex items-center gap-1 text-sm font-medium text-red-600">
+      <span className="inline-flex items-center gap-1 text-sm font-medium text-destructive">
         <CalendarClock className="h-3.5 w-3.5 shrink-0" />
         {days}d
       </span>

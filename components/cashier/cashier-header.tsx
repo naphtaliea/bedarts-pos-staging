@@ -23,25 +23,25 @@ export function CashierHeader({ profile }: { profile: Profile }) {
   }, []);
 
   return (
-    <header className="flex items-center justify-between px-5 h-12 bg-[#1c0a07] shrink-0">
+    <header className="flex items-center justify-between px-5 h-12 bg-sidebar shrink-0">
       <div className="flex items-center gap-2.5">
         <img src="/logo-light.svg" alt="Bedarts Cold Supplies" className="h-6" />
       </div>
 
-      <span className="text-sm font-mono font-medium text-slate-300 tabular-nums">
+      <span className="text-sm font-mono font-medium text-sidebar-muted tabular-nums">
         {time}
       </span>
 
       <div className="flex items-center gap-3">
         <div className="text-right">
-          <p className="text-xs font-semibold text-white leading-tight">{profile.full_name}</p>
-          <p className="text-xs text-slate-500">Cashier</p>
+          <p className="text-xs font-semibold text-sidebar-foreground leading-tight">{profile.full_name}</p>
+          <p className="text-xs text-sidebar-muted/60">Cashier</p>
         </div>
         <form action={logout}>
           <button
             type="submit"
             title="Sign out"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>
