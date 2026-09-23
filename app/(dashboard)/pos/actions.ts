@@ -18,8 +18,22 @@ export async function submitSale(args: SubmitSaleArgs) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // PIN session overrides auth user for cashier identification
+  // AUTHORIZATION — must be admin/manager/cashier with active account
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", user.id)
+    .single();
+  if (!profile || !profile.is_active) throw new Error("Account inactive");
+  if (!["admin", "manager", "cashier", "terminal"].includes(profile.role)) {
+    throw new Error("Access denied — POS access required");
+  }
+
+  // Cashier/terminal accounts must have a valid PIN session; admins/managers may use one to bill under a cashier
   const pinCashierId = await readCashierSession();
+  if ((profile.role === "cashier" || profile.role === "terminal") && !pinCashierId) {
+    throw new Error("PIN session required");
+  }
   const cashierId = pinCashierId ?? user.id;
 
   const { items, payments, subtotal, discount, total } = args;

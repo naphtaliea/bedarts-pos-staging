@@ -20,8 +20,22 @@ export async function saveReconciliation(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  // Mirror submitSale: PIN session cashier ID takes precedence over auth user
+  // AUTHORIZATION — must be admin/manager/cashier with active account
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", user.id)
+    .single();
+  if (!profile || !profile.is_active) return { error: "Account inactive" };
+  if (!["admin", "manager", "cashier", "terminal"].includes(profile.role)) {
+    return { error: "Access denied — POS access required" };
+  }
+
+  // Cashier/terminal accounts must have a valid PIN session
   const pinCashierId = await readCashierSession();
+  if ((profile.role === "cashier" || profile.role === "terminal") && !pinCashierId) {
+    return { error: "PIN session required" };
+  }
   const cashierId = pinCashierId ?? user.id;
 
   const today = new Date().toISOString().slice(0, 10);

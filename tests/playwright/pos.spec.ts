@@ -16,8 +16,8 @@ const ADMIN_STATE        = "tests/playwright/auth/admin.json";
 // ── Auth helpers (Suite 1 only — all other suites use storageState) ───────────
 async function loginAsTerminal(page: Page) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
-  await page.getByLabel(/email/i).fill(TERMINAL_EMAIL);
-  await page.getByLabel(/password/i).fill(TERMINAL_PASSWORD);
+  await page.locator('input[name="email"]').fill(TERMINAL_EMAIL);
+  await page.locator('input[name="password"]').fill(TERMINAL_PASSWORD);
   await page.getByRole("button", { name: /sign in|log in/i }).click();
   await page.waitForURL(/\/cashier/, { timeout: 30_000 });
 }

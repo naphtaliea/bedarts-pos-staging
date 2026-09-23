@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "./actions";
@@ -10,6 +10,14 @@ import { BrandLogo } from "@/components/brand-logo";
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
   const [showPwd, setShowPwd] = useState(false);
+
+  // Purge any PWA-cached authenticated pages so the next user doesn't see prior session data
+  useEffect(() => {
+    if (typeof window === "undefined" || !("caches" in window)) return;
+    caches.keys().then((keys) => {
+      Promise.all(keys.map((k) => caches.delete(k)));
+    }).catch(() => { /* non-fatal */ });
+  }, []);
 
   return (
     <div className="min-h-dvh bg-white relative overflow-hidden flex flex-col items-center justify-center px-5 py-10">

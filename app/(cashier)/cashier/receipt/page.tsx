@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   opening_hours: null,
   sunday_hours: null,
   receipt_footer: "Thank you for shopping with us!",
+  receipt_paper_size: "80mm",
   updated_at: "",
   tax_rate: 0,
   tax_enabled: false,

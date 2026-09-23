@@ -32,6 +32,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   address: null, phone: null, email: null,
   vat_number: null, opening_hours: null, sunday_hours: null,
   receipt_footer: "Thank you for shopping with us!",
+  receipt_paper_size: "80mm",
   updated_at: "", tax_rate: 0, tax_enabled: false,
 };
 
@@ -339,6 +340,7 @@ export function CashierPOSClient({
         onTabChange={() => setSelectedLineId(null)}
         onOrders={() => setView({ screen: "orders" })}
         onDashboard={() => setView({ screen: "dashboard" })}
+        showRefunds={cashier.role === "admin" || cashier.role === "manager"}
       />
 
       {/* ── MOBILE VIEW SWITCHER ─────────────────────────────────── */}

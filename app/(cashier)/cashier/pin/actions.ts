@@ -72,6 +72,14 @@ export async function setTerminalPin(
 ): Promise<{ error?: string }> {
   if (!/^\d{4}$/.test(pin)) return { error: "PIN must be exactly 4 digits" };
 
+  // AUTHORIZATION — only admin/manager can set another user's PIN
+  const { requireManagerOrAdmin } = await import("@/lib/auth-guards");
+  try {
+    await requireManagerOrAdmin();
+  } catch {
+    return { error: "You don't have permission to set PINs" };
+  }
+
   // Verify the target is an active cashier (not an admin etc.)
   const supabase = await createClient();
   const { data: profile } = await supabase

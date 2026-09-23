@@ -51,13 +51,18 @@ export async function updateStoreSettings(data: {
   opening_hours?: string | null;
   sunday_hours?: string | null;
   receipt_footer: string | null;
+  receipt_paper_size?: "58mm" | "80mm";
   tax_rate: number;
   tax_enabled: boolean;
 }): Promise<{ error?: string }> {
   const supabase = await requireAdmin().catch((e) => { throw e; });
+
+  // Hard-block tax_enabled until VAT collection is properly wired (see roadmap)
+  const safeData = { ...data, tax_enabled: false };
+
   const { error } = await supabase
     .from("store_settings")
-    .update({ ...data, updated_at: new Date().toISOString() })
+    .update({ ...safeData, updated_at: new Date().toISOString() })
     .eq("id", 1);
   if (error) return { error: error.message };
   revalidatePath("/settings");

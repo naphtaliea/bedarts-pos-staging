@@ -171,6 +171,7 @@ export interface StoreSettings {
   phone: string | null;
   email: string | null;
   receipt_footer: string | null;
+  receipt_paper_size: "58mm" | "80mm";
   tax_rate: number;
   tax_enabled: boolean;
   vat_number: string | null;

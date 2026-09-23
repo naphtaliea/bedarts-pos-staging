@@ -44,33 +44,38 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
 
   return (
     <div className="flex flex-col h-dvh bg-white select-none overflow-hidden animate-page-enter">
-      {/* ── Print styles: isolate #receipt-print to an 80mm page ── */}
-      <style>{`
-        @media print {
-          @page { size: 80mm auto; margin: 0 0 5mm; }
-          body * { visibility: hidden !important; }
-          #receipt-print, #receipt-print * { visibility: visible !important; }
-          #receipt-print {
-            position: fixed !important;
-            left: 50% !important;
-            top: 0 !important;
-            transform: translateX(-50%) !important;
-            width: 76mm !important;
-            background: #fff !important;
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            overflow: visible !important;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-          }
-          #receipt-print * { color: #000 !important; }
-          #receipt-print .border-t { border-top-color: #ccc !important; }
-          #receipt-print img {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        }
-      `}</style>
+      {/* ── Print styles: isolate #receipt-print to the configured paper size ── */}
+      {(() => {
+        const paper = settings.receipt_paper_size === "58mm" ? { page: "58mm", inner: "54mm" } : { page: "80mm", inner: "76mm" };
+        return (
+          <style>{`
+            @media print {
+              @page { size: ${paper.page} auto; margin: 0 0 5mm; }
+              body * { visibility: hidden !important; }
+              #receipt-print, #receipt-print * { visibility: visible !important; }
+              #receipt-print {
+                position: fixed !important;
+                left: 50% !important;
+                top: 0 !important;
+                transform: translateX(-50%) !important;
+                width: ${paper.inner} !important;
+                background: #fff !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+              }
+              #receipt-print * { color: #000 !important; }
+              #receipt-print .border-t { border-top-color: #ccc !important; }
+              #receipt-print img {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+          `}</style>
+        );
+      })()}
 
       <PosTopBar
         cashierName={sale.cashier?.full_name ?? "Cashier"}

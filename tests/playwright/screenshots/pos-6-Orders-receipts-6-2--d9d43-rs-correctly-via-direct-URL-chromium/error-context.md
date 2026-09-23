@@ -26,86 +26,29 @@ Call log:
 ```
 
 ```yaml
-- complementary:
-  - img "Bedarts Cold Supplies"
-  - navigation "Main navigation":
-    - link "Dashboard":
-      - /url: /dashboard
-    - link "Cashier View":
-      - /url: /cashier
-    - link "Inventory":
-      - /url: /inventory
-    - link "Suppliers":
-      - /url: /suppliers
-    - link "Reports":
-      - /url: /reports
-    - link "Expenses":
-      - /url: /expenses
-    - link "Refunds":
-      - /url: /refunds
-    - link "Settings":
-      - /url: /settings
-  - text: KA
-  - paragraph: Kwame Agyemang
-  - paragraph: admin
-  - button "Sign out"
-- main:
-  - paragraph: Bedarts Cold Supplies
-  - heading "Dashboard" [level=1]
-  - paragraph: Today's Revenue
-  - paragraph: GH₵1,363.00
-  - paragraph: 19 sales
-  - paragraph: 7-Day Revenue
-  - paragraph: GH₵1,363.00
-  - paragraph: last 7 days
-  - paragraph: Stock Value
-  - paragraph: GH₵4,237.50
-  - paragraph: cost basis
-  - paragraph: Payables
-  - paragraph: GH₵0.00
-  - paragraph: no outstanding invoices
-  - paragraph: Active Products
-  - paragraph: "2"
-  - paragraph: in catalogue
-  - paragraph: Low Stock
-  - paragraph: "0"
-  - paragraph: all clear
-  - paragraph: Expiring Soon
-  - paragraph: "0"
-  - paragraph: nothing due
-  - paragraph: Profit & Loss
-  - heading "Today" [level=3]
-  - button "Today"
-  - button "7 days"
-  - text: Revenue GH₵1,363.00 − Cost of goods GH₵997.50 = Gross Profit 26.8% margin GH₵365.50 − Expenses
-  - link:
-    - /url: /expenses
-  - text: GH₵130.00 = Net Profit 17.3% net margin GH₵235.50
-  - paragraph: Expense breakdown
-  - link "All":
-    - /url: /expenses
-  - text: Electricity GH₵80.00 Marketing GH₵50.00
-  - paragraph: Revenue
-  - heading "Last 7 days" [level=3]
-  - text: GH₵1,363.00 total
-  - application: Mon 14 Tue 15 Wed 16 Thu 17 Fri 18 Sat 19 Sun 20
-  - paragraph: Category Mix
-  - heading "7-day sales" [level=3]
-  - application
-  - text: Uncategorised 100%
-  - paragraph: Peak Hours
-  - heading "Sales volume by hour · 7-day average" [level=3]
-  - application: 6am 8am 10am 12pm 2pm 4pm 6pm 8pm 10pm
-  - paragraph: Top Products
-  - heading "By revenue · 7 days" [level=3]
-  - text: 1.BEEF LIPS GH₵943.00 2.TILAPIA GH₵420.00
-  - paragraph: Expiry Alerts
-  - heading "Stock batches expiring within 30 days" [level=3]
-  - paragraph: No batches expiring in the next 30 days
-  - paragraph: Low Stock
-  - heading "Products below reorder threshold" [level=3]
-  - paragraph: All products are adequately stocked
-- alert
+- 'heading "Error 1102 Ray ID: a3f9a6bf3ad4ee0a • 2026-09-23 12:46:17 UTC" [level=1]'
+- heading "Worker exceeded resource limits" [level=2]
+- heading "What happened?" [level=2]
+- paragraph:
+  - text: You've requested a page on a website (pos.bedarts.workers.dev) that is on the
+  - link "Cloudflare":
+    - /url: https://www.cloudflare.com/5xx-error-landing?utm_source=error_100x
+  - text: network. An unknown error occurred while rendering the page.
+- heading "What can I do?" [level=2]
+- paragraph:
+  - strong: "If you are the owner of this website:"
+  - text: refer to
+  - link "Workers - Errors and Exceptions":
+    - /url: https://developers.cloudflare.com/workers/observability/errors/
+  - text: and check Workers Logs for pos.bedarts.workers.dev.
+- paragraph:
+  - text: "Cloudflare Ray ID:"
+  - strong: a3f9a6bf3ad4ee0a
+  - text: "• Your IP:"
+  - button "Click to reveal"
+  - text: • Performance & security by
+  - link "Cloudflare":
+    - /url: https://www.cloudflare.com/5xx-error-landing
 ```
 
 # Test source

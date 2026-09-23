@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Receipt, LayoutDashboard, LogOut, X } from "lucide-react";
+import { ArrowLeft, Receipt, LayoutDashboard, LogOut, X, Undo2 } from "lucide-react";
 import { DenomCalculator } from "@/components/pos/denom-calculator";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/(auth)/login/actions";
@@ -21,6 +21,7 @@ interface PosTopBarProps {
   onTabChange?: () => void;
   onOrders?: () => void;
   onDashboard?: () => void;
+  showRefunds?: boolean;
 }
 
 export function PosTopBar({
@@ -35,6 +36,7 @@ export function PosTopBar({
   onTabChange,
   onOrders,
   onDashboard,
+  showRefunds,
 }: PosTopBarProps) {
   const [time, setTime] = useState("");
   const { tabs, activeTabId, addTab, removeTab, setActiveTab } = useCartStore();
@@ -157,6 +159,17 @@ export function PosTopBar({
         )}
 
         <DenomCalculator />
+
+        {showRefunds && (
+          <Link
+            href="/refunds"
+            aria-label="Refunds"
+            title="Refunds (manager)"
+            className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <Undo2 className="w-4 h-4" />
+          </Link>
+        )}
 
         {!hideDashboardLink && (
           onDashboard ? (

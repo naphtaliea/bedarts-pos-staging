@@ -7,8 +7,12 @@ export async function voidSale(
   saleId: string,
   reason: string
 ): Promise<{ error?: string }> {
-  const supabase = await requireManagerOrAdmin().catch(() => null);
-  if (!supabase) return { error: "You don't have permission to void sales" };
+  let supabase;
+  try {
+    supabase = await requireManagerOrAdmin();
+  } catch {
+    return { error: "You don't have permission to void sales" };
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };

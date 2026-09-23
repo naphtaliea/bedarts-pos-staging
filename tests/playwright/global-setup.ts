@@ -12,7 +12,7 @@ const AUTH_COOKIE = "sb-upckmqaxdgixuovrmutm-auth-token";
 const APP_DOMAIN = "pos.bedarts.workers.dev";
 
 // The UUID of "Test Cashier (Playwright)" in the DB
-const TEST_CASHIER_ID = "2c185d19-7dce-4f4d-a8fd-c7d409ba6e2f";
+const TEST_CASHIER_ID = "f1a35b4c-9940-4f88-a068-18bb0aa714d9";
 
 /** Authenticate directly via Supabase REST API (bypasses Cloudflare Worker) */
 async function supabaseLogin(email: string, password: string) {

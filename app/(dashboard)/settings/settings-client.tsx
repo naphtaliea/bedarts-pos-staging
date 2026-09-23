@@ -313,6 +313,7 @@ function ReceiptTab({
   show: (t: "success" | "error", m: string) => void;
 }) {
   const [footer, setFooter] = useState(settings.receipt_footer ?? "");
+  const [paperSize, setPaperSize] = useState<"58mm" | "80mm">(settings.receipt_paper_size ?? "80mm");
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -325,6 +326,7 @@ function ReceiptTab({
       opening_hours: settings.opening_hours,
       sunday_hours: settings.sunday_hours,
       receipt_footer: footer || null,
+      receipt_paper_size: paperSize,
       tax_rate: settings.tax_rate,
       tax_enabled: settings.tax_enabled,
     });
@@ -335,6 +337,24 @@ function ReceiptTab({
   return (
     <Section title="Receipt Settings">
       <div className="space-y-4">
+        <Field label="Paper Size">
+          <div className="flex gap-2">
+            {(["58mm", "80mm"] as const).map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => setPaperSize(size)}
+                className={`px-4 h-10 rounded-lg border text-sm font-semibold transition-colors ${
+                  paperSize === size
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-border hover:bg-secondary"
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </Field>
         <Field label="Receipt Footer Message">
           <textarea
             rows={3}
@@ -355,61 +375,22 @@ function ReceiptTab({
 // ── Tax Tab ───────────────────────────────────────────────────────────────────
 
 function TaxTab({
-  settings,
-  show,
+  settings: _settings,
+  show: _show,
 }: {
   settings: StoreSettings;
   show: (t: "success" | "error", m: string) => void;
 }) {
-  const [enabled, setEnabled] = useState(settings.tax_enabled ?? false);
-  const [rate, setRate] = useState(String(settings.tax_rate ?? 0));
-  const [saving, setSaving] = useState(false);
-
-  async function handleSave() {
-    setSaving(true);
-    const res = await updateStoreSettings({
-      store_name: settings.store_name,
-      address: settings.address,
-      phone: settings.phone,
-      email: settings.email,
-      opening_hours: settings.opening_hours,
-      sunday_hours: settings.sunday_hours,
-      receipt_footer: settings.receipt_footer,
-      tax_rate: parseFloat(rate) || 0,
-      tax_enabled: enabled,
-    });
-    setSaving(false);
-    res.error ? show("error", res.error) : show("success", "Tax settings saved");
-  }
-
   return (
     <Section title="Tax Settings">
-      <div className="space-y-4">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-            className="w-4 h-4 accent-primary"
-          />
-          <span className="text-sm text-foreground">Apply tax to sales</span>
-        </label>
-        {enabled && (
-          <Field label="Tax Rate (%)">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              step={0.1}
-              value={rate}
-              onChange={(e) => setRate(e.target.value)}
-              className="max-w-[160px]"
-            />
-          </Field>
-        )}
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save Changes"}
-        </Button>
+      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+        <p className="text-sm font-semibold text-foreground">VAT / tax collection is not yet enabled</p>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Sales are currently recorded without tax. Turning tax on would cause receipts and
+          financial reports to disagree because tax is not yet persisted with each sale.
+          If you need VAT collection, ask us to enable it — it requires a schema change and
+          careful backfill.
+        </p>
       </div>
     </Section>
   );
