@@ -39,7 +39,7 @@ export function PosTopBar({
   showRefunds,
 }: PosTopBarProps) {
   const [time, setTime] = useState("");
-  const { tabs, activeTabId, addTab, removeTab, setActiveTab } = useCartStore();
+  const { tabs, activeTabId, addTab, removeTab, setActiveTab, snapshots, items, paymentTabIds } = useCartStore();
 
   useEffect(() => {
     const tick = () =>
@@ -89,18 +89,33 @@ export function PosTopBar({
         <div className="flex items-stretch flex-1 min-w-0 overflow-x-auto">
           {tabs.map((tab) => {
             const active = tab.id === activeTabId;
+            const tabItemCount = active ? items.length : (snapshots[tab.id]?.items?.length ?? 0);
+            const inPayment = paymentTabIds.includes(tab.id);
             return (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); onTabChange?.(); }}
                 className={cn(
-                  "flex items-center gap-1.5 h-full px-4 text-[13px] font-semibold border-r border-border shrink-0 transition-colors relative",
+                  "flex items-center gap-2 h-full px-4 text-[13px] font-semibold border-r border-border shrink-0 transition-colors relative",
                   active
                     ? "text-primary bg-primary/5 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 )}
               >
+                {inPayment && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" title="Awaiting payment" aria-hidden />
+                )}
                 <span>{tab.name}</span>
+                {tabItemCount > 0 && (
+                  <span
+                    className={cn(
+                      "text-[10px] font-black leading-none px-1.5 py-0.5 rounded-full tabular-nums shrink-0",
+                      active ? "bg-primary text-white" : "bg-slate-200 text-slate-600"
+                    )}
+                  >
+                    {tabItemCount}
+                  </span>
+                )}
                 {tabs.length > 1 && (
                   <span
                     role="button"
@@ -117,7 +132,7 @@ export function PosTopBar({
           <button
             onClick={() => { addTab(); onTabChange?.(); }}
             aria-label="Add order"
-            className="h-full px-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 border-r border-border text-base font-bold transition-colors shrink-0"
+            className="h-full px-3.5 text-slate-400 hover:text-primary hover:bg-primary/5 border-r border-border text-base font-bold transition-colors shrink-0"
           >
             +
           </button>

@@ -11,12 +11,14 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
   const [showPwd, setShowPwd] = useState(false);
 
-  // Purge any PWA-cached authenticated pages so the next user doesn't see prior session data
+  // Purge only PWA caches that could carry authenticated content between users.
+  // NEVER touch workbox-precache-* or static-* caches — deleting them forces the SW
+  // to refetch every JS chunk on next navigation, which makes the app hang.
   useEffect(() => {
     if (typeof window === "undefined" || !("caches" in window)) return;
-    caches.keys().then((keys) => {
-      Promise.all(keys.map((k) => caches.delete(k)));
-    }).catch(() => { /* non-fatal */ });
+    const AUTHED_CACHES = ["pages", "pages-rsc", "pages-rsc-prefetch", "next-data", "apis", "start-url"];
+    Promise.all(AUTHED_CACHES.map((k) => caches.delete(k).catch(() => false)))
+      .catch(() => { /* non-fatal */ });
   }, []);
 
   return (

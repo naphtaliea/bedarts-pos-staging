@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Tag, X } from "lucide-react";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
-import { ProductTable } from "@/components/inventory/product-table";
+import { ProductGrid } from "@/components/inventory/product-grid";
 import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
 import { StockTable } from "@/components/inventory/stock-table";
 import { BulkReceiveStockDialog } from "@/components/inventory/bulk-receive-stock-dialog";
@@ -429,16 +429,11 @@ export function InventoryClient({
             />
           </div>
 
-          {/* Table */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <ProductTable
-              products={filteredProducts}
-              categories={categories}
-              onEdit={(p) => setShowProductForm(p)}
-              onToggleActive={handleToggleActive}
-              onDelete={handleDeleteProduct}
-            />
-          </div>
+          {/* Grid */}
+          <ProductGrid
+            products={filteredProducts}
+            onEdit={(p) => setShowProductForm(p)}
+          />
         </div>
       );
     }
@@ -637,6 +632,8 @@ export function InventoryClient({
           onClose={() => setShowProductForm(null)}
           onSave={handleSaveProduct}
           onPackagesChange={() => router.refresh()}
+          onToggleActive={handleToggleActive}
+          onDelete={handleDeleteProduct}
         />
       )}
 

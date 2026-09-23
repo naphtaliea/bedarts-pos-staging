@@ -69,9 +69,9 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
   const maxQty = topProducts[0]?.qty ?? 1;
 
   const STATS = [
-    ...(canSeeRevenue ? [{ label: "Revenue", value: formatCurrency(totalRevenue), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" }] : []),
-    { label: "Orders", value: String(orderCount), icon: ShoppingCart, color: "text-accent", bg: "bg-accent/10" },
-    ...(canSeeRevenue ? [{ label: "Avg Ticket", value: formatCurrency(avgTicket), icon: Receipt, color: "text-success", bg: "bg-success/10" }] : []),
+    ...(canSeeRevenue ? [{ label: "Revenue", value: formatCurrency(totalRevenue), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10", accent: "border-l-primary" }] : []),
+    { label: "Orders", value: String(orderCount), icon: ShoppingCart, color: "text-accent", bg: "bg-accent/10", accent: "border-l-accent" },
+    ...(canSeeRevenue ? [{ label: "Avg Ticket", value: formatCurrency(avgTicket), icon: Receipt, color: "text-success", bg: "bg-success/10", accent: "border-l-success" }] : []),
   ];
 
   return (
@@ -103,13 +103,16 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
               {STATS.map((stat) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={stat.label} className="rounded-xl border border-border bg-card p-5 flex items-start gap-4">
-                    <div className={`shrink-0 w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                  <div
+                    key={stat.label}
+                    className={`rounded-xl border border-border border-l-[3px] ${stat.accent} bg-card p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow`}
+                  >
+                    <div className={`shrink-0 w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
                       <Icon className={`w-5 h-5 ${stat.color}`} />
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide">{stat.label}</p>
-                      <p className="text-2xl font-bold text-foreground tabular-nums mt-0.5">{stat.value}</p>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">{stat.label}</p>
+                      <p className="font-display text-2xl font-black text-foreground tabular-nums mt-0.5 leading-tight">{stat.value}</p>
                     </div>
                   </div>
                 );

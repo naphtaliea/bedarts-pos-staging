@@ -21,8 +21,23 @@ export async function createProduct(
 ): Promise<{ error?: string }> {
   const supabase = await requireManagerOrAdmin();
 
-  const { error } = await supabase.from("products").insert(data);
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert(data)
+    .select("id, units_per_box, selling_price")
+    .single();
   if (error) return { error: error.message };
+
+  // Auto-provision Full Box + Half Box packages with default prices
+  // (derived from selling_price × qty; user can edit them from the product form)
+  const fullQty = created.units_per_box;
+  const halfQty = created.units_per_box / 2;
+  const fullPrice = Number(created.selling_price) * fullQty;
+  const halfPrice = Number(created.selling_price) * halfQty;
+  await supabase.from("product_packages").insert([
+    { product_id: created.id, label: "Full Box", quantity: fullQty, price: fullPrice },
+    { product_id: created.id, label: "Half Box", quantity: halfQty, price: halfPrice },
+  ]);
 
   revalidatePath("/inventory");
   return {};
@@ -280,6 +295,66 @@ export async function deleteProductPackage(id: string): Promise<{ error?: string
   const supabase = await requireManagerOrAdmin();
   const { error } = await supabase.from("product_packages").delete().eq("id", id);
   if (error) return { error: error.message };
+  revalidatePath("/inventory");
+  return {};
+}
+
+/**
+ * Ensures the given product has exactly two packages — "Full Box" and "Half Box" —
+ * with quantities derived from units_per_box, and prices set by the caller.
+ * Idempotent: safe to call on every product save.
+ */
+export async function upsertBoxPackages(
+  productId: string,
+  fullPrice: number,
+  halfPrice: number
+): Promise<{ error?: string }> {
+  const supabase = await requireManagerOrAdmin();
+
+  const { data: product, error: pErr } = await supabase
+    .from("products")
+    .select("units_per_box")
+    .eq("id", productId)
+    .single();
+  if (pErr || !product) return { error: pErr?.message ?? "Product not found" };
+
+  const fullQty = product.units_per_box;
+  const halfQty = product.units_per_box / 2;
+
+  // Delete any packages that aren't Full/Half to keep the two-package invariant
+  await supabase
+    .from("product_packages")
+    .delete()
+    .eq("product_id", productId)
+    .not("label", "in", '("Full Box","Half Box")');
+
+  const { data: existing } = await supabase
+    .from("product_packages")
+    .select("id, label")
+    .eq("product_id", productId);
+
+  const existingMap = new Map((existing ?? []).map((p) => [p.label, p.id]));
+
+  const rows: Array<{ id?: string; product_id: string; label: string; quantity: number; price: number }> = [
+    { id: existingMap.get("Full Box"), product_id: productId, label: "Full Box", quantity: fullQty, price: fullPrice },
+    { id: existingMap.get("Half Box"), product_id: productId, label: "Half Box", quantity: halfQty, price: halfPrice },
+  ];
+
+  for (const row of rows) {
+    if (row.id) {
+      const { error } = await supabase
+        .from("product_packages")
+        .update({ quantity: row.quantity, price: row.price })
+        .eq("id", row.id);
+      if (error) return { error: error.message };
+    } else {
+      const { error } = await supabase
+        .from("product_packages")
+        .insert({ product_id: row.product_id, label: row.label, quantity: row.quantity, price: row.price });
+      if (error) return { error: error.message };
+    }
+  }
+
   revalidatePath("/inventory");
   return {};
 }

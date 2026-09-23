@@ -25,10 +25,17 @@ interface PosStore {
   snapshots: Record<string, TabSnapshot>;
   tabCounter: number; // monotonically increasing — prevents duplicate tab names
 
+  // Tabs currently sitting on the Payment screen (per-tab view persistence)
+  paymentTabIds: string[];
+
   // Tab management
   addTab: () => void;
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
+
+  // Payment-screen tracking
+  enterPayment: (tabId?: string) => void;
+  exitPayment: (tabId?: string) => void;
 
   // Cart operations (same API as before — operate on active tab)
   addItem: (product: Product, lineId: string) => void;
@@ -60,6 +67,7 @@ export const useCartStore = create<PosStore>()(
       activeTabId: FIRST_TAB.id,
       snapshots: {},
       tabCounter: 1,
+      paymentTabIds: [],
 
       // ── Tab management ───────────────────────────────────────
 
@@ -83,6 +91,7 @@ export const useCartStore = create<PosStore>()(
         const remaining = s.tabs.filter((t) => t.id !== id);
         const newSnapshots = { ...s.snapshots };
         delete newSnapshots[id];
+        const newPaymentTabIds = s.paymentTabIds.filter((t) => t !== id);
 
         let newActiveId = s.activeTabId;
         let newItems = s.items;
@@ -99,7 +108,17 @@ export const useCartStore = create<PosStore>()(
           delete newSnapshots[nextTab.id];
         }
 
-        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount });
+        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount, paymentTabIds: newPaymentTabIds });
+      },
+
+      enterPayment: (tabId) => {
+        const id = tabId ?? get().activeTabId;
+        set((s) => (s.paymentTabIds.includes(id) ? s : { paymentTabIds: [...s.paymentTabIds, id] }));
+      },
+
+      exitPayment: (tabId) => {
+        const id = tabId ?? get().activeTabId;
+        set((s) => ({ paymentTabIds: s.paymentTabIds.filter((t) => t !== id) }));
       },
 
       setActiveTab: (id) => {

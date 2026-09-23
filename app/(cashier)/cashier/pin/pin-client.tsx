@@ -216,8 +216,10 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
                 <div
                   key={i}
                   className={cn(
-                    "w-5 h-5 rounded-full transition-all duration-150",
-                    i < pin.length ? "bg-primary scale-110 shadow-lg shadow-primary/40" : "bg-white/20"
+                    "w-4 h-4 rounded-full transition-all duration-200",
+                    i < pin.length
+                      ? "bg-primary scale-125 shadow-[0_0_16px_rgba(204,27,20,0.7)]"
+                      : "bg-white/10 ring-1 ring-white/15"
                   )}
                 />
               ))}
@@ -255,10 +257,10 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
                         onClick={() => handleKey(key)}
                         disabled={verifying}
                         className={cn(
-                          "h-16 rounded-2xl transition-all disabled:opacity-40 active:scale-95",
+                          "h-16 rounded-2xl btn-tactile-dark active:btn-tactile-dark-active disabled:opacity-40",
                           key === "del"
-                            ? "bg-white/5 text-sidebar-muted hover:bg-white/10 flex items-center justify-center text-xl"
-                            : "bg-white/10 text-sidebar-foreground hover:bg-white/18 text-2xl font-black"
+                            ? "text-sidebar-muted hover:text-white flex items-center justify-center"
+                            : "text-sidebar-foreground text-2xl font-black"
                         )}
                         style={key !== "del" ? { fontFamily: "var(--font-display)" } : undefined}
                       >

@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Trash2, Upload, Loader2 } from "lucide-react";
+import { X, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Category, Product, ProductPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { createProductPackage, deleteProductPackage } from "@/app/(dashboard)/inventory/actions";
-import { formatCurrency } from "@/lib/utils";
+import { upsertBoxPackages } from "@/app/(dashboard)/inventory/actions";
 
 interface ProductFormData {
   name: string;
@@ -28,6 +27,8 @@ interface ProductFormDialogProps {
   onClose: () => void;
   onSave: (data: ProductFormData) => Promise<void>;
   onPackagesChange?: () => void;
+  onToggleActive?: (product: Product) => Promise<void> | void;
+  onDelete?: (product: Product) => Promise<void> | void;
 }
 
 
@@ -63,8 +64,12 @@ export function ProductFormDialog({
   onClose,
   onSave,
   onPackagesChange,
+  onToggleActive,
+  onDelete,
 }: ProductFormDialogProps) {
   const isEdit = product !== null;
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmDeleteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [form, setForm] = useState<ProductFormData>(() =>
     getDefaultForm(product)
@@ -74,49 +79,29 @@ export function ProductFormDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [newPkg, setNewPkg] = useState({ label: "", quantity: "", price: "" });
-  const [pkgSaving, setPkgSaving] = useState(false);
+  // Box-package pricing — Full and Half. Prices are initialized from existing packages
+  // (or defaulted from selling_price × qty when creating new), and saved with the form.
+  const initialFullPrice = packages.find((p) => p.label === "Full Box")?.price ?? "";
+  const initialHalfPrice = packages.find((p) => p.label === "Half Box")?.price ?? "";
+  const [fullBoxPrice, setFullBoxPrice] = useState<string>(String(initialFullPrice ?? ""));
+  const [halfBoxPrice, setHalfBoxPrice] = useState<string>(String(initialHalfPrice ?? ""));
   const [pkgError, setPkgError] = useState<string | null>(null);
 
   // Re-sync if the product prop changes (e.g. parent swaps which product to edit)
   useEffect(() => {
     setForm(getDefaultForm(product));
     setError(null);
-  }, [product]);
+    const full = packages.find((p) => p.label === "Full Box")?.price;
+    const half = packages.find((p) => p.label === "Half Box")?.price;
+    setFullBoxPrice(full != null ? String(full) : "");
+    setHalfBoxPrice(half != null ? String(half) : "");
+  }, [product, packages]);
 
   function set<K extends keyof ProductFormData>(
     key: K,
     value: ProductFormData[K]
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function handleAddPackage() {
-    if (!product?.id) return;
-    const qty = parseFloat(newPkg.quantity);
-    const price = parseFloat(newPkg.price);
-    if (!newPkg.label.trim() || !qty || !price) {
-      setPkgError("Label, quantity, and price are required.");
-      return;
-    }
-    setPkgError(null);
-    setPkgSaving(true);
-    const res = await createProductPackage({
-      product_id: product.id,
-      label: newPkg.label.trim(),
-      quantity: qty,
-      price,
-    });
-    setPkgSaving(false);
-    if (res.error) { setPkgError(res.error); return; }
-    setNewPkg({ label: "", quantity: "", price: "" });
-    onPackagesChange?.();
-  }
-
-  async function handleDeletePackage(id: string) {
-    const res = await deleteProductPackage(id);
-    if (res.error) setPkgError(res.error);
-    else onPackagesChange?.();
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -133,6 +118,23 @@ export function ProductFormDialog({
     setSubmitting(true);
     try {
       await onSave(form);
+
+      // Persist box package prices (only meaningful when editing — createProduct
+      // auto-provisions Full/Half packages with defaults on the server)
+      if (isEdit && product?.id) {
+        const full = parseFloat(fullBoxPrice) || 0;
+        const half = parseFloat(halfBoxPrice) || 0;
+        if (full > 0 || half > 0) {
+          const res = await upsertBoxPackages(product.id, full, half);
+          if (res.error) {
+            setPkgError(res.error);
+            setSubmitting(false);
+            return;
+          }
+        }
+        onPackagesChange?.();
+      }
+
       onClose();
     } catch (err) {
       setError(
@@ -389,81 +391,45 @@ export function ProductFormDialog({
             </p>
           </div>
 
-          {/* Packages — edit mode only */}
+          {/* Box package prices — edit mode only */}
           {isEdit && product?.id && (
             <div className="space-y-3 border-t border-border pt-4">
-              <label className="block text-xs font-medium text-muted-foreground">
-                Box / Package Options
-              </label>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Box Prices
+                </label>
+                <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                  Prices shown to the cashier when they select Full Box or Half Box at checkout
+                </p>
+              </div>
 
-              {/* Existing packages */}
-              {packages.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2"
-                    >
-                      <div className="text-sm text-foreground">
-                        <span className="font-medium">{pkg.label}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">
-                          {pkg.quantity} {form.unit} · {formatCurrency(pkg.price)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePackage(pkg.id)}
-                        className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
-                        aria-label="Delete package"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add new package */}
-              <div className="grid grid-cols-[1fr_80px_90px_auto] gap-2 items-end">
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Label</label>
-                  <Input
-                    value={newPkg.label}
-                    onChange={(e) => setNewPkg((p) => ({ ...p, label: e.target.value }))}
-                    placeholder="e.g. Box of 10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Qty</label>
-                  <Input
-                    type="number"
-                    min={0.01}
-                    step={0.01}
-                    value={newPkg.quantity}
-                    onChange={(e) => setNewPkg((p) => ({ ...p, quantity: e.target.value }))}
-                    placeholder="10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Price (GH₵)</label>
+                  <label className="block text-xs text-muted-foreground">
+                    Full Box <span className="text-muted-foreground/60">({form.units_per_box} {form.unit === "kg" ? "kg" : "pcs"})</span>
+                  </label>
                   <Input
                     type="number"
                     min={0}
                     step={0.01}
-                    value={newPkg.price}
-                    onChange={(e) => setNewPkg((p) => ({ ...p, price: e.target.value }))}
+                    value={fullBoxPrice}
+                    onChange={(e) => setFullBoxPrice(e.target.value)}
                     placeholder="0.00"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAddPackage}
-                  disabled={pkgSaving}
-                  className="flex items-center justify-center h-10 w-10 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                  aria-label="Add package"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted-foreground">
+                    Half Box <span className="text-muted-foreground/60">({form.units_per_box / 2} {form.unit === "kg" ? "kg" : "pcs"})</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={halfBoxPrice}
+                    onChange={(e) => setHalfBoxPrice(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
 
               {pkgError && (
@@ -481,22 +447,71 @@ export function ProductFormDialog({
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="product-form"
-            disabled={submitting}
-          >
-            {submitting ? "Saving…" : "Save"}
-          </Button>
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border">
+          {/* Left: destructive/status actions — only in edit mode */}
+          <div className="flex items-center gap-2">
+            {isEdit && onToggleActive && product && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await onToggleActive(product);
+                  onClose();
+                }}
+                disabled={submitting}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1"
+              >
+                {product.is_active ? "Deactivate" : "Activate"}
+              </button>
+            )}
+            {isEdit && onDelete && product && (
+              confirmDelete ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    clearTimeout(confirmDeleteTimer.current);
+                    setConfirmDelete(false);
+                    await onDelete(product);
+                    onClose();
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/15 transition-colors"
+                >
+                  Confirm delete?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(true);
+                    clearTimeout(confirmDeleteTimer.current);
+                    confirmDeleteTimer.current = setTimeout(() => setConfirmDelete(false), 3000);
+                  }}
+                  disabled={submitting}
+                  className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1"
+                >
+                  Delete
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Right: cancel / save */}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="product-form"
+              disabled={submitting}
+            >
+              {submitting ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
