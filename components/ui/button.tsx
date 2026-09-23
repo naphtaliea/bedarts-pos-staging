@@ -5,12 +5,12 @@ import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   // Focus ring is brand blue — never red, which reads as error state
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
         // Filled brand red — positive primary actions: Complete, Save, Add to Cart
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 hover:ring-2 hover:ring-primary/20 hover:ring-offset-0",
         // Outlined red — dangerous actions: Void, Delete. Never filled red (indistinguishable from default)
         destructive: "border border-destructive text-destructive bg-transparent hover:bg-destructive/8 active:bg-destructive/12",
         outline: "border border-border bg-card hover:bg-secondary text-foreground",
@@ -22,7 +22,7 @@ const buttonVariants = cva(
         default: "h-10 px-4 py-2",
         sm: "h-8 px-3 text-xs",
         lg: "h-12 px-6 text-base",
-        xl: "h-14 px-8 text-lg",
+        xl: "h-16 px-8 text-lg font-black",
         icon: "h-10 w-10",
       },
     },

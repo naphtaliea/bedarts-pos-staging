@@ -10,6 +10,13 @@ interface PurchaseDetailDialogProps {
   onClose: () => void;
 }
 
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  momo: "MoMo",
+  bank_transfer: "Bank Transfer",
+  cheque: "Cheque",
+};
+
 export function PurchaseDetailDialog({
   purchase,
   onClose,
@@ -19,15 +26,27 @@ export function PurchaseDetailDialog({
     (sum, item) => sum + item.quantity * item.cost_price,
     0
   );
+  const isPaid = purchase.payment_status === "paid";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-semibold text-foreground">
-            Purchase Details
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-foreground">
+              Purchase Details
+            </h2>
+            {isPaid ? (
+              <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                Paid
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
+                Unpaid
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -74,6 +93,41 @@ export function PurchaseDetailDialog({
             </div>
           </div>
 
+          {/* Payment info (if paid) */}
+          {isPaid && (
+            <div className="rounded-xl border border-success/20 bg-success/5 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-success mb-2">Payment Record</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Paid On</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {purchase.paid_at ? formatDate(purchase.paid_at) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Method</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {purchase.payment_method
+                      ? (METHOD_LABELS[purchase.payment_method] ?? purchase.payment_method)
+                      : "—"}
+                  </p>
+                </div>
+                {purchase.payment_reference && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Reference</p>
+                    <p className="text-sm font-medium text-foreground">{purchase.payment_reference}</p>
+                  </div>
+                )}
+                {purchase.payer && (
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Recorded By</p>
+                    <p className="text-sm font-medium text-foreground">{purchase.payer.full_name}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Divider */}
           <hr className="border-border" />
 
@@ -102,34 +156,21 @@ export function PurchaseDetailDialog({
                 <tbody className="divide-y divide-border">
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-secondary transition-colors">
-                      {/* Product */}
                       <td className="py-2.5 pr-3 text-sm font-medium text-foreground whitespace-nowrap">
                         {item.product.name}
                       </td>
-
-                      {/* Qty */}
                       <td className="py-2.5 pr-3 text-sm tabular-nums text-foreground whitespace-nowrap">
                         {item.quantity}
                       </td>
-
-                      {/* Unit */}
                       <td className="py-2.5 pr-3 text-sm text-muted-foreground whitespace-nowrap">
                         {item.product.unit}
                       </td>
-
-                      {/* Cost/Unit */}
                       <td className="py-2.5 pr-3 text-sm tabular-nums text-foreground whitespace-nowrap">
                         {formatCurrency(item.cost_price)}
                       </td>
-
-                      {/* Expiry */}
                       <td className="py-2.5 pr-3 text-sm text-muted-foreground whitespace-nowrap">
-                        {item.expiry_date
-                          ? formatDateOnly(item.expiry_date)
-                          : "—"}
+                        {item.expiry_date ? formatDateOnly(item.expiry_date) : "—"}
                       </td>
-
-                      {/* Subtotal */}
                       <td className="py-2.5 text-sm tabular-nums font-medium text-foreground whitespace-nowrap">
                         {formatCurrency(item.quantity * item.cost_price)}
                       </td>

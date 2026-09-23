@@ -1,7 +1,5 @@
-export type Role = "admin" | "manager" | "cashier";
-export type TemperatureZone = "frozen" | "chilled" | "ambient";
-export type PaymentMethod = "cash" | "momo" | "pos_machine" | "account";
-export type PriceGroup = "retail" | "wholesale" | "distributor";
+export type Role = "admin" | "manager" | "cashier" | "accountant" | "terminal";
+export type PaymentMethod = "cash" | "momo" | "pos_machine";
 export type SaleStatus = "completed" | "voided";
 export type AdjustmentReason = "write_off" | "correction" | "return" | "waste" | "theft" | "damaged" | "found";
 
@@ -11,6 +9,7 @@ export interface Profile {
   role: Role;
   is_active: boolean;
   pin: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -35,10 +34,10 @@ export interface Product {
   category_id: string;
   category?: Category;
   unit: string;
+  units_per_box: number;
   selling_price: number;
   wholesale_price: number | null;
   cost_price: number;
-  temperature_zone: TemperatureZone;
   low_stock_threshold: number;
   is_active: boolean;
   created_at: string;
@@ -61,17 +60,6 @@ export interface StockBatch {
   notes: string | null;
 }
 
-export interface Customer {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  price_group: PriceGroup;
-  credit_limit: number;
-  credit_balance: number;
-  created_at: string;
-}
-
 export interface Supplier {
   id: string;
   name: string;
@@ -85,8 +73,6 @@ export interface Sale {
   id: string;
   cashier_id: string;
   cashier?: Profile;
-  customer_id: string | null;
-  customer?: Customer;
   subtotal: number;
   discount_amount: number;
   total_amount: number;
@@ -107,6 +93,8 @@ export interface SaleItem {
   unit_price: number;
   discount_amount: number;
   total_price: number;
+  cost_at_sale: number | null;
+  package_label: string | null;
 }
 
 export interface Payment {
@@ -118,6 +106,9 @@ export interface Payment {
   created_at: string;
 }
 
+export type PurchasePaymentStatus = "unpaid" | "paid";
+export type PurchasePaymentMethod = "cash" | "momo" | "bank_transfer" | "cheque";
+
 export interface Purchase {
   id: string;
   supplier_id: string;
@@ -128,6 +119,12 @@ export interface Purchase {
   notes: string | null;
   created_at: string;
   purchase_items?: PurchaseItem[];
+  payment_status: PurchasePaymentStatus;
+  paid_at: string | null;
+  payment_method: PurchasePaymentMethod | null;
+  payment_reference: string | null;
+  paid_by: string | null;
+  payer?: Pick<Profile, "id" | "full_name">;
 }
 
 export interface PurchaseItem {
@@ -153,10 +150,12 @@ export interface StockAdjustment {
 }
 
 export interface CartItem {
+  lineId: string;
   product: Product;
   quantity: number;
   unit_price: number;
   discount_amount: number;
+  packageLabel: string | null;
 }
 
 export interface PaymentEntry {
@@ -175,6 +174,8 @@ export interface StoreSettings {
   tax_rate: number;
   tax_enabled: boolean;
   vat_number: string | null;
+  opening_hours: string | null;
+  sunday_hours: string | null;
   updated_at: string;
 }
 
@@ -194,3 +195,58 @@ export interface CashierReconciliation {
   notes: string | null;
   created_at: string;
 }
+
+// ── Expenses ─────────────────────────────────────────────────────────────────
+
+export type ExpensePaymentMethod = "cash" | "momo" | "bank_transfer" | "other";
+export type ExpenseAuditAction = "created" | "updated" | "deleted";
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Expense {
+  id: string;
+  amount: number;
+  category_id: string;
+  category?: ExpenseCategory;
+  description: string;
+  expense_date: string;
+  paid_via: ExpensePaymentMethod;
+  reference: string | null;
+  is_deleted: boolean;
+  created_by: string;
+  created_by_profile?: Pick<Profile, "id" | "full_name">;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseAuditLog {
+  id: string;
+  expense_id: string;
+  action: ExpenseAuditAction;
+  changed_by: string;
+  changed_by_profile?: Pick<Profile, "id" | "full_name">;
+  changed_at: string;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+}
+
+// ── Integrity checks ──────────────────────────────────────────────────────────
+
+export type IntegritySeverity = "ok" | "warning" | "error";
+
+export interface IntegrityCheckResult {
+  id: number;
+  run_id: string;
+  check_name: string;
+  severity: IntegritySeverity;
+  anomaly_count: number;
+  sample_ids: string[] | null;
+  description: string;
+  checked_at: string;
+}
+

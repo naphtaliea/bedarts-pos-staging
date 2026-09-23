@@ -1,8 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { readCashierSession } from "@/lib/cashier-session";
 
 export interface ReconciliationData {
   opening_float: number;
@@ -21,8 +21,7 @@ export async function saveReconciliation(
   if (!user) return { error: "Not authenticated" };
 
   // Mirror submitSale: PIN session cashier ID takes precedence over auth user
-  const cookieStore = await cookies();
-  const pinCashierId = cookieStore.get("cashier_session")?.value;
+  const pinCashierId = await readCashierSession();
   const cashierId = pinCashierId ?? user.id;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -53,7 +52,6 @@ export async function saveReconciliation(
   let cash_expected = 0;
   let momo_total = 0;
   let pos_total = 0;
-  let account_total = 0;
   let gross_sales = 0;
 
   for (const sale of sales ?? []) {
@@ -62,7 +60,6 @@ export async function saveReconciliation(
       if (p.method === "cash") cash_expected += p.amount;
       else if (p.method === "momo") momo_total += p.amount;
       else if (p.method === "pos_machine") pos_total += p.amount;
-      else if (p.method === "account") account_total += p.amount;
     }
   }
 
@@ -77,7 +74,7 @@ export async function saveReconciliation(
     cash_variance,
     momo_total,
     pos_total,
-    account_total,
+    account_total: 0,
     gross_sales,
     notes: data.notes?.trim() || null,
   });

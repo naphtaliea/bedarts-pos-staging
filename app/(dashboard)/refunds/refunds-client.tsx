@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ReceiptText, AlertTriangle } from "lucide-react";
+import { ReceiptText, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { cn, formatCurrency } from "@/lib/utils";
 import { voidSale } from "./actions";
 
@@ -27,47 +28,68 @@ export function RefundsClient({ sales }: RefundsClientProps) {
   const [reason, setReason] = useState("");
   const [voiding, setVoiding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const filtered = sales.filter((s) => filter === "all" || s.status === filter);
 
   async function handleVoid() {
-    if (!voidModal || !reason.trim()) { setError("Void reason is required"); return; }
+    if (!voidModal) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      setError("Please provide a reason of at least 10 characters — this creates the audit trail.");
+      return;
+    }
     setVoiding(true);
     setError(null);
-    const res = await voidSale(voidModal.id, reason.trim());
+    const voidedTotal = voidModal.total;
+    const res = await voidSale(voidModal.id, trimmed);
     setVoiding(false);
     if (res.error) { setError(res.error); return; }
     setVoidModal(null);
     setReason("");
+    setToast(`Sale voided · ${formatCurrency(voidedTotal)} refunded and stock returned`);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3200);
     router.refresh();
   }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4 flex items-center justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-base font-semibold text-foreground">Refund Log</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Void completed sales and view voided history</p>
+      <div className="relative bg-white overflow-hidden shrink-0">
+        <div className="absolute inset-0 pointer-events-none">
+          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
-        <div className="flex gap-1">
-          {(["all", "completed", "voided"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize",
-                filter === f ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              {f}
-            </button>
-          ))}
+        <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-1 self-stretch rounded-full bg-primary shrink-0" />
+            <div>
+              <h1 className="text-base font-semibold text-foreground">Refund Log</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Void completed sales and view voided history</p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            {(["all", "completed", "voided"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize",
+                  filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
         <div className="max-w-4xl space-y-3">
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -184,6 +206,17 @@ export function RefundsClient({ sales }: RefundsClientProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Success toast */}
+      {toast && (
+        <div
+          role="status"
+          className="fixed top-5 right-5 z-[100] flex items-center gap-2 rounded-xl bg-success text-white px-4 py-3 text-sm font-medium shadow-lg"
+        >
+          <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+          {toast}
         </div>
       )}
     </div>

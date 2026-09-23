@@ -5,10 +5,7 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
-  Package,
   Pencil,
-  Snowflake,
-  Thermometer,
   Trash2,
 } from "lucide-react";
 import { Category, Product } from "@/lib/types";
@@ -22,30 +19,6 @@ interface ProductTableProps {
   onDelete: (product: Product) => void;
 }
 
-function ZoneBadge({ zone }: { zone: Product["temperature_zone"] }) {
-  if (zone === "frozen") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-accent/12 px-2.5 py-0.5 text-xs font-medium text-accent">
-        <Snowflake className="h-3 w-3" />
-        Frozen
-      </span>
-    );
-  }
-  if (zone === "chilled") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-700">
-        <Thermometer className="h-3 w-3" />
-        Chilled
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-warning/12 px-2.5 py-0.5 text-xs font-medium text-warning">
-      <Package className="h-3 w-3" />
-      Ambient
-    </span>
-  );
-}
 
 function StockCell({ product }: { product: Product }) {
   const qty = product.stock_quantity ?? 0;
@@ -99,7 +72,6 @@ export function ProductTable({
             {[
               "Name",
               "Category",
-              "Zone",
               "Selling Price",
               "Cost Price",
               "Stock",
@@ -131,11 +103,6 @@ export function ProductTable({
               {/* Category */}
               <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                 {product.category?.name ?? "—"}
-              </td>
-
-              {/* Zone */}
-              <td className="whitespace-nowrap px-4 py-3">
-                <ZoneBadge zone={product.temperature_zone} />
               </td>
 
               {/* Selling Price */}

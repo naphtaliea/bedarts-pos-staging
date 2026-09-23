@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CartItem, Customer, Product } from "@/lib/types";
+import type { CartItem, Product } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -12,13 +12,12 @@ export interface OrderTab {
 }
 
 // Persisted snapshot of a tab's cart (saved when you leave the tab)
-type TabSnapshot = { items: CartItem[]; discount: number; customer: Customer | null };
+type TabSnapshot = { items: CartItem[]; discount: number };
 
 interface PosStore {
   // Active cart (flat — mirrors the active tab at all times)
   items: CartItem[];
   discount: number;
-  customer: Customer | null;
 
   // Tab list + which one is active
   tabs: OrderTab[];
@@ -32,13 +31,13 @@ interface PosStore {
   setActiveTab: (id: string) => void;
 
   // Cart operations (same API as before — operate on active tab)
-  addItem: (product: Product) => void;
-  removeItem: (productId: string) => void;
-  updateQty: (productId: string, qty: number) => void;
-  updateItemDiscount: (productId: string, discount: number) => void;
-  updateItemPrice: (productId: string, price: number) => void;
+  addItem: (product: Product, lineId: string) => void;
+  removeItem: (lineId: string) => void;
+  updateQty: (lineId: string, qty: number) => void;
+  updateItemDiscount: (lineId: string, discount: number) => void;
+  updateItemPrice: (lineId: string, price: number) => void;
+  updateItemPackageLabel: (lineId: string, label: string | null) => void;
   setDiscount: (discount: number) => void;
-  setCustomer: (customer: Customer | null) => void;
   clearCart: () => void;
 
   // Computed (same API as before)
@@ -57,7 +56,6 @@ export const useCartStore = create<PosStore>()(
     (set, get) => ({
       items: [],
       discount: 0,
-      customer: null,
       tabs: [FIRST_TAB],
       activeTabId: FIRST_TAB.id,
       snapshots: {},
@@ -70,13 +68,12 @@ export const useCartStore = create<PosStore>()(
         const counter = s.tabCounter + 1;
         const tab = makeTab(`Order ${counter}`);
         set({
-          snapshots: { ...s.snapshots, [s.activeTabId]: { items: s.items, discount: s.discount, customer: s.customer } },
+          snapshots: { ...s.snapshots, [s.activeTabId]: { items: s.items, discount: s.discount } },
           tabs: [...s.tabs, tab],
           activeTabId: tab.id,
           tabCounter: counter,
           items: [],
           discount: 0,
-          customer: null,
         });
       },
 
@@ -90,7 +87,6 @@ export const useCartStore = create<PosStore>()(
         let newActiveId = s.activeTabId;
         let newItems = s.items;
         let newDiscount = s.discount;
-        let newCustomer = s.customer;
 
         if (s.activeTabId === id) {
           // prefer the tab to the left; fall back to the first remaining tab
@@ -100,11 +96,10 @@ export const useCartStore = create<PosStore>()(
           const snap = newSnapshots[nextTab.id];
           newItems = snap?.items ?? [];
           newDiscount = snap?.discount ?? 0;
-          newCustomer = snap?.customer ?? null;
           delete newSnapshots[nextTab.id];
         }
 
-        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount, customer: newCustomer });
+        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount });
       },
 
       setActiveTab: (id) => {
@@ -112,7 +107,7 @@ export const useCartStore = create<PosStore>()(
         if (s.activeTabId === id) return;
         const newSnapshots = {
           ...s.snapshots,
-          [s.activeTabId]: { items: s.items, discount: s.discount, customer: s.customer },
+          [s.activeTabId]: { items: s.items, discount: s.discount },
         };
         const snap = s.snapshots[id];
         delete newSnapshots[id];
@@ -121,39 +116,35 @@ export const useCartStore = create<PosStore>()(
           activeTabId: id,
           items: snap?.items ?? [],
           discount: snap?.discount ?? 0,
-          customer: snap?.customer ?? null,
         });
       },
 
       // ── Cart operations ──────────────────────────────────────
 
-      addItem: (product) => {
-        const items = get().items;
-        const existing = items.find((i) => i.product.id === product.id);
-        if (existing) {
-          set({ items: items.map((i) => i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i) });
-        } else {
-          set({ items: [...items, { product, quantity: 1, unit_price: product.selling_price, discount_amount: 0 }] });
-        }
+      addItem: (product, lineId) => {
+        set((s) => ({
+          items: [...s.items, { lineId, product, quantity: 1, unit_price: product.selling_price, discount_amount: 0, packageLabel: null }],
+        }));
       },
 
-      removeItem: (productId) =>
-        set((s) => ({ items: s.items.filter((i) => i.product.id !== productId) })),
+      removeItem: (lineId) =>
+        set((s) => ({ items: s.items.filter((i) => i.lineId !== lineId) })),
 
-      updateQty: (productId, qty) => {
-        if (qty <= 0) { get().removeItem(productId); return; }
-        set((s) => ({ items: s.items.map((i) => i.product.id === productId ? { ...i, quantity: qty } : i) }));
+      updateQty: (lineId, qty) => {
+        set((s) => ({ items: s.items.map((i) => i.lineId === lineId ? { ...i, quantity: Math.max(0, qty) } : i) }));
       },
 
-      updateItemDiscount: (productId, discount) =>
-        set((s) => ({ items: s.items.map((i) => i.product.id === productId ? { ...i, discount_amount: Math.max(0, discount) } : i) })),
+      updateItemDiscount: (lineId, discount) =>
+        set((s) => ({ items: s.items.map((i) => i.lineId === lineId ? { ...i, discount_amount: Math.max(0, discount) } : i) })),
 
-      updateItemPrice: (productId, price) =>
-        set((s) => ({ items: s.items.map((i) => i.product.id === productId ? { ...i, unit_price: Math.max(0, price) } : i) })),
+      updateItemPrice: (lineId, price) =>
+        set((s) => ({ items: s.items.map((i) => i.lineId === lineId ? { ...i, unit_price: Math.max(0, price) } : i) })),
+
+      updateItemPackageLabel: (lineId, label) =>
+        set((s) => ({ items: s.items.map((i) => i.lineId === lineId ? { ...i, packageLabel: label } : i) })),
 
       setDiscount: (discount) => set({ discount: Math.max(0, discount) }),
-      setCustomer: (customer) => set({ customer }),
-      clearCart: () => set({ items: [], discount: 0, customer: null }),
+      clearCart: () => set({ items: [], discount: 0 }),
 
       // ── Computed ─────────────────────────────────────────────
 
@@ -162,6 +153,6 @@ export const useCartStore = create<PosStore>()(
 
       total: () => Math.max(0, get().subtotal() - get().discount),
     }),
-    { name: "bedarts-pos-v2" }
+    { name: "bedarts-pos-v4" }
   )
 );

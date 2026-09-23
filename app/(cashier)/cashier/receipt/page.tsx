@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   phone: null,
   email: null,
   vat_number: null,
+  opening_hours: null,
+  sunday_hours: null,
   receipt_footer: "Thank you for shopping with us!",
   updated_at: "",
   tax_rate: 0,

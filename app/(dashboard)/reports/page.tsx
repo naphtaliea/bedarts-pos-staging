@@ -14,7 +14,7 @@ export default async function ReportsPage({
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!["admin", "manager"].includes(profile?.role ?? "")) redirect("/pos");
+  if (!["admin", "manager", "accountant"].includes(profile?.role ?? "")) redirect("/pos");
 
   const params = await searchParams;
 
@@ -26,14 +26,14 @@ export default async function ReportsPage({
     return d.toISOString().split("T")[0];
   })();
 
-  const [salesRes, adjustmentsRes, creditCustomersRes] = await Promise.all([
+  const [salesRes, adjustmentsRes, expensesRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
         `id, total_amount, discount_amount, subtotal, created_at, status,
          cashier:profiles!sales_cashier_id_fkey(full_name),
          payments(method, amount),
-         sale_items(total_price, quantity, unit_price, product:products(name, cost_price, category:categories(name)))`
+         sale_items(total_price, quantity, unit_price, cost_at_sale, product:products(name, cost_price, category:categories(name)))`
       )
       .gte("created_at", `${fromDate}T00:00:00.000Z`)
       .lte("created_at", `${toDate}T23:59:59.999Z`)
@@ -47,10 +47,12 @@ export default async function ReportsPage({
       .order("created_at", { ascending: false }),
 
     supabase
-      .from("customers")
-      .select("id, name, phone, price_group, credit_limit, credit_balance")
-      .gt("credit_balance", 0)
-      .order("credit_balance", { ascending: false }),
+      .from("expenses")
+      .select("amount, expense_date, category:expense_categories(name)")
+      .gte("expense_date", fromDate)
+      .lte("expense_date", toDate)
+      .eq("is_deleted", false)
+      .order("expense_date", { ascending: false }),
   ]);
 
   return (
@@ -59,7 +61,7 @@ export default async function ReportsPage({
       toDate={toDate}
       sales={(salesRes.data ?? []) as any[]}
       adjustments={(adjustmentsRes.data ?? []) as any[]}
-      customers={(creditCustomersRes.data ?? []) as any[]}
+      expenses={(expensesRes.data ?? []) as any[]}
     />
   );
 }

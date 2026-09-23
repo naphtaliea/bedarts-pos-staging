@@ -1,20 +1,39 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Trash2, Search, X, ArrowRight, Delete, ShoppingCart } from "lucide-react";
+import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
-import type { OrderTab } from "@/lib/pos-store";
 import { PosTopBar } from "@/components/pos/pos-topbar";
+import { PaymentClient } from "./payment/payment-client";
+import { ReceiptClient } from "./receipt/receipt-client";
+import { OrdersView } from "./orders-view";
+import { DashboardView } from "./dashboard-view";
+import { getSaleForReceipt } from "@/app/(dashboard)/pos/actions";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Profile, Category, Product, ProductPackage } from "@/lib/types";
+import type { Profile, Category, Product, ProductPackage, Sale, StoreSettings } from "@/lib/types";
 
 interface CashierPOSClientProps {
   cashier: Profile;
   initialCategories: Category[];
   initialProducts: Product[];
   initialPackages: ProductPackage[];
+  initialSettings: StoreSettings | null;
 }
+
+type PosView =
+  | { screen: "pos" }
+  | { screen: "payment" }
+  | { screen: "receipt"; sale: Sale; settings: StoreSettings | null }
+  | { screen: "orders" }
+  | { screen: "dashboard" };
+
+const DEFAULT_SETTINGS: StoreSettings = {
+  id: 1, store_name: "Bedarts Cold Supplies",
+  address: null, phone: null, email: null,
+  vat_number: null, opening_hours: null, sunday_hours: null,
+  receipt_footer: "Thank you for shopping with us!",
+  updated_at: "", tax_rate: 0, tax_enabled: false,
+};
 
 function getCategoryStyle(categoryName: string): { bg: string; text: string; chip: string } {
   const name = categoryName.toLowerCase();
@@ -44,21 +63,18 @@ export function CashierPOSClient({
   initialCategories,
   initialProducts,
   initialPackages,
+  initialSettings,
 }: CashierPOSClientProps) {
-  const router = useRouter();
+  const [view, setView] = useState<PosView>({ screen: "pos" });
 
   const {
     items,
-    tabs,
-    activeTabId,
-    addTab,
-    removeTab,
-    setActiveTab,
     addItem,
     removeItem,
     updateQty,
     updateItemDiscount,
     updateItemPrice,
+    updateItemPackageLabel,
     clearCart,
     subtotal,
     total,
@@ -75,12 +91,15 @@ export function CashierPOSClient({
   const [category,         setCategory]         = useState<string | null>(null);
   const [recentlyAddedId,  setRecentlyAddedId]  = useState<string | null>(null);
   const [packageModal,     setPackageModal]     = useState<Product | null>(null);
+  const [packageModalLineId, setPackageModalLineId] = useState<string | null>(null);
   const [stockCapId,       setStockCapId]       = useState<string | null>(null);
+  const [discCapId,        setDiscCapId]        = useState<string | null>(null);
   const [confirmClear,     setConfirmClear]     = useState(false);
   const [failedImages,     setFailedImages]     = useState<Set<string>>(new Set());
+  const [mobileView,       setMobileView]       = useState<"products" | "order">("products");
   const confirmClearTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const selectedLine   = items.find((i) => i.product.id === selectedLineId);
+  const selectedLine   = items.find((i) => i.lineId === selectedLineId);
   const categoryMap    = Object.fromEntries(initialCategories.map((c) => [c.id, c.name]));
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -94,7 +113,21 @@ export function CashierPOSClient({
     if (!selectedLineId) return;
     let next = buffer;
     if (key === "backspace") {
-      next = next.slice(0, -1);
+      if (mode === "Qty") {
+        if (buffer === "0" || buffer === "") {
+          // Second backspace at zero — remove the line, select predecessor
+          const idx = items.findIndex((i) => i.lineId === selectedLineId);
+          const next = (idx > 0 ? items[idx - 1] : items[idx + 1])?.lineId ?? null;
+          removeItem(selectedLineId);
+          setSelectedLineId(next);
+          setBuffer("");
+          return;
+        }
+        // First backspace — collapse to "0" rather than empty
+        next = buffer.length === 1 ? "0" : buffer.slice(0, -1);
+      } else {
+        next = next.slice(0, -1);
+      }
     } else if (key === "00") {
       next = next === "" || next === "0" ? "0" : next + "00";
     } else if (key === ".") {
@@ -105,22 +138,24 @@ export function CashierPOSClient({
     setBuffer(next);
     const value = parseFloat(next) || 0;
     if (mode === "Qty") {
-      // Don't update the store while value is 0 (user is mid-entry, e.g. "0.")
-      if (value > 0) {
-        const prod = initialProducts.find((p) => p.id === selectedLineId);
-        const maxQty = prod?.stock_quantity ?? Infinity;
-        const capped = Math.min(value, maxQty);
-        if (maxQty !== Infinity && capped < value) {
-          setStockCapId(selectedLineId);
-          setTimeout(() => setStockCapId(null), 2500);
-        }
-        updateQty(selectedLineId, capped);
+      // Allow qty=0 so the line shows 0 before a second backspace removes it
+      const prod = initialProducts.find((p) => p.id === selectedLine?.product.id);
+      const maxQty = prod?.stock_quantity ?? Infinity;
+      const capped = value > 0 ? Math.min(value, maxQty) : 0;
+      if (maxQty !== Infinity && value > 0 && capped < value) {
+        setStockCapId(selectedLineId);
+        setTimeout(() => setStockCapId(null), 2500);
       }
+      updateQty(selectedLineId, capped);
     } else if (mode === "Disc") {
       // Cap discount at the line total so we never record discount > sale value
-      const line = items.find((i) => i.product.id === selectedLineId);
-      const maxDisc = line ? line.quantity * line.unit_price : Infinity;
-      updateItemDiscount(selectedLineId, Math.min(Math.max(0, value), maxDisc));
+      const maxDisc = selectedLine ? selectedLine.quantity * selectedLine.unit_price : Infinity;
+      const capped = Math.min(Math.max(0, value), maxDisc);
+      if (maxDisc !== Infinity && capped < value) {
+        setDiscCapId(selectedLineId);
+        setTimeout(() => setDiscCapId(null), 2500);
+      }
+      updateItemDiscount(selectedLineId, capped);
     } else {
       updateItemPrice(selectedLineId, Math.max(0, value));
     }
@@ -132,50 +167,50 @@ export function CashierPOSClient({
   const effectivePrice = (product: Product): number => product.selling_price;
 
   const handleAddProduct = (product: Product) => {
-    const pkgs = productPackages(product);
-    if (selectedLineId === product.id) {
-      // Already selected: re-open the package picker so cashier can switch size
-      if (pkgs.length > 0) setPackageModal(product);
-      return;
-    }
-    const alreadyInCart = items.some((i) => i.product.id === product.id);
-    if (alreadyInCart) { setSelectedLineId(product.id); return; }
-    if (pkgs.length > 0) { setPackageModal(product); return; }
-    addItem({ ...product, selling_price: effectivePrice(product) });
-    setSelectedLineId(product.id);
+    const lineId = crypto.randomUUID();
+    addItem({ ...product, selling_price: effectivePrice(product) }, lineId);
+    setSelectedLineId(lineId);
     setRecentlyAddedId(product.id);
     setTimeout(() => setRecentlyAddedId(null), 600);
   };
 
   const handleAddLoose = (product: Product) => {
-    const alreadyInCart = items.some((i) => i.product.id === product.id);
-    if (!alreadyInCart) {
-      addItem({ ...product, selling_price: effectivePrice(product) });
+    if (packageModalLineId) {
+      updateItemPrice(packageModalLineId, effectivePrice(product));
+      updateItemPackageLabel(packageModalLineId, null);
+      setSelectedLineId(packageModalLineId);
+    } else {
+      const lineId = crypto.randomUUID();
+      addItem({ ...product, selling_price: effectivePrice(product) }, lineId);
+      setSelectedLineId(lineId);
       setRecentlyAddedId(product.id);
       setTimeout(() => setRecentlyAddedId(null), 600);
     }
-    setSelectedLineId(product.id);
     setPackageModal(null);
+    setPackageModalLineId(null);
   };
 
   const handleAddPackage = (product: Product, pkg: ProductPackage) => {
     const unitPrice = pkg.price / pkg.quantity;
-    const alreadyInCart = items.some((i) => i.product.id === product.id);
-    if (!alreadyInCart) {
-      addItem({ ...product, selling_price: unitPrice });
+    if (packageModalLineId) {
+      updateItemPrice(packageModalLineId, unitPrice);
+      updateQty(packageModalLineId, pkg.quantity);
+      updateItemPackageLabel(packageModalLineId, pkg.label);
+      setSelectedLineId(packageModalLineId);
     } else {
-      // Switching package on an existing line — update price, then qty below
-      updateItemPrice(product.id, unitPrice);
+      const lineId = crypto.randomUUID();
+      addItem({ ...product, selling_price: unitPrice }, lineId);
+      updateQty(lineId, pkg.quantity);
+      updateItemPackageLabel(lineId, pkg.label);
+      setSelectedLineId(lineId);
+      setRecentlyAddedId(product.id);
+      setTimeout(() => setRecentlyAddedId(null), 600);
     }
-    updateQty(product.id, pkg.quantity);
-    setSelectedLineId(product.id);
     setPackageModal(null);
-    setRecentlyAddedId(product.id);
-    setTimeout(() => setRecentlyAddedId(null), 600);
+    setPackageModalLineId(null);
   };
 
   const filteredProducts = initialProducts.filter((p) => {
-    if (failedImages.has(p.id)) return false;
     const matchesSearch = search.trim() === "" || p.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = category === null || p.category_id === category;
     return matchesSearch && matchesCategory;
@@ -197,18 +232,22 @@ export function CashierPOSClient({
   const weightQty = isWeightMode && selectedLine
     ? (parseFloat(buffer !== "" ? buffer : String(selectedLine.quantity)) || 0)
     : 0;
-  const weightPreview = isWeightMode && selectedLine
+  const weightPreview = isWeightMode && selectedLine && !selectedLine.packageLabel
     ? weightQty > 0
       ? `${weightQty}kg / ${formatCurrency(selectedLine.unit_price)} = ${formatCurrency(Math.max(0, weightQty * selectedLine.unit_price - selectedLine.discount_amount))}`
       : `/ ${formatCurrency(selectedLine.unit_price)} per kg`
     : null;
+  const boxPreview = selectedLine?.packageLabel
+    ? `${selectedLine.packageLabel} · ${formatCurrency(Math.max(0, selectedLine.quantity * selectedLine.unit_price - selectedLine.discount_amount))}`
+    : null;
 
   const kbRef = useRef<(e: KeyboardEvent) => void>(() => {});
   kbRef.current = (e: KeyboardEvent) => {
+    if (view.screen !== "pos") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape") {
       e.preventDefault();
-      if (packageModal) { setPackageModal(null); return; }
+      if (packageModal) { setPackageModal(null); setPackageModalLineId(null); return; }
       setSelectedLineId(null);
       return;
     }
@@ -223,45 +262,113 @@ export function CashierPOSClient({
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  if (view.screen === "payment") {
+    return (
+      <PaymentClient
+        cashierName={cashier.full_name}
+        avatarUrl={cashier.avatar_url}
+        onBack={() => setView({ screen: "pos" })}
+        onComplete={async (saleId) => {
+          try {
+            const timeout = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("timeout")), 8000)
+            );
+            const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
+            if (sale) setView({ screen: "receipt", sale, settings });
+            else setView({ screen: "pos" });
+          } catch {
+            setView({ screen: "pos" });
+          }
+        }}
+        onOfflineComplete={(sale) => setView({ screen: "receipt", sale, settings: initialSettings })}
+      />
+    );
+  }
+
+  if (view.screen === "receipt") {
+    return (
+      <ReceiptClient
+        sale={view.sale}
+        settings={view.settings ?? DEFAULT_SETTINGS}
+        onNewOrder={() => {
+          setSelectedLineId(null);
+          setView({ screen: "pos" });
+        }}
+        onViewOrders={() => setView({ screen: "orders" })}
+      />
+    );
+  }
+
+  if (view.screen === "orders") {
+    return (
+      <OrdersView
+        cashier={cashier}
+        onBack={() => setView({ screen: "pos" })}
+        onViewReceipt={async (saleId) => {
+          try {
+            const timeout = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("timeout")), 8000)
+            );
+            const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
+            if (sale) setView({ screen: "receipt", sale, settings });
+          } catch {
+            // network unavailable or timed out — stay on orders
+          }
+        }}
+      />
+    );
+  }
+
+  if (view.screen === "dashboard") {
+    return (
+      <DashboardView
+        cashier={cashier}
+        onBack={() => setView({ screen: "pos" })}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-pos-bg select-none overflow-hidden">
+    <div className="flex flex-col h-dvh bg-white select-none overflow-hidden animate-page-enter">
 
-      {/* ── TOP BAR ──────────────────────────────────────────────── */}
-      <PosTopBar cashierName={cashier.full_name} hideDashboardLink />
+      {/* ── TOP BAR (with order tabs) ────────────────────────────── */}
+      <PosTopBar
+        cashierName={cashier.full_name}
+        avatarUrl={cashier.avatar_url}
+        showTabs
+        onTabChange={() => setSelectedLineId(null)}
+        onOrders={() => setView({ screen: "orders" })}
+        onDashboard={() => setView({ screen: "dashboard" })}
+      />
 
-      {/* ── ORDER TABS — slim navy strip ─────────────────────────── */}
-      <div className="flex items-center gap-0.5 px-3 border-b border-white/[0.06] bg-pos-bg overflow-x-auto shrink-0">
-        {tabs.map((tab: OrderTab) => {
-          const isActive = tab.id === activeTabId;
-          return (
-            <div
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedLineId(null); }}
-              className={cn(
-                "flex items-center gap-1 shrink-0 px-3 py-2 text-xs font-semibold transition-all cursor-pointer border-b-2",
-                isActive
-                  ? "border-primary text-white"
-                  : "border-transparent text-slate-600 hover:text-slate-400"
-              )}
-            >
-              <span>{tab.name}</span>
-              {tabs.length > 1 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeTab(tab.id); setSelectedLineId(null); }}
-                  className="ml-0.5 p-1 rounded hover:bg-white/10 text-slate-600 hover:text-white transition-colors"
-                  aria-label={`Close ${tab.name}`}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          );
-        })}
+      {/* ── MOBILE VIEW SWITCHER ─────────────────────────────────── */}
+      <div className="lg:hidden flex shrink-0 border-b border-border bg-white">
         <button
-          onClick={() => { addTab(); setSelectedLineId(null); }}
-          className="shrink-0 px-3 py-2 text-sm font-bold text-slate-600 hover:text-slate-300 transition-colors"
-          aria-label="New order"
-        >+</button>
+          onClick={() => setMobileView("products")}
+          className={cn(
+            "flex-1 py-3 text-xs font-bold transition-colors",
+            mobileView === "products" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Products
+        </button>
+        <button
+          onClick={() => setMobileView("order")}
+          className={cn(
+            "flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
+            mobileView === "order" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Order
+          {items.length > 0 && (
+            <span className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded-full leading-none tabular-nums font-black",
+              mobileView === "order" ? "bg-primary text-white" : "bg-secondary text-muted-foreground"
+            )}>
+              {items.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── MAIN BODY ─────────────────────────────────────────────── */}
@@ -272,13 +379,16 @@ export function CashierPOSClient({
         ══════════════════════════════════════════════════════════ */}
         <section
           aria-label="Order panel"
-          className="flex flex-col w-2/5 shrink-0 bg-pos-bg"
+          className={cn(
+            "flex flex-col bg-white w-full lg:w-2/5 lg:shrink-0",
+            mobileView === "order" ? "" : "hidden lg:flex"
+          )}
         >
 
           {/* Order header */}
-          <div className="shrink-0 flex items-center justify-between px-3 py-1 border-b border-white/[0.06]">
+          <div className="shrink-0 flex items-center justify-between px-3 py-1 border-b border-border">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.15em]">Order</span>
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.15em]">Order</span>
               {items.length > 0 && (
                 <span className="text-[10px] font-black bg-primary text-white px-1.5 py-0.5 rounded-full leading-none tabular-nums">
                   {items.length}
@@ -301,8 +411,8 @@ export function CashierPOSClient({
                 className={cn(
                   "text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg transition-all",
                   confirmClear
-                    ? "text-red-400 bg-red-400/10"
-                    : "text-slate-600 hover:text-slate-400 hover:bg-white/5"
+                    ? "text-destructive bg-destructive/10"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                 )}
               >
                 {confirmClear ? "Confirm?" : "Clear"}
@@ -314,33 +424,33 @@ export function CashierPOSClient({
           <div className="flex-1 min-h-0 overflow-y-auto">
             {items.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-8">
-                <div className="w-14 h-14 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                  <ShoppingCart className="w-6 h-6 text-slate-700" aria-hidden="true" />
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                  <ShoppingCart className="w-6 h-6 text-slate-400" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-600">Empty order</p>
-                  <p className="text-xs text-slate-700 mt-0.5">Tap a product to begin</p>
+                  <p className="text-sm font-semibold text-slate-500">Empty order</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Tap a product to begin</p>
                 </div>
               </div>
             ) : (
               items.map((item) => {
                 const lineTotal  = Math.max(0, item.quantity * item.unit_price - item.discount_amount);
-                const isSelected = selectedLineId === item.product.id;
+                const isSelected = selectedLineId === item.lineId;
                 return (
                   <div
-                    key={item.product.id}
+                    key={item.lineId}
                     ref={isSelected ? selectedRowRef : null}
-                    onClick={() => setSelectedLineId(item.product.id)}
+                    onClick={() => setSelectedLineId(item.lineId)}
                     tabIndex={-1}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 cursor-pointer border-b border-white/[0.04] transition-all focus:outline-none border-l-2",
+                      "flex items-center gap-2 px-3 py-1.5 cursor-pointer border-b border-border transition-all focus:outline-none border-l-2",
                       isSelected
-                        ? "bg-white/[0.07] border-l-primary"
-                        : "border-l-transparent hover:bg-white/[0.03]"
+                        ? "bg-slate-50 border-l-primary"
+                        : "border-l-transparent hover:bg-slate-50"
                     )}
                   >
                     {/* Thumbnail */}
-                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-white/[0.05]">
+                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-slate-100">
                       {item.product.image_url ? (
                         <img
                           src={item.product.image_url}
@@ -349,7 +459,7 @@ export function CashierPOSClient({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-slate-500 font-bold text-sm" aria-hidden="true">
+                          <span className="text-slate-400 font-bold text-sm" aria-hidden="true">
                             {item.product.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -360,21 +470,26 @@ export function CashierPOSClient({
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-[13px] font-semibold truncate leading-snug",
-                        isSelected ? "text-white" : "text-slate-300"
+                        isSelected ? "text-slate-900" : "text-slate-700"
                       )}>
                         {item.product.name}
                       </p>
-                      <p className="text-[11px] mt-0.5 tabular-nums text-slate-500">
-                        {item.product.unit === "kg"
-                          ? `${item.quantity}kg / ${formatCurrency(item.unit_price)}`
-                          : `${item.quantity} × ${formatCurrency(item.unit_price)}`}
+                      <p className="text-[11px] mt-0.5 tabular-nums text-slate-500 leading-snug">
+                        {item.packageLabel
+                          ? `${item.packageLabel} · ${item.quantity}${item.product.unit === "kg" ? "kg" : "pcs"}`
+                          : item.product.unit === "kg"
+                            ? `${item.quantity}kg / ${formatCurrency(item.unit_price)}`
+                            : `${item.quantity} × ${formatCurrency(item.unit_price)}`}
                         {item.discount_amount > 0 && (
-                          <span className="ml-1.5 text-amber-400">
+                          <span className="ml-1.5 text-warning">
                             −{formatCurrency(item.discount_amount)}
                           </span>
                         )}
-                        {stockCapId === item.product.id && (
-                          <span className="ml-1.5 text-amber-300 font-semibold">max</span>
+                        {stockCapId === item.lineId && (
+                          <span className="ml-1.5 text-warning font-semibold">max stock</span>
+                        )}
+                        {discCapId === item.lineId && (
+                          <span className="ml-1.5 text-warning font-semibold">discount capped at line total</span>
                         )}
                       </p>
                     </div>
@@ -382,7 +497,7 @@ export function CashierPOSClient({
                     {/* Total */}
                     <span className={cn(
                       "font-display font-black text-sm tabular-nums shrink-0",
-                      isSelected ? "text-primary" : "text-slate-200"
+                      isSelected ? "text-primary" : "text-slate-700"
                     )}>
                       {formatCurrency(lineTotal)}
                     </span>
@@ -391,11 +506,13 @@ export function CashierPOSClient({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeItem(item.product.id);
-                        if (selectedLineId === item.product.id) setSelectedLineId(null);
+                        const idx = items.findIndex((i) => i.lineId === item.lineId);
+                        const next = (idx > 0 ? items[idx - 1] : items[idx + 1])?.lineId ?? null;
+                        removeItem(item.lineId);
+                        if (selectedLineId === item.lineId) setSelectedLineId(next);
                       }}
                       aria-label={`Remove ${item.product.name}`}
-                      className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-slate-700 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                      className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
                       <Trash2 className="w-3 h-3" aria-hidden="true" />
                     </button>
@@ -406,96 +523,140 @@ export function CashierPOSClient({
           </div>
 
           {/* ── NUMPAD ── */}
-          <div className="shrink-0 bg-pos-numpad border-t border-white/[0.06] p-2 space-y-1.5">
+          <div className="shrink-0 bg-slate-50 border-t border-border p-2 space-y-1.5">
 
             {/* Selected line readout */}
             <div className="flex items-center justify-between gap-2 h-8">
               {selectedLine ? (
                 <>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.12em] truncate">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.12em] truncate">
                       {selectedLine.product.name}
                     </p>
-                    {weightPreview && (
-                      <p className="text-[10px] text-primary/70 tabular-nums truncate">{weightPreview}</p>
+                    {(boxPreview ?? weightPreview) && (
+                      <p className="text-[11px] text-primary/70 tabular-nums truncate">{boxPreview ?? weightPreview}</p>
                     )}
                   </div>
-                  <span className="font-display font-black text-xl text-white tabular-nums shrink-0">
-                    {displayValue}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary text-white leading-none">
+                      {mode === "Qty" && selectedLine.product.unit === "kg" ? "Wt" : mode}
+                    </span>
+                    <span className="font-display font-black text-xl text-slate-900 tabular-nums">
+                      {displayValue}
+                    </span>
+                  </div>
                 </>
               ) : (
-                <p className="text-xs text-slate-700 w-full text-center">Select a line to edit</p>
+                <p className="text-[11px] text-slate-400 w-full text-center uppercase tracking-widest font-bold">Numpad</p>
               )}
             </div>
 
-            {/* Mode selector — segmented pill */}
-            <div className="flex gap-0.5 p-0.5 bg-white/[0.05] rounded-lg">
-              {(["Qty", "Disc", "Price"] as const).map((m) => {
-                const label = m === "Qty" && selectedLine?.product.unit === "kg" ? "Wt" : m;
-                return (
-                  <button
-                    key={m}
-                    onClick={() => { setMode(m); setBuffer(""); }}
-                    disabled={!selectedLineId}
-                    className={cn(
-                      "flex-1 h-9 rounded-md text-xs font-bold transition-all disabled:opacity-20",
-                      mode === m && selectedLineId
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-400"
-                    )}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Change UOM — always visible when a line is selected */}
+            {selectedLine && (
+              <button
+                onClick={() => { setPackageModal(selectedLine.product); setPackageModalLineId(selectedLineId); }}
+                className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
+              >
+                <Scale className="w-3 h-3" aria-hidden="true" />
+                Change UOM
+              </button>
+            )}
 
-            {/* Digit grid */}
-            <div className="grid grid-cols-3 gap-1">
-              {["1","2","3","4","5","6","7","8","9",".","0","00"].map((key) => (
-                <button
-                  key={key}
-                  onClick={() => pressKey(key)}
-                  disabled={!selectedLineId}
-                  className="h-12 rounded-lg bg-white/[0.07] hover:bg-white/[0.12] active:scale-95 active:bg-white/[0.16] text-white font-display font-bold text-lg transition-all disabled:opacity-20"
-                >
-                  {key}
+            {/* 4-column digit + mode grid */}
+            <div className="grid grid-cols-4 gap-1">
+              {/* Row 1: 1 2 3  Qty */}
+              {["1","2","3"].map(k => (
+                <button key={k} onClick={() => pressKey(k)}
+                  className="h-12 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-900 font-display font-bold text-lg transition-all shadow-sm">
+                  {k}
                 </button>
               ))}
-            </div>
+              <button
+                onClick={() => { setMode("Qty"); setBuffer(""); }}
+                className={cn(
+                  "h-12 rounded-lg text-xs font-bold transition-all",
+                  mode === "Qty"
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 shadow-sm"
+                )}
+              >
+                {selectedLine?.product.unit === "kg" ? "Wt" : "Qty"}
+              </button>
 
-            {/* Backspace */}
-            <button
-              onClick={() => pressKey("backspace")}
-              disabled={!selectedLineId}
-              aria-label="Backspace"
-              className="h-10 w-full rounded-lg bg-white/[0.05] hover:bg-red-500/10 hover:text-red-400 active:scale-95 text-slate-600 transition-all disabled:opacity-20 flex items-center justify-center gap-1.5 text-xs font-semibold"
-            >
-              <Delete className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Backspace</span>
-            </button>
+              {/* Row 2: 4 5 6  % Disc */}
+              {["4","5","6"].map(k => (
+                <button key={k} onClick={() => pressKey(k)}
+                  className="h-12 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-900 font-display font-bold text-lg transition-all shadow-sm">
+                  {k}
+                </button>
+              ))}
+              <button
+                onClick={() => { setMode("Disc"); setBuffer(""); }}
+                className={cn(
+                  "h-12 rounded-lg text-xs font-bold transition-all",
+                  mode === "Disc"
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 shadow-sm"
+                )}
+              >
+                Disc
+              </button>
+
+              {/* Row 3: 7 8 9  Price */}
+              {["7","8","9"].map(k => (
+                <button key={k} onClick={() => pressKey(k)}
+                  className="h-12 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-900 font-display font-bold text-lg transition-all shadow-sm">
+                  {k}
+                </button>
+              ))}
+              <button
+                onClick={() => { setMode("Price"); setBuffer(""); }}
+                className={cn(
+                  "h-12 rounded-lg text-xs font-bold transition-all",
+                  mode === "Price"
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 shadow-sm"
+                )}
+              >
+                Price
+              </button>
+
+              {/* Row 4: 00 0 .  ⌫ */}
+              {["00","0","."].map(k => (
+                <button key={k} onClick={() => pressKey(k)}
+                  className="h-12 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-slate-900 font-display font-bold text-lg transition-all shadow-sm">
+                  {k}
+                </button>
+              ))}
+              <button
+                onClick={() => pressKey("backspace")}
+                aria-label="Backspace"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-100 hover:bg-red-50 hover:text-red-500 hover:border-red-200 active:scale-95 text-slate-500 transition-all flex items-center justify-center shadow-sm"
+              >
+                <Delete className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
           {/* ── TOTALS + PAY ── */}
-          <div className="shrink-0 px-2.5 pb-2.5 pt-1.5 bg-pos-bg border-t border-white/[0.06] space-y-1">
+          <div className="shrink-0 px-2.5 pb-2.5 pt-1.5 bg-white border-t border-border space-y-1">
             {discountVal > 0 && (
               <div className="flex justify-between text-[10px] tabular-nums px-1">
-                <span className="text-slate-600">Subtotal <span className="text-slate-500">{formatCurrency(subtotalVal)}</span></span>
-                <span className="text-amber-400">−{formatCurrency(discountVal)}</span>
+                <span className="text-slate-500">Subtotal <span className="text-slate-700">{formatCurrency(subtotalVal)}</span></span>
+                <span className="text-warning">−{formatCurrency(discountVal)}</span>
               </div>
             )}
             <button
-              onClick={() => router.push("/cashier/payment")}
+              onClick={() => setView({ screen: "payment" })}
               disabled={items.length === 0}
               className={cn(
-                "w-full h-14 rounded-xl flex items-center justify-between px-4 gap-3 transition-all",
+                "w-full h-16 rounded-xl flex items-center justify-between px-5 gap-3 transition-all",
                 "bg-primary hover:bg-primary/90 active:scale-[0.98] disabled:opacity-25",
                 "shadow-lg shadow-primary/20"
               )}
             >
-              <span className="font-display font-black text-base text-white uppercase tracking-wide">Pay</span>
-              <span className="font-display font-black text-xl text-white tabular-nums flex-1 text-center">
+              <span className="font-display font-black text-lg text-white uppercase tracking-wide">Pay</span>
+              <span className="font-display font-black text-2xl text-white tabular-nums flex-1 text-center">
                 {items.length > 0
                   ? formatCurrency(totalVal)
                   : <span className="text-white/30">—</span>}
@@ -510,7 +671,10 @@ export function CashierPOSClient({
         ══════════════════════════════════════════════════════════ */}
         <section
           aria-label="Product browser"
-          className="flex flex-col flex-1 min-w-0 bg-slate-50"
+          className={cn(
+            "flex flex-col flex-1 min-w-0 bg-slate-50",
+            mobileView === "products" ? "" : "hidden lg:flex"
+          )}
         >
 
           {/* Search */}
@@ -524,7 +688,7 @@ export function CashierPOSClient({
                 placeholder="Search products…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/25 transition-all"
+                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
               />
             </div>
           </div>
@@ -536,7 +700,7 @@ export function CashierPOSClient({
               <button
                 onClick={() => setCategory(null)}
                 className={cn(
-                  "shrink-0 h-8 px-3.5 rounded-full text-xs font-bold transition-all whitespace-nowrap",
+                  "shrink-0 h-9 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
                   category === null
                     ? "bg-slate-900 text-white shadow-sm"
                     : "bg-white text-slate-500 shadow-sm hover:text-slate-800"
@@ -553,7 +717,7 @@ export function CashierPOSClient({
                     key={cat.id}
                     onClick={() => setCategory(cat.id)}
                     className={cn(
-                      "shrink-0 h-8 px-3.5 rounded-full text-xs font-bold transition-all whitespace-nowrap",
+                      "shrink-0 h-9 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
                       isActive
                         ? "bg-slate-900 text-white shadow-sm"
                         : `${chip} shadow-sm hover:shadow-md`
@@ -567,6 +731,25 @@ export function CashierPOSClient({
             <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-50 to-transparent" aria-hidden="true" />
           </div>
 
+          {/* Mobile running total — sticky strip above product grid */}
+          {items.length > 0 && (
+            <div className="lg:hidden shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-800">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">
+                  {items.length} item{items.length !== 1 ? "s" : ""}
+                </p>
+                <p className="font-display font-black text-base text-white tabular-nums leading-none">{formatCurrency(totalVal)}</p>
+              </div>
+              <button
+                onClick={() => setMobileView("order")}
+                className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-white font-bold text-xs shrink-0 transition-colors hover:bg-primary/90"
+              >
+                Review order
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+
           {/* Product grid */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
             {filteredProducts.length === 0 ? (
@@ -575,10 +758,10 @@ export function CashierPOSClient({
                 <p className="text-xs text-slate-400/70">Try a different search or category</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredProducts.map((product) => {
                   const isRecent      = recentlyAddedId === product.id;
-                  const isActive      = selectedLineId   === product.id;
+                  const isActive      = selectedLineId !== null && items.some((i) => i.lineId === selectedLineId && i.product.id === product.id);
                   const stockQty      = product.stock_quantity ?? 0;
                   const isExpiredOnly = stockQty > 0 && !product.has_valid_stock;
                   const isOutOfStock  = stockQty <= 0 || !product.has_valid_stock;
@@ -590,10 +773,12 @@ export function CashierPOSClient({
                     <div
                       key={product.id}
                       onClick={() => !isOutOfStock && handleAddProduct(product)}
+                      onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !isOutOfStock) { e.preventDefault(); handleAddProduct(product); } }}
+                      role="button"
                       aria-disabled={isOutOfStock}
-                      tabIndex={isOutOfStock ? undefined : -1}
+                      tabIndex={isOutOfStock ? undefined : 0}
                       className={cn(
-                        "bg-white rounded-2xl overflow-hidden transition-all focus:outline-none",
+                        "bg-white rounded-2xl overflow-hidden transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                         isOutOfStock
                           ? "opacity-40 cursor-not-allowed"
                           : "cursor-pointer shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] active:shadow-sm",
@@ -602,22 +787,22 @@ export function CashierPOSClient({
                       )}
                     >
                       {/* Color block / image */}
-                      {product.image_url ? (
+                      {product.image_url && !failedImages.has(product.id) ? (
                         <img
                           src={product.image_url}
                           alt={product.name}
-                          className="w-full aspect-[4/3] object-cover"
+                          className="w-full aspect-[3/2] object-cover"
                           onError={() => setFailedImages(prev => new Set(prev).add(product.id))}
                         />
                       ) : (
                         <div className={cn(
-                          "w-full aspect-[4/3] flex items-center justify-center relative overflow-hidden",
+                          "w-full aspect-[3/2] flex items-center justify-center relative overflow-hidden",
                           isActive  ? "bg-primary/10" :
                           isRecent  ? "bg-emerald-50" : bg
                         )}>
                           <span
                             className={cn(
-                              "font-display font-black text-5xl select-none opacity-25",
+                              "font-display font-black text-5xl select-none opacity-50",
                               isActive  ? "text-primary" :
                               isRecent  ? "text-emerald-500" : text
                             )}
@@ -629,7 +814,7 @@ export function CashierPOSClient({
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center animate-ping opacity-30 absolute" />
                               <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center relative">
-                                <span className="text-white text-xs font-bold">✓</span>
+                                <Check className="w-3.5 h-3.5 text-white" aria-hidden="true" />
                               </div>
                             </div>
                           )}
@@ -645,17 +830,23 @@ export function CashierPOSClient({
                           <span className="font-display font-black text-base text-primary tabular-nums leading-none">
                             {formatCurrency(product.selling_price)}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                          <span className="text-xs text-slate-400 font-medium shrink-0">
                             /{product.unit}
                           </span>
                         </div>
                         {isExpiredOnly ? (
-                          <p className="text-[10px] font-bold text-orange-500 mt-1">Expired</p>
+                          <p className="text-xs font-bold text-orange-500 mt-1">Expired</p>
                         ) : isOutOfStock ? (
-                          <p className="text-[10px] font-bold text-red-500 mt-1">Out of stock</p>
+                          <p className="text-xs font-bold text-red-500 mt-1">Out of stock</p>
                         ) : isLowStock ? (
-                          <p className="text-[10px] font-bold text-amber-500 mt-1">{stockQty} left</p>
-                        ) : null}
+                          <p className="text-xs font-bold text-warning mt-1">
+                            {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit} left
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                            {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -670,11 +861,11 @@ export function CashierPOSClient({
       {packageModal && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setPackageModal(null)}
+          onClick={(e) => { if (e.target === e.currentTarget) { setPackageModal(null); setPackageModalLineId(null); } }}
         >
           <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl">
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 sm:hidden" aria-hidden="true" />
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Add to order</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{packageModalLineId ? "Change UOM" : "Add to order"}</p>
             <h3 className="text-lg font-bold text-slate-900 mb-4">{packageModal.name}</h3>
             <div className="space-y-2">
               <button
@@ -709,7 +900,7 @@ export function CashierPOSClient({
               ))}
             </div>
             <button
-              onClick={() => setPackageModal(null)}
+              onClick={() => { setPackageModal(null); setPackageModalLineId(null); }}
               className="w-full mt-3 h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
             >
               Cancel

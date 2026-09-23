@@ -1,24 +1,24 @@
 import Link from "next/link";
 import { Printer, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { requirePinSession } from "@/lib/require-pin-session";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { DateToggle } from "./date-toggle";
 import { formatCurrency } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import type { PaymentMethod } from "@/lib/types";
 
+
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Cash",
   momo: "MoMo",
   pos_machine: "POS",
-  account: "Account",
 };
 
 const METHOD_BADGE: Record<PaymentMethod | "split", string> = {
   cash: "bg-success/12 text-success",
   momo: "bg-accent/12 text-accent",
   pos_machine: "bg-gray-100 text-gray-700",
-  account: "bg-amber-100 text-amber-800",
   split: "bg-primary/10 text-primary",
 };
 
@@ -36,6 +36,8 @@ interface OrdersPageProps {
 }
 
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
+  const cashierId = await requirePinSession();
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,9 +46,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
+    .select("full_name, avatar_url, role")
+    .eq("id", cashierId)
     .single();
+
+  const canSeeRevenue = profile?.role === "admin" || profile?.role === "manager";
 
   const { date: dateParam } = await searchParams;
   const isYesterday = dateParam === "yesterday";
@@ -76,43 +80,41 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     : new Date().toLocaleDateString("en-GH", { dateStyle: "full" });
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <PosTopBar cashierName={profile?.full_name ?? ""} showBack backHref="/cashier" />
+    <div className="flex flex-col h-dvh bg-background overflow-hidden animate-page-enter">
+      <PosTopBar cashierName={profile?.full_name ?? ""} avatarUrl={profile?.avatar_url} title="Orders" showBack backHref="/cashier" />
+
+      {/* Sub-header: date + stats + controls */}
+      <div className="shrink-0 border-b border-border px-4 lg:px-6 py-2 flex items-center justify-between gap-3 flex-wrap bg-white">
+        <p className="text-sm text-muted-foreground">{dateLabel}</p>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-50 border border-border text-sm">
+            {canSeeRevenue && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-bold">Revenue</span>
+                  <span className="font-bold text-foreground tabular-nums">{formatCurrency(totalRevenue)}</span>
+                </div>
+                <div className="w-px h-3.5 bg-border" aria-hidden="true" />
+              </>
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-bold">Orders</span>
+              <span className="font-bold text-foreground tabular-nums">{rows.length}</span>
+            </div>
+          </div>
+          <Link
+            href={isYesterday ? "/cashier/orders?date=yesterday" : "/cashier/orders"}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors"
+            aria-label="Refresh orders"
+          >
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">Refresh</span>
+          </Link>
+          <DateToggle active={isYesterday ? "yesterday" : "today"} />
+        </div>
+      </div>
 
       <div className="flex-1 flex flex-col min-h-0 px-5 py-3 max-w-5xl mx-auto w-full gap-3">
-
-        {/* ── Header row ── */}
-        <div className="shrink-0 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-base font-bold text-foreground leading-tight">Orders</h1>
-            <p className="text-xs text-muted-foreground">{dateLabel}</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Inline stats */}
-            <div className="flex items-center gap-4 px-4 py-2 rounded-xl bg-card border border-border text-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Revenue</span>
-                <span className="font-bold text-primary tabular-nums">{formatCurrency(totalRevenue)}</span>
-              </div>
-              <div className="w-px h-4 bg-border" aria-hidden="true" />
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Orders</span>
-                <span className="font-bold text-foreground tabular-nums">{rows.length}</span>
-              </div>
-            </div>
-
-            <Link
-              href={isYesterday ? "/cashier/orders?date=yesterday" : "/cashier/orders"}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
-              aria-label="Refresh orders"
-            >
-              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
-              Refresh
-            </Link>
-            <DateToggle active={isYesterday ? "yesterday" : "today"} />
-          </div>
-        </div>
 
         {/* ── Orders table — fills remaining space, scrolls internally ── */}
         <div className="flex-1 min-h-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col">

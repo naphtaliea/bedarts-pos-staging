@@ -95,6 +95,10 @@ export function PurchaseFormDialog({
         setError(`Line ${i + 1}: quantity must be greater than 0.`);
         return;
       }
+      if (item.cost_price <= 0) {
+        setError(`Line ${i + 1}: cost price must be greater than 0.`);
+        return;
+      }
     }
 
     setSubmitting(true);

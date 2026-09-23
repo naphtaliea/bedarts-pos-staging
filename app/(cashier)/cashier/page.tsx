@@ -1,11 +1,33 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createCacheClient } from "@/lib/supabase/cache";
 import { requirePinSession } from "@/lib/require-pin-session";
 import { CashierPOSClient } from "./cashier-pos-client";
-import type { Category, Product, Profile, ProductPackage } from "@/lib/types";
+import type { Category, Product, Profile, ProductPackage, StoreSettings } from "@/lib/types";
+
+const getCachedCategories = unstable_cache(
+  async () => {
+    const supabase = createCacheClient();
+    const { data } = await supabase.from("categories").select("*").order("name");
+    return (data ?? []) as Category[];
+  },
+  ["pos-categories"],
+  { revalidate: 300 }
+);
+
+const getCachedPackages = unstable_cache(
+  async () => {
+    const supabase = createCacheClient();
+    const { data } = await supabase.from("product_packages").select("*").order("label");
+    return (data ?? []) as ProductPackage[];
+  },
+  ["pos-packages"],
+  { revalidate: 300 }
+);
 
 export default async function CashierPage() {
-  await requirePinSession();
+  const cashierId = await requirePinSession();
 
   const supabase = await createClient();
   const {
@@ -13,16 +35,17 @@ export default async function CashierPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profileRes, categoriesRes, productsRes, packagesRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("categories").select("*").order("name"),
+  const [profileRes, productsRes, categories, packages, settingsRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", cashierId).single(),
     supabase
       .from("product_stock")
       .select("*, category:categories(name)")
       .eq("is_active", true)
       .order("name")
       .limit(200),
-    supabase.from("product_packages").select("*").order("label"),
+    getCachedCategories(),
+    getCachedPackages(),
+    supabase.from("store_settings").select("*").eq("id", 1).single(),
   ]);
 
   if (!profileRes.data) redirect("/login");
@@ -45,9 +68,10 @@ export default async function CashierPage() {
   return (
     <CashierPOSClient
       cashier={profileRes.data as Profile}
-      initialCategories={(categoriesRes.data as Category[]) ?? []}
+      initialCategories={categories}
       initialProducts={products}
-      initialPackages={(packagesRes.data as ProductPackage[]) ?? []}
+      initialPackages={packages}
+      initialSettings={(settingsRes.data as StoreSettings) ?? null}
     />
   );
 }

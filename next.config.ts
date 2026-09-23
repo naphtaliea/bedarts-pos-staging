@@ -6,11 +6,30 @@ const withPWA = withPWAInit({
   disable: process.env.NODE_ENV === "development",
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
+  reloadOnOnline: false,
   workboxOptions: {
     disableDevLogs: true,
   },
 });
+
+const FINANCIAL_ROUTES = [
+  "/dashboard",
+  "/inventory",
+  "/reports",
+  "/suppliers",
+  "/expenses",
+  "/refunds",
+  "/settings",
+  "/cashier/:path*",
+  "/customers",
+];
+
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-XSS-Protection", value: "1; mode=block" },
+];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -18,6 +37,20 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: SECURITY_HEADERS,
+      },
+      ...FINANCIAL_ROUTES.map((source) => ({
+        source,
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
+        ],
+      })),
+    ];
   },
 };
 

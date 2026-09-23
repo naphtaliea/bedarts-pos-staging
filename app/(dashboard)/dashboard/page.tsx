@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     .single();
 
   if (!profile) redirect("/login");
-  if (!["admin", "manager"].includes(profile.role)) redirect("/pos");
+  if (!["admin", "manager", "accountant"].includes(profile.role)) redirect("/pos");
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -33,14 +33,14 @@ export default async function DashboardPage() {
     .toISOString()
     .split("T")[0];
 
-  const [salesRes, productsRes, batchesRes] = await Promise.all([
+  const [salesRes, productsRes, batchesRes, expensesRes, payablesRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
         `id, total_amount, discount_amount, created_at,
          cashier:profiles!sales_cashier_id_fkey(full_name),
          payments(method, amount),
-         sale_items(total_price, quantity, product:products(name, category:categories(name)))`
+         sale_items(total_price, quantity, cost_at_sale, product:products(name, cost_price, category:categories(name)))`
       )
       .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`)
       .eq("status", "completed")
@@ -55,6 +55,18 @@ export default async function DashboardPage() {
       .from("stock_batches")
       .select("quantity_remaining, cost_price, expiry_date, product:products(name)")
       .gt("quantity_remaining", 0),
+
+    supabase
+      .from("expenses")
+      .select("amount, expense_date, category:expense_categories(name)")
+      .gte("expense_date", sevenDaysAgoStr)
+      .lte("expense_date", todayStr)
+      .eq("is_deleted", false),
+
+    supabase
+      .from("purchases")
+      .select("total_amount")
+      .eq("payment_status", "unpaid"),
   ]);
 
   // ── Aggregations ──────────────────────────────────────────────────────────
@@ -62,12 +74,63 @@ export default async function DashboardPage() {
   const allSales = (salesRes.data ?? []) as any[];
   const allProducts = (productsRes.data ?? []) as any[];
   const allBatches = (batchesRes.data ?? []) as any[];
+  const allExpenses = (expensesRes.data ?? []) as any[];
+  const allUnpaidPurchases = (payablesRes.data ?? []) as any[];
+
+  // ── Money helpers — round to 2 decimals to avoid float drift ─────────────
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const outstandingPayablesTotal = round2(
+    allUnpaidPurchases.reduce((s: number, p: any) => s + Number(p.total_amount), 0)
+  );
+  const outstandingPayablesCount = allUnpaidPurchases.length;
+  // COGS uses the per-unit cost_at_sale recorded at time of sale (accurate to
+  // the batches consumed via FEFO). Falls back to current product.cost_price
+  // only for pre-migration rows where cost_at_sale is NULL.
+  const cogsOfSale = (sale: any): number =>
+    (sale.sale_items ?? []).reduce((sum: number, i: any) => {
+      const unitCost = i.cost_at_sale != null
+        ? Number(i.cost_at_sale)
+        : Number(i.product?.cost_price ?? 0);
+      return sum + Number(i.quantity ?? 0) * unitCost;
+    }, 0);
 
   // Today stats
   const todaySales = allSales.filter((s) => s.created_at.startsWith(todayStr));
-  const todayRevenue = todaySales.reduce((sum: number, s: any) => sum + s.total_amount, 0);
+  const todayRevenue = round2(todaySales.reduce((sum: number, s: any) => sum + Number(s.total_amount), 0));
   const todayTransactions = todaySales.length;
-  const todayDiscount = todaySales.reduce((sum: number, s: any) => sum + s.discount_amount, 0);
+  const todayDiscount = round2(todaySales.reduce((sum: number, s: any) => sum + Number(s.discount_amount), 0));
+  const todayCogs = round2(todaySales.reduce((sum: number, s: any) => sum + cogsOfSale(s), 0));
+  const todayGrossProfit = round2(todayRevenue - todayCogs);
+
+  // 7-day COGS + gross profit
+  const sevenDayRevenue = round2(allSales.reduce((sum: number, s: any) => sum + Number(s.total_amount), 0));
+  const sevenDayCogs = round2(allSales.reduce((sum: number, s: any) => sum + cogsOfSale(s), 0));
+  const sevenDayGrossProfit = round2(sevenDayRevenue - sevenDayCogs);
+
+  // Expenses (by expense_date, not created_at)
+  const todayExpenses = round2(
+    allExpenses
+      .filter((e: any) => e.expense_date === todayStr)
+      .reduce((sum: number, e: any) => sum + Number(e.amount), 0)
+  );
+  const sevenDayExpenses = round2(
+    allExpenses.reduce((sum: number, e: any) => sum + Number(e.amount), 0)
+  );
+
+  // Net profit
+  const todayNetProfit = round2(todayGrossProfit - todayExpenses);
+  const sevenDayNetProfit = round2(sevenDayGrossProfit - sevenDayExpenses);
+
+  // Expense breakdown by category (7-day) for a small chart on the dashboard
+  const expenseCategoryMap: Record<string, number> = {};
+  for (const e of allExpenses) {
+    const name = e.category?.name ?? "Uncategorised";
+    expenseCategoryMap[name] = round2((expenseCategoryMap[name] ?? 0) + Number(e.amount));
+  }
+  const expensesByCategory = Object.entries(expenseCategoryMap)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
 
   // 7-day revenue by day
   const revenueByDay = Array.from({ length: 7 }, (_, i) => {
@@ -128,15 +191,6 @@ export default async function DashboardPage() {
     };
   });
 
-  // Recent 10 sales
-  const recentSales = allSales.slice(0, 10).map((s: any) => ({
-    id: s.id as string,
-    total: s.total_amount as number,
-    cashier: s.cashier?.full_name ?? "—",
-    method: (s.payments?.[0]?.method as string) ?? "—",
-    created_at: s.created_at as string,
-  }));
-
   // Stock value
   const stockValue = allBatches.reduce(
     (sum: number, b: any) => sum + b.quantity_remaining * b.cost_price,
@@ -172,6 +226,16 @@ export default async function DashboardPage() {
       todayRevenue={todayRevenue}
       todayTransactions={todayTransactions}
       todayDiscount={todayDiscount}
+      todayCogs={todayCogs}
+      todayGrossProfit={todayGrossProfit}
+      todayExpenses={todayExpenses}
+      todayNetProfit={todayNetProfit}
+      sevenDayRevenue={sevenDayRevenue}
+      sevenDayCogs={sevenDayCogs}
+      sevenDayGrossProfit={sevenDayGrossProfit}
+      sevenDayExpenses={sevenDayExpenses}
+      sevenDayNetProfit={sevenDayNetProfit}
+      expensesByCategory={expensesByCategory}
       stockValue={stockValue}
       activeProductCount={activeProductCount}
       lowStockItems={lowStockItems}
@@ -180,7 +244,8 @@ export default async function DashboardPage() {
       categoryMix={categoryMix}
       peakHours={peakHours}
       topProducts={topProducts}
-      recentSales={recentSales}
+      outstandingPayablesTotal={outstandingPayablesTotal}
+      outstandingPayablesCount={outstandingPayablesCount}
     />
   );
 }

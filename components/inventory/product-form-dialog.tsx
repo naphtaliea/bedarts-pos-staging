@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Plus, Trash2, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Category, Product, ProductPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { createProductPackage, deleteProductPackage } from "@/app/(dashboard)/inventory/actions";
 import { formatCurrency } from "@/lib/utils";
 
@@ -13,10 +14,9 @@ interface ProductFormData {
   name: string;
   category_id: string | null;
   unit: string;
+  units_per_box: number;
   selling_price: number;
-  cost_price: number;
   wholesale_price: number | null;
-  temperature_zone: "frozen" | "chilled" | "ambient";
   low_stock_threshold: number;
   image_url: string | null;
 }
@@ -30,25 +30,16 @@ interface ProductFormDialogProps {
   onPackagesChange?: () => void;
 }
 
-const ZONE_OPTIONS: {
-  value: ProductFormData["temperature_zone"];
-  label: string;
-}[] = [
-  { value: "frozen", label: "Frozen" },
-  { value: "chilled", label: "Chilled" },
-  { value: "ambient", label: "Ambient" },
-];
 
 function getDefaultForm(product: Product | null): ProductFormData {
   if (product) {
     return {
       name: product.name,
       category_id: product.category_id ?? null,
-      unit: product.unit,
+      unit: product.unit === "kg" ? "kg" : "pieces",
+      units_per_box: product.units_per_box,
       selling_price: product.selling_price,
-      cost_price: product.cost_price,
       wholesale_price: product.wholesale_price ?? null,
-      temperature_zone: product.temperature_zone,
       low_stock_threshold: product.low_stock_threshold,
       image_url: product.image_url ?? null,
     };
@@ -57,10 +48,9 @@ function getDefaultForm(product: Product | null): ProductFormData {
     name: "",
     category_id: null,
     unit: "kg",
+    units_per_box: 10,
     selling_price: 0,
-    cost_price: 0,
     wholesale_price: null,
-    temperature_zone: "chilled",
     low_stock_threshold: 5,
     image_url: null,
   };
@@ -81,6 +71,8 @@ export function ProductFormDialog({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [newPkg, setNewPkg] = useState({ label: "", quantity: "", price: "" });
   const [pkgSaving, setPkgSaving] = useState(false);
@@ -130,6 +122,14 @@ export function ProductFormDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.name.trim()) {
+      setError("Product name is required.");
+      return;
+    }
+    if (form.selling_price <= 0) {
+      setError("Selling price must be greater than 0.");
+      return;
+    }
     setSubmitting(true);
     try {
       await onSave(form);
@@ -140,6 +140,29 @@ export function ProductFormDialog({
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("product-images")
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      set("image_url", data.publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -217,44 +240,40 @@ export function ProductFormDialog({
             <label className="block text-xs font-medium text-muted-foreground">
               Unit
             </label>
-            <Input
-              required
+            <select
               value={form.unit}
               onChange={(e) => set("unit", e.target.value)}
-              placeholder="e.g. kg, piece, box, bag"
-            />
+              className={cn(
+                "flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              )}
+            >
+              <option value="kg">kg — sold by weight</option>
+              <option value="pieces">pieces — sold by count</option>
+            </select>
           </div>
 
-          {/* Temperature Zone */}
+          {/* Box size */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Temperature Zone
+              {form.unit === "kg" ? "Box Size (kg per box)" : "Units per box"}
             </label>
-            <div className="flex gap-2">
-              {ZONE_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => set("temperature_zone", value)}
-                  className={cn(
-                    "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors",
-                    form.temperature_zone === value
-                      ? value === "frozen"
-                        ? "bg-blue-700 text-white"
-                        : value === "chilled"
-                        ? "bg-cyan-600 text-white"
-                        : "bg-amber-500 text-white"
-                      : "bg-card border border-border text-muted-foreground hover:bg-secondary"
-                  )}
-                >
-                  {label}
-                </button>
+            <select
+              value={form.units_per_box}
+              onChange={(e) => set("units_per_box", parseInt(e.target.value))}
+              className={cn(
+                "flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground",
+                "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              )}
+            >
+              {[10, 12, 15, 20, 24, 30].map((n) => (
+                <option key={n} value={n}>{n}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Prices — three-column grid */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Prices — two-column grid */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-muted-foreground">
                 Selling Price (GH₵)
@@ -286,42 +305,66 @@ export function ProductFormDialog({
                 placeholder="Optional"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-muted-foreground">
-                Cost Price (GH₵)
-              </label>
-              <Input
-                required
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.cost_price === 0 ? "" : form.cost_price}
-                onChange={(e) =>
-                  set("cost_price", parseFloat(e.target.value) || 0)
-                }
-                placeholder="0.00"
-              />
-            </div>
           </div>
 
-          {/* Image URL */}
-          <div className="space-y-1.5">
+          {/* Image */}
+          <div className="space-y-2">
             <label className="block text-xs font-medium text-muted-foreground">
-              Image URL <span className="font-normal text-muted-foreground/70">(optional)</span>
+              Product Image <span className="font-normal text-muted-foreground/70">(optional)</span>
             </label>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              onChange={handleImageUpload}
+            />
+
+            {/* Upload button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 px-3 h-9 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              {uploading
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Upload className="h-3.5 w-3.5" />}
+              {uploading ? "Uploading…" : "Upload image"}
+            </button>
+
+            {/* URL input */}
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground/60">or paste URL</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
             <Input
               type="url"
               value={form.image_url ?? ""}
               onChange={(e) => set("image_url", e.target.value.trim() || null)}
               placeholder="https://…"
             />
+
+            {/* Preview */}
             {form.image_url && (
-              <img
-                src={form.image_url}
-                alt="Preview"
-                className="h-16 w-24 rounded-lg object-cover border border-border mt-1"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
+              <div className="flex items-center gap-3">
+                <img
+                  src={form.image_url}
+                  alt="Preview"
+                  className="h-16 w-24 rounded-lg object-cover border border-border"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => set("image_url", null)}
+                  className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
 

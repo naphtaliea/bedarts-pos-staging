@@ -14,8 +14,12 @@ export const metadata: Metadata = {
   title: "Bedarts Cold Supplies",
   description: "POS and Management System",
   icons: {
-    icon: { url: "/icon.svg", type: "image/svg+xml" },
-    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
+    icon: [
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/icon-192.png",
+    apple: { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
   },
   appleWebApp: {
     capable: true,

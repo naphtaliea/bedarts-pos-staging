@@ -25,18 +25,35 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() triggers a token refresh when the access token has expired.
+  // If Supabase's auth API is transiently unreachable, swallow the error and
+  // let the request through; Server Component layouts handle the auth check.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    return supabaseResponse;
+  }
 
   const pathname = request.nextUrl.pathname;
-  const isAuthRoute = pathname.startsWith("/login");
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/pending");
   const isPublicRoute = pathname === "/";
 
   if (!user && !isAuthRoute && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    // Return the supabaseResponse-based redirect so any clear-cookie headers
+    // (emitted when an expired session is cleaned up) reach the browser now
+    // rather than being deferred to the next request.
+    const redirect = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirect;
   }
 
   if (user && isAuthRoute) {

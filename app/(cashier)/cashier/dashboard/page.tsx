@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { TrendingUp, ShoppingCart, Receipt } from "lucide-react";
 import { EODSection } from "./eod-section";
 
+
 type SaleItemWithProduct = {
   product_id: string;
   quantity: number;
@@ -27,9 +28,11 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, avatar_url, role")
     .eq("id", user.id)
     .single();
+
+  const canSeeRevenue = profile?.role === "admin" || profile?.role === "manager" || profile?.role === "accountant";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -76,13 +79,15 @@ export default async function DashboardPage() {
   const maxQty = topProducts[0]?.qty ?? 1;
 
   const STATS = [
-    {
-      label: "Revenue",
-      value: formatCurrency(totalRevenue),
-      icon: TrendingUp,
-      color: "text-primary",
-      bg: "bg-primary/10",
-    },
+    ...(canSeeRevenue ? [
+      {
+        label: "Revenue",
+        value: formatCurrency(totalRevenue),
+        icon: TrendingUp,
+        color: "text-primary",
+        bg: "bg-primary/10",
+      },
+    ] : []),
     {
       label: "Orders",
       value: String(orderCount),
@@ -90,26 +95,27 @@ export default async function DashboardPage() {
       color: "text-accent",
       bg: "bg-accent/10",
     },
-    {
-      label: "Avg Ticket",
-      value: formatCurrency(avgTicket),
-      icon: Receipt,
-      color: "text-success",
-      bg: "bg-success/10",
-    },
+    ...(canSeeRevenue ? [
+      {
+        label: "Avg Ticket",
+        value: formatCurrency(avgTicket),
+        icon: Receipt,
+        color: "text-success",
+        bg: "bg-success/10",
+      },
+    ] : []),
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <PosTopBar cashierName={profile?.full_name ?? ""} showBack backHref="/cashier" />
+    <div className="flex flex-col h-dvh bg-background overflow-hidden">
+      <PosTopBar cashierName={profile?.full_name ?? ""} avatarUrl={profile?.avatar_url} title="Cashier Dashboard" showBack backHref="/cashier" />
 
-      <main className="flex-1 p-4 lg:p-6 space-y-6 max-w-5xl mx-auto w-full">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Today</h1>
-          <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString("en-GH", { dateStyle: "full" })}
-          </p>
-        </div>
+      {/* Sub-header: date */}
+      <div className="shrink-0 border-b border-border px-4 lg:px-6 py-2 bg-white">
+        <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString("en-GH", { dateStyle: "full" })}</p>
+      </div>
+
+      <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 max-w-5xl mx-auto w-full">
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

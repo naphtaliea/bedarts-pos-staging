@@ -1,102 +1,114 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "./actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { BrandLogo } from "@/components/brand-logo";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
+  const [showPwd, setShowPwd] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left panel — brand identity */}
-      <div className="relative hidden md:flex md:w-[55%] flex-col bg-sidebar overflow-hidden">
-        {/* Full-bleed snowflake pattern */}
-        <div className="absolute inset-0 pointer-events-none">
-          <SnowflakePattern id="login-bg" opacity={0.14} height="100%" tileSize={56} scale={0.44} />
-        </div>
-
-        {/* Content */}
-        <div className="relative flex-1 flex flex-col items-center justify-center px-14 z-10">
-          <BrandLogo className="w-56 mb-5" />
-          <p className="text-sidebar-muted text-center text-sm leading-relaxed max-w-[18rem]">
-            Point-of-Sale &amp; Management System
-          </p>
-        </div>
-
-        <p className="relative z-10 pb-7 text-center text-xs text-sidebar-muted/40">
-          © {new Date().getFullYear()} Bedarts Cold Supplies
-        </p>
+    <div className="min-h-dvh bg-white relative overflow-hidden flex flex-col items-center justify-center px-5 py-10">
+      {/* Faint snowflake watermark on white */}
+      <div className="absolute inset-0 pointer-events-none">
+        <SnowflakePattern opacity={0.05} rows={2} tileSize={72} height="100%" onLight />
       </div>
 
-      {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="md:hidden flex justify-center mb-8">
-            <BrandLogo variant="color" className="h-12 w-auto" />
+      {/* Red top accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-primary z-10" />
+
+      <div className="relative z-10 w-full max-w-xs flex flex-col items-center">
+        {/* Logo — above the card */}
+        <BrandLogo style={{ height: 52, width: "auto" }} className="mb-8" />
+
+        {/* Navy card */}
+        <div className="w-full bg-sidebar rounded-2xl px-6 py-7 shadow-float">
+          {/* Heading */}
+          <div className="mb-6">
+            <h1
+              className="text-white leading-none mb-1"
+              style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "2rem" }}
+            >
+              Welcome back
+            </h1>
+            <p className="text-sidebar-muted text-sm">Sign in to your account.</p>
           </div>
 
-          <div className="mb-8">
-            <h1 className="text-foreground">Welcome back</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Sign in to your account to continue.
-            </p>
-          </div>
-
-          <form action={formAction} className="flex flex-col gap-5">
+          {/* Form */}
+          <form action={formAction} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="email">
+              <label className="text-xs font-semibold text-sidebar-muted uppercase tracking-wide" htmlFor="email">
                 Email
               </label>
-              <Input
+              <input
                 id="email"
                 name="email"
                 type="email"
                 placeholder="you@bedarts.com"
                 required
                 autoComplete="email"
+                className="w-full h-11 rounded-xl border border-white/20 bg-white/8 px-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="password">
+              <label className="text-xs font-semibold text-sidebar-muted uppercase tracking-wide" htmlFor="password">
                 Password
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  className="w-full h-11 rounded-xl border border-white/20 bg-white/8 pl-4 pr-11 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  aria-label={showPwd ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             {state.error.length > 0 && (
-              <p className="text-sm text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-3 py-2">
+              <p className="text-sm text-red-300 bg-red-900/30 border border-red-500/30 rounded-xl px-4 py-2.5">
                 {state.error}
               </p>
             )}
 
-            <Button
+            <button
               type="submit"
-              size="lg"
-              className="w-full mt-1"
               disabled={pending}
+              className="mt-1 w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {pending ? "Signing in…" : "Sign in"}
-            </Button>
+            </button>
           </form>
-
-          <p className="text-center text-xs text-muted-foreground/50 mt-8">
-            Contact your administrator to get access.
-          </p>
         </div>
+
+        {/* Footer link — on white bg */}
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-foreground hover:text-primary font-semibold transition-colors">
+            Request access
+          </Link>
+        </p>
       </div>
+
+      {/* Bottom copyright */}
+      <p className="absolute bottom-4 text-center text-[11px] text-muted-foreground/40 z-10 tracking-wide">
+        © {new Date().getFullYear()} Bedarts Cold Supplies
+      </p>
     </div>
   );
 }

@@ -10,7 +10,7 @@ export default async function RefundsPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") redirect("/dashboard");
+  if (!["admin", "manager", "accountant"].includes(profile?.role ?? "")) redirect("/dashboard");
 
   const { data: sales } = await supabase
     .from("sales")

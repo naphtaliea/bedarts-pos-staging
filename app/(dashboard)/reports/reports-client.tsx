@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Download } from "lucide-react";
+import { SnowflakePattern } from "@/components/snowflake-pattern";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,10 +17,10 @@ interface ReportsClientProps {
   toDate: string;
   sales: any[];
   adjustments: any[];
-  customers?: any[];
+  expenses?: any[];
 }
 
-type Tab = "overview" | "sales" | "products" | "inventory" | "cashiers" | "payments" | "ar";
+type Tab = "overview" | "sales" | "products" | "inventory" | "cashiers" | "payments";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -28,7 +29,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "inventory", label: "Inventory & Waste" },
   { id: "cashiers", label: "Cashiers" },
   { id: "payments", label: "Payments" },
-  { id: "ar", label: "AR / Credit" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -53,24 +53,24 @@ function ChartTooltip({ active, payload, label }: any) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card px-5 py-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">{label}</p>
+    <div className="rounded-2xl border border-border bg-card px-5 py-4 shadow-card">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{label}</p>
       <p
-        className="text-2xl text-foreground tabular-nums"
+        className="text-3xl text-foreground tabular-nums leading-none"
         style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
       >
         {value}
       </p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground mt-2">{sub}</p>}
     </div>
   );
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
       <div className="px-5 py-4 border-b border-border">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <h3 className="text-lg text-foreground" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{title}</h3>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -97,68 +97,97 @@ function exportCSV(rows: Record<string, any>[], filename: string) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function ReportsClient({ fromDate, toDate, sales, adjustments, customers = [] }: ReportsClientProps) {
+export function ReportsClient({ fromDate, toDate, sales, adjustments, expenses = [] }: ReportsClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [localFrom, setLocalFrom] = useState(fromDate);
   const [localTo, setLocalTo] = useState(toDate);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const completedSales = sales.filter((s) => s.status === "completed");
 
   function applyDateFilter() {
+    setDateError(null);
+    const from = new Date(localFrom);
+    const to = new Date(localTo);
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      setDateError("Both dates are required.");
+      return;
+    }
+    if (from > to) {
+      setDateError("Start date must be on or before end date.");
+      return;
+    }
     router.push(`/reports?from=${localFrom}&to=${localTo}`);
   }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4 flex items-center justify-between gap-4 flex-wrap shrink-0">
-        <div className="flex gap-1 overflow-x-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                tab === t.id ? "bg-accent text-white" : "text-foreground hover:bg-secondary"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
+      <div className="relative bg-white overflow-hidden shrink-0">
+        <div className="absolute inset-0 pointer-events-none">
+          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <input
-            type="date"
-            value={localFrom}
-            onChange={(e) => setLocalFrom(e.target.value)}
-            className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <span className="text-muted-foreground text-sm">–</span>
-          <input
-            type="date"
-            value={localTo}
-            onChange={(e) => setLocalTo(e.target.value)}
-            className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <button
-            onClick={applyDateFilter}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            Apply
-          </button>
+        <div className="relative z-10 border-b border-border">
+          {/* Title + date filter row */}
+          <div className="px-4 lg:px-6 pt-3 lg:pt-4 pb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-1 self-stretch rounded-full bg-primary shrink-0" />
+              <h1 className="text-lg font-bold text-foreground shrink-0">Reports</h1>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+              <input
+                type="date"
+                value={localFrom}
+                onChange={(e) => setLocalFrom(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+              <span className="text-muted-foreground text-sm">–</span>
+              <input
+                type="date"
+                value={localTo}
+                onChange={(e) => setLocalTo(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+              <button
+                onClick={applyDateFilter}
+                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+          {dateError && (
+            <div className="px-4 lg:px-6 pb-2">
+              <p className="text-xs text-destructive">{dateError}</p>
+            </div>
+          )}
+          {/* Tabs row */}
+          <div className="flex gap-1 px-4 lg:px-6 pb-2 overflow-x-auto no-scrollbar">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                  tab === t.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {tab === "overview" && <OverviewTab sales={completedSales} fromDate={fromDate} toDate={toDate} />}
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+        {tab === "overview" && <OverviewTab sales={completedSales} expenses={expenses} fromDate={fromDate} toDate={toDate} />}
         {tab === "sales" && <SalesTab sales={completedSales} />}
         {tab === "products" && <ProductsTab sales={completedSales} />}
         {tab === "inventory" && <InventoryTab adjustments={adjustments} />}
         {tab === "cashiers" && <CashiersTab sales={completedSales} />}
         {tab === "payments" && <PaymentsTab sales={completedSales} />}
-        {tab === "ar" && <ARTab customers={customers} />}
       </div>
     </div>
   );
@@ -166,11 +195,36 @@ export function ReportsClient({ fromDate, toDate, sales, adjustments, customers 
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ sales, fromDate, toDate }: { sales: any[]; fromDate: string; toDate: string }) {
-  const totalRevenue = sales.reduce((s, x) => s + x.total_amount, 0);
-  const totalDiscount = sales.reduce((s, x) => s + x.discount_amount, 0);
+function OverviewTab({ sales, expenses, fromDate, toDate }: { sales: any[]; expenses: any[]; fromDate: string; toDate: string }) {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const totalRevenue = round2(sales.reduce((s, x) => s + Number(x.total_amount), 0));
+  const totalDiscount = round2(sales.reduce((s, x) => s + Number(x.discount_amount), 0));
   const avgOrderValue = sales.length > 0 ? totalRevenue / sales.length : 0;
   const totalItems = sales.reduce((s, x) => s + (x.sale_items ?? []).length, 0);
+
+  // COGS = Σ (quantity × per-unit cost) per sale item.
+  // Uses cost_at_sale recorded at sale time (accurate historical cost from the
+  // batches consumed via FEFO). Falls back to current product.cost_price only
+  // for pre-migration rows where cost_at_sale is NULL.
+  const totalCogs = round2(
+    sales.reduce(
+      (s, sale) =>
+        s +
+        (sale.sale_items ?? []).reduce((i: number, it: any) => {
+          const unitCost = it.cost_at_sale != null
+            ? Number(it.cost_at_sale)
+            : Number(it.product?.cost_price ?? 0);
+          return i + Number(it.quantity ?? 0) * unitCost;
+        }, 0),
+      0
+    )
+  );
+  const grossProfit = round2(totalRevenue - totalCogs);
+  const totalExpenses = round2(expenses.reduce((s, e) => s + Number(e.amount), 0));
+  const netProfit = round2(grossProfit - totalExpenses);
+  const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+  const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
   // Revenue by day
   const dayMap: Record<string, { revenue: number; count: number }> = {};
@@ -185,12 +239,43 @@ function OverviewTab({ sales, fromDate, toDate }: { sales: any[]; fromDate: stri
     .map(([day, v]) => ({ day: formatShortDate(day), ...v }));
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Revenue" value={formatCurrency(totalRevenue)} sub={`${sales.length} sales`} />
         <StatCard label="Avg Order Value" value={formatCurrency(avgOrderValue)} />
         <StatCard label="Total Discount" value={formatCurrency(totalDiscount)} />
         <StatCard label="Items Sold" value={String(totalItems)} />
+      </div>
+
+      {/* ── Profit & Loss ─────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h3 className="text-lg text-foreground" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>
+            Profit & Loss
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {new Date(fromDate).toLocaleDateString("en-GH", { dateStyle: "medium" })}
+            {" – "}
+            {new Date(toDate).toLocaleDateString("en-GH", { dateStyle: "medium" })}
+          </p>
+        </div>
+        <div className="p-5 space-y-2.5">
+          <PLLine label="Revenue"          value={totalRevenue} />
+          <PLLine label="− Cost of goods sold" value={totalCogs} deduct />
+          <PLLine label="= Gross Profit"   value={grossProfit} bold positive sub={`${grossMargin.toFixed(1)}% gross margin`} />
+          <PLLine label="− Operating expenses" value={totalExpenses} deduct />
+          <div className="pt-3 mt-2 border-t-2 border-border">
+            <PLLine
+              label="= Net Profit"
+              value={netProfit}
+              bold
+              positive={netProfit >= 0}
+              negative={netProfit < 0}
+              size="lg"
+              sub={`${netMargin.toFixed(1)}% net margin`}
+            />
+          </div>
+        </div>
       </div>
 
       <SectionCard title="Revenue over period">
@@ -201,10 +286,40 @@ function OverviewTab({ sales, fromDate, toDate }: { sales: any[]; fromDate: stri
             <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} axisLine={false} tickLine={false} width={60}
               tickFormatter={(v) => `₵${(v / 1000).toFixed(0)}k`} />
             <Tooltip content={<ChartTooltip />} />
-            <Line type="monotone" dataKey="revenue" stroke="#AB1509" strokeWidth={2} dot={false} name="Revenue" />
+            <Line type="monotone" dataKey="revenue" stroke="#CC1B14" strokeWidth={2} dot={false} name="Revenue" />
           </LineChart>
         </ResponsiveContainer>
       </SectionCard>
+    </div>
+  );
+}
+
+function PLLine({
+  label, value, deduct, positive, negative, bold, size, sub,
+}: {
+  label: string;
+  value: number;
+  deduct?: boolean;
+  positive?: boolean;
+  negative?: boolean;
+  bold?: boolean;
+  size?: "lg";
+  sub?: string;
+}) {
+  const amountCls = cn(
+    "tabular-nums shrink-0",
+    size === "lg" ? "text-2xl" : "text-base",
+    bold ? "font-bold" : "font-medium",
+    positive ? "text-success" : negative ? "text-destructive" : deduct ? "text-muted-foreground" : "text-foreground",
+    bold && size === "lg" && "font-display font-black"
+  );
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 min-w-0">
+        <span className={cn("text-sm", bold ? "font-semibold text-foreground" : "text-muted-foreground")}>{label}</span>
+        {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
+      </span>
+      <span className={amountCls}>{formatCurrency(value)}</span>
     </div>
   );
 }
@@ -273,9 +388,12 @@ function ProductsTab({ sales }: { sales: any[] }) {
     for (const item of sale.sale_items ?? []) {
       const name = item.product?.name ?? "Unknown";
       if (!productMap[name]) productMap[name] = { revenue: 0, units: 0, cost: 0 };
+      const unitCost = item.cost_at_sale != null
+        ? Number(item.cost_at_sale)
+        : Number(item.product?.cost_price ?? 0);
       productMap[name].revenue += item.total_price;
       productMap[name].units += item.quantity;
-      productMap[name].cost += item.quantity * (item.product?.cost_price ?? 0);
+      productMap[name].cost += item.quantity * unitCost;
     }
   }
 
@@ -486,7 +604,7 @@ function PaymentsTab({ sales }: { sales: any[] }) {
     }
   }
 
-  const METHOD_LABELS: Record<string, string> = { cash: "Cash", momo: "Mobile Money", pos_machine: "POS Machine", account: "On Account" };
+  const METHOD_LABELS: Record<string, string> = { cash: "Cash", momo: "Mobile Money", pos_machine: "POS Machine" };
   const totalRevenue = Object.values(methodMap).reduce((s, v) => s + v.total, 0);
 
   const rows = Object.entries(methodMap)
@@ -524,68 +642,3 @@ function PaymentsTab({ sales }: { sales: any[] }) {
   );
 }
 
-// ── AR / Credit Tab ───────────────────────────────────────────────────────────
-
-const PRICE_GROUP_LABELS: Record<string, string> = {
-  retail: "Retail",
-  wholesale: "Wholesale",
-  distributor: "Distributor",
-};
-
-const PRICE_GROUP_COLORS: Record<string, string> = {
-  retail: "bg-blue-100 text-blue-700",
-  wholesale: "bg-purple-100 text-purple-700",
-  distributor: "bg-amber-100 text-amber-700",
-};
-
-function ARTab({ customers }: { customers: any[] }) {
-  const totalOwed = customers.reduce((s, c) => s + (c.credit_balance ?? 0), 0);
-
-  return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Customers with Balance" value={String(customers.length)} sub="outstanding accounts" />
-        <StatCard label="Total Outstanding" value={formatCurrency(totalOwed)} sub="across all accounts" />
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <p className="text-sm font-semibold text-foreground">Accounts Receivable — Outstanding Balances</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-secondary/50">
-                {["Customer", "Phone", "Price Group", "Credit Limit", "Balance Owed"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-widest">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {customers.map((c) => (
-                <tr key={c.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.phone ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn("inline-block rounded-full px-2 py-0.5 text-xs font-semibold", PRICE_GROUP_COLORS[c.price_group] ?? "bg-secondary text-foreground")}>
-                      {PRICE_GROUP_LABELS[c.price_group] ?? c.price_group}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatCurrency(c.credit_limit ?? 0)}</td>
-                  <td className="px-4 py-3 tabular-nums font-bold text-destructive">{formatCurrency(c.credit_balance ?? 0)}</td>
-                </tr>
-              ))}
-              {customers.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                    No customers with outstanding balances
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}

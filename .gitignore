@@ -48,3 +48,12 @@ MEMORY.md
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# Playwright auth state (contains session tokens)
+tests/playwright/auth/
+
+# Supabase CLI temp files (machine-specific, not source)
+supabase/.temp/
+
+# Claude Code project files
+.claude/

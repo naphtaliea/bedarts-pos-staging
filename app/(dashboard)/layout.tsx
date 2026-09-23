@@ -15,21 +15,32 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
+
+  // PGRST116 = "no rows" — profile genuinely absent. Any other error is transient
+  // (network blip, cold-start timeout). Only revoke the session when we're certain
+  // the account is missing or deactivated; transient errors should not sign users out.
+  if (profileError && profileError.code !== "PGRST116") {
+    redirect("/login");
+  }
 
   if (!profile || !profile.is_active) {
     await supabase.auth.signOut();
     redirect("/login");
   }
 
+  if (profile.role === "terminal" || profile.role === "cashier") {
+    redirect("/cashier");
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar profile={profile as Profile} />
-      <main className="flex-1 overflow-y-auto bg-background">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background pt-14 lg:pt-0">
         {children}
       </main>
     </div>

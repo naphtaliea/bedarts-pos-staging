@@ -1,7 +1,7 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { readCashierSession } from "@/lib/cashier-session";
 import type { CartItem, PaymentEntry } from "@/lib/types";
 
 interface SubmitSaleArgs {
@@ -10,7 +10,6 @@ interface SubmitSaleArgs {
   subtotal: number;
   discount: number;
   total: number;
-  customerId: string | null;
 }
 
 export async function submitSale(args: SubmitSaleArgs) {
@@ -20,11 +19,10 @@ export async function submitSale(args: SubmitSaleArgs) {
   if (!user) throw new Error("Not authenticated");
 
   // PIN session overrides auth user for cashier identification
-  const cookieStore = await cookies();
-  const pinCashierId = cookieStore.get("cashier_session")?.value;
+  const pinCashierId = await readCashierSession();
   const cashierId = pinCashierId ?? user.id;
 
-  const { items, payments, subtotal, discount, total, customerId } = args;
+  const { items, payments, subtotal, discount, total } = args;
 
   // Early stock guard — single query, catches obvious overages before hitting the DB function
   const { data: stocks } = await supabase
@@ -43,12 +41,13 @@ export async function submitSale(args: SubmitSaleArgs) {
     }
   }
 
-  // submit_sale_v3: atomic FEFO deduction + account credit_balance update
+  // submit_sale_v3: atomic FEFO deduction
   const p_items = items.map((item) => ({
     product_id: item.product.id,
     quantity: item.quantity,
     unit_price: item.unit_price,
     discount_amount: item.discount_amount,
+    package_label: item.packageLabel ?? null,
   }));
 
   const p_payments = payments.map((p) => ({
@@ -59,7 +58,7 @@ export async function submitSale(args: SubmitSaleArgs) {
 
   const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v3", {
     p_cashier_id: cashierId,
-    p_customer_id: customerId || null,
+    p_customer_id: null,
     p_subtotal: subtotal,
     p_discount: discount,
     p_total: total,
@@ -80,7 +79,6 @@ export async function getSaleForReceipt(saleId: string) {
     .select(`
       *,
       cashier:profiles!sales_cashier_id_fkey(full_name),
-      customer:customers(name),
       sale_items(*, product:products(name, unit)),
       payments(*)
     `)

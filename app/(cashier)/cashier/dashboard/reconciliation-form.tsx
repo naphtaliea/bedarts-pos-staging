@@ -54,12 +54,24 @@ export function ReconciliationForm({
       return;
     }
 
+    if (!navigator.onLine) {
+      setError("You're offline — please reconnect to submit your reconciliation.");
+      return;
+    }
+
     setSaving(true);
-    const res = await saveReconciliation({
-      opening_float: openingFloatNum,
-      cash_counted: cashCountedNum,
-      notes,
-    });
+    let res: { error?: string };
+    try {
+      res = await saveReconciliation({
+        opening_float: openingFloatNum,
+        cash_counted: cashCountedNum,
+        notes,
+      });
+    } catch {
+      setSaving(false);
+      setError("Network error — please check your connection and try again.");
+      return;
+    }
     setSaving(false);
 
     if (res.error) {

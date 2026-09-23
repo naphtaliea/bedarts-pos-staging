@@ -1,52 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Delete } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { verifyCashierPin } from "./actions";
-import { SnowflakePattern } from "@/components/snowflake-pattern";
+import { verifyCashierPin, setTerminalPin, checkCashierLockout } from "./actions";
 import { BrandLogo } from "@/components/brand-logo";
 
 interface Cashier {
   id: string;
   full_name: string;
   hasPin: boolean;
+  avatar_url: string | null;
 }
 
 const NUMPAD = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"] as const;
 
+type Mode = "select" | "enter" | "setup-create" | "setup-confirm";
+
 export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Cashier | null>(null);
+  const [mode, setMode] = useState<Mode>("select");
   const [pin, setPin] = useState("");
+  const [firstPin, setFirstPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
+  const handleKeyRef = useRef<(key: string) => void>(() => {});
+  handleKeyRef.current = (key: string) => handleKey(key);
 
-  function handleSelect(cashier: Cashier) {
-    if (!cashier.hasPin) return;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (mode === "select") return;
+      if (/^[0-9]$/.test(e.key)) { e.preventDefault(); handleKeyRef.current(e.key); }
+      else if (e.key === "Backspace") { e.preventDefault(); handleKeyRef.current("del"); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode]);
+
+  async function handleSelect(cashier: Cashier) {
     setSelected(cashier);
     setPin("");
     setError(null);
     setLocked(false);
-    setAttemptsRemaining(null);
     setLockedUntil(null);
+
+    const lockStatus = await checkCashierLockout(cashier.id);
+    if (lockStatus.locked) {
+      setLocked(true);
+      setLockedUntil(lockStatus.lockedUntil ? new Date(lockStatus.lockedUntil) : null);
+      setMode("enter");
+      return;
+    }
+
+    setMode(cashier.hasPin ? "enter" : "setup-create");
+  }
+
+  function handleBack() {
+    setSelected(null);
+    setPin("");
+    setFirstPin("");
+    setError(null);
+    setMode("select");
   }
 
   function handleKey(key: string) {
-    if (locked) return;
-    if (key === "del") {
-      setPin((p) => p.slice(0, -1));
-      setError(null);
-      return;
-    }
+    if (verifying) return;
+    if (locked && mode === "enter") return;
+    if (key === "del") { setPin(p => p.slice(0, -1)); setError(null); return; }
     if (pin.length >= 4) return;
     const next = pin + key;
     setPin(next);
-    if (next.length === 4) submitPin(next);
+    if (next.length === 4) {
+      if (mode === "enter") submitPin(next);
+      else if (mode === "setup-create") { setFirstPin(next); setPin(""); setMode("setup-confirm"); }
+      else if (mode === "setup-confirm") confirmSetup(next);
+    }
+  }
+
+  async function confirmSetup(second: string) {
+    if (second !== firstPin) {
+      setError("PINs don't match — try again");
+      setPin("");
+      setFirstPin("");
+      setMode("setup-create");
+      return;
+    }
+    setVerifying(true);
+    const res = await setTerminalPin(selected!.id, second);
+    if (res.error) {
+      setError(res.error);
+      setPin("");
+      setFirstPin("");
+      setMode("setup-create");
+      setVerifying(false);
+      return;
+    }
+    // PIN saved — now verify it to issue the session
+    await submitPin(second);
   }
 
   async function submitPin(pinValue: string) {
@@ -63,9 +117,7 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
       setPin("");
       return;
     }
-
     if (res.error) {
-      setAttemptsRemaining(res.attemptsRemaining ?? null);
       setError(
         res.attemptsRemaining != null && res.attemptsRemaining > 0
           ? `Incorrect PIN — ${res.attemptsRemaining} attempt${res.attemptsRemaining === 1 ? "" : "s"} remaining`
@@ -79,17 +131,26 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
     router.refresh();
   }
 
+  const heading =
+    mode === "setup-create" ? "Create your PIN" :
+    mode === "setup-confirm" ? "Confirm your PIN" :
+    selected?.full_name ?? "";
+
+  const subheading =
+    mode === "setup-create" ? "Choose a 4-digit PIN to access the POS" :
+    mode === "setup-confirm" ? "Enter the same PIN again to confirm" :
+    "Enter your 4-digit PIN";
+
+  const isSetupMode = mode === "setup-create" || mode === "setup-confirm";
+
   return (
-    <div className="min-h-screen bg-sidebar flex flex-col">
-      {/* Brand header */}
+    <div className="min-h-dvh bg-sidebar flex flex-col">
       <div className="flex flex-col items-center pt-10 pb-2">
         <BrandLogo className="h-10 w-auto mb-5" />
       </div>
-      <SnowflakePattern id="pin-snow" opacity={0.18} rows={2} tileSize={44} />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
-        {!selected ? (
+        {mode === "select" ? (
           <div className="w-full max-w-sm">
             <p className="text-center text-sidebar-foreground font-semibold text-lg mb-1">
               Who&apos;s at the register?
@@ -100,36 +161,29 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
 
             {cashiers.length === 0 ? (
               <p className="text-center text-sidebar-muted text-sm bg-white/5 rounded-2xl px-6 py-8">
-                No cashiers with PINs set.<br />Ask your admin to set up PINs in Settings.
+                No staff added yet.<br />Head to Settings → Users to add your team.
               </p>
             ) : (
               <div className="space-y-2">
                 {cashiers.map((c) => {
                   const initials = c.full_name
-                    .split(" ")
-                    .slice(0, 2)
-                    .map((n) => n[0] ?? "")
-                    .join("")
-                    .toUpperCase();
+                    .split(" ").slice(0, 2)
+                    .map((n) => n[0] ?? "").join("").toUpperCase();
                   return (
                     <button
                       key={c.id}
                       onClick={() => handleSelect(c)}
-                      disabled={!c.hasPin}
-                      className={cn(
-                        "w-full flex items-center gap-4 px-5 py-4 rounded-2xl border transition-all text-left",
-                        c.hasPin
-                          ? "border-white/10 bg-white/5 text-sidebar-foreground hover:bg-white/10 hover:border-white/20 cursor-pointer active:scale-[0.98]"
-                          : "border-white/5 bg-white/[0.02] text-sidebar-muted/50 cursor-not-allowed"
-                      )}
+                      className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-white/10 bg-white/5 text-sidebar-foreground hover:bg-white/10 hover:border-white/20 cursor-pointer active:scale-[0.98] transition-all text-left"
                     >
-                      <div className="w-9 h-9 rounded-full bg-accent/50 flex items-center justify-center text-sm font-bold text-white shrink-0">
-                        {initials}
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-accent/50 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                        {c.avatar_url ? (
+                          <img src={c.avatar_url} alt={c.full_name} className="w-full h-full object-cover" />
+                        ) : initials}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{c.full_name}</p>
                         {!c.hasPin && (
-                          <p className="text-xs text-sidebar-muted/50 mt-0.5">No PIN set</p>
+                          <p className="text-xs text-sidebar-muted/70 mt-0.5">Tap to set PIN</p>
                         )}
                       </div>
                     </button>
@@ -141,27 +195,29 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
         ) : (
           <div className="w-full max-w-xs">
             <button
-              onClick={() => { setSelected(null); setPin(""); setError(null); }}
+              onClick={handleBack}
               className="flex items-center gap-1.5 text-xs text-sidebar-muted hover:text-sidebar-foreground transition-colors mb-8 mx-auto min-h-[44px] px-4"
             >
-              ← Back to selection
+              ← Back
             </button>
 
-            <p className="text-center text-white font-semibold text-lg mb-0.5">
-              {selected.full_name}
-            </p>
-            <p className="text-center text-sidebar-muted text-sm mb-7">
-              Enter your 4-digit PIN
-            </p>
+            {isSetupMode && (
+              <div className="flex justify-center gap-1.5 mb-5">
+                <div className={cn("h-1 w-8 rounded-full transition-colors", mode === "setup-create" ? "bg-primary" : "bg-white/30")} />
+                <div className={cn("h-1 w-8 rounded-full transition-colors", mode === "setup-confirm" ? "bg-primary" : "bg-white/20")} />
+              </div>
+            )}
 
-            {/* PIN dots */}
-            <div className="flex justify-center gap-5 mb-8">
+            <p className="text-center text-white font-semibold text-lg mb-0.5">{heading}</p>
+            <p className="text-center text-sidebar-muted text-sm mb-7">{subheading}</p>
+
+            <div className="flex justify-center gap-4 mb-8">
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
                   className={cn(
-                    "w-3.5 h-3.5 rounded-full transition-all duration-150",
-                    i < pin.length ? "bg-primary scale-110" : "bg-white/20"
+                    "w-5 h-5 rounded-full transition-all duration-150",
+                    i < pin.length ? "bg-primary scale-110 shadow-lg shadow-primary/40" : "bg-white/20"
                   )}
                 />
               ))}
@@ -185,10 +241,11 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
                   </p>
                 )}
                 {verifying && (
-                  <p className="text-center text-sidebar-muted text-sm mb-5">Verifying…</p>
+                  <p className="text-center text-sidebar-muted text-sm mb-5">
+                    {mode === "setup-confirm" ? "Saving PIN…" : "Verifying…"}
+                  </p>
                 )}
 
-                {/* Numpad */}
                 <div className="grid grid-cols-3 gap-3">
                   {NUMPAD.map((key, i) => {
                     if (key === "") return <div key={i} />;
@@ -198,11 +255,12 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
                         onClick={() => handleKey(key)}
                         disabled={verifying}
                         className={cn(
-                          "h-16 rounded-2xl text-xl font-semibold transition-all disabled:opacity-40 active:scale-95",
+                          "h-16 rounded-2xl transition-all disabled:opacity-40 active:scale-95",
                           key === "del"
-                            ? "bg-white/5 text-sidebar-muted hover:bg-white/10 flex items-center justify-center"
-                            : "bg-white/10 text-sidebar-foreground hover:bg-white/18"
+                            ? "bg-white/5 text-sidebar-muted hover:bg-white/10 flex items-center justify-center text-xl"
+                            : "bg-white/10 text-sidebar-foreground hover:bg-white/18 text-2xl font-black"
                         )}
+                        style={key !== "del" ? { fontFamily: "var(--font-display)" } : undefined}
                       >
                         {key === "del" ? <Delete className="w-5 h-5" /> : key}
                       </button>

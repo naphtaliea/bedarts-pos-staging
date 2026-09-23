@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { readCashierSession } from "@/lib/cashier-session";
 
 export async function requirePinSession(): Promise<string> {
   const supabase = await createClient();
@@ -18,9 +18,8 @@ export async function requirePinSession(): Promise<string> {
     return user.id;
   }
 
-  // Cashier must have a PIN session
-  const cookieStore = await cookies();
-  const cashierId = cookieStore.get("cashier_session")?.value;
+  // Cashier must have a valid (HMAC-verified) PIN session
+  const cashierId = await readCashierSession();
   if (!cashierId) redirect("/cashier/pin");
 
   return cashierId;

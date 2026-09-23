@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Tag, X } from "lucide-react";
+import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { ProductTable } from "@/components/inventory/product-table";
 import { ProductFormDialog } from "@/components/inventory/product-form-dialog";
 import { StockTable } from "@/components/inventory/stock-table";
-import { ReceiveStockDialog } from "@/components/inventory/receive-stock-dialog";
+import { BulkReceiveStockDialog } from "@/components/inventory/bulk-receive-stock-dialog";
+import type { BulkReceiveData } from "@/components/inventory/bulk-receive-stock-dialog";
 import { AdjustmentDialog } from "@/components/inventory/adjustment-dialog";
 import { AlertsPanel } from "@/components/inventory/alerts-panel";
 import {
@@ -16,7 +18,7 @@ import {
   toggleProductActive,
   createCategory,
   deleteCategory,
-  receiveStock,
+  receiveBulkStock,
   adjustStock,
 } from "./actions";
 import { formatDate } from "@/lib/utils";
@@ -280,10 +282,9 @@ export function InventoryClient({
     name: string;
     category_id: string | null;
     unit: string;
+    units_per_box: number;
     selling_price: number;
-    cost_price: number;
     wholesale_price: number | null;
-    temperature_zone: "frozen" | "chilled" | "ambient";
     low_stock_threshold: number;
     image_url: string | null;
   }) {
@@ -330,16 +331,8 @@ export function InventoryClient({
     }
   }
 
-  async function handleReceiveStock(data: {
-    product_id: string;
-    supplier_id: string | null;
-    quantity_received: number;
-    cost_price: number;
-    expiry_date: string | null;
-    received_date: string;
-    notes: string | null;
-  }) {
-    const result = await receiveStock(data);
+  async function handleReceiveStock(data: BulkReceiveData) {
+    const result = await receiveBulkStock(data);
     if (result.error) throw new Error(result.error);
     showToast("success", "Stock received.");
     router.refresh();
@@ -575,40 +568,46 @@ export function InventoryClient({
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="px-6 py-4 border-b border-border bg-card flex items-center justify-between shrink-0 gap-4 flex-wrap">
-        {/* Left: title + tabs */}
-        <div className="flex items-center gap-6">
-          <h1 className="text-lg font-bold text-foreground shrink-0">
-            Inventory
-          </h1>
-
-          {/* Pill tabs */}
-          <nav className="flex items-center gap-1" aria-label="Inventory tabs">
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative px-3 py-1.5 text-sm font-medium transition-colors rounded-t ${
-                    isActive
-                      ? "text-primary after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+      <div className="relative bg-white overflow-hidden shrink-0">
+        <div className="absolute inset-0 pointer-events-none">
+          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
+        <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4 flex-wrap">
+          {/* Left: strip + title + tabs */}
+          <div className="flex items-center gap-3 lg:gap-6 overflow-x-auto no-scrollbar">
+            <div className="w-1 self-stretch rounded-full bg-accent shrink-0" />
+            <h1 className="text-lg font-bold text-foreground shrink-0">
+              Inventory
+            </h1>
 
-        {/* Right: action button */}
-        <div className="shrink-0">{renderActionButton()}</div>
+            {/* Pill tabs */}
+            <nav className="flex items-center gap-1" aria-label="Inventory tabs">
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative px-3 py-1.5 text-sm font-medium transition-colors rounded-t ${
+                      isActive
+                        ? "text-foreground after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Right: action button */}
+          <div className="shrink-0">{renderActionButton()}</div>
+        </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-auto p-6">{renderTabContent()}</div>
+      <div className="flex-1 overflow-auto p-4 lg:p-6">{renderTabContent()}</div>
 
       {/* Toast */}
       {toast && (
@@ -642,10 +641,9 @@ export function InventoryClient({
       )}
 
       {showReceiveStock && (
-        <ReceiveStockDialog
+        <BulkReceiveStockDialog
           products={products}
           suppliers={suppliers}
-          defaultProductId={productFilter || undefined}
           onClose={() => setShowReceiveStock(false)}
           onSave={handleReceiveStock}
         />

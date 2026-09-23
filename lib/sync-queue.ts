@@ -10,7 +10,6 @@ export interface OfflineSale {
     subtotal: number;
     discount: number;
     total: number;
-    customerId: string | null;
   };
 }
 

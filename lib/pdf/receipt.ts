@@ -1,164 +1,262 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import type { Sale, SaleItem, Payment, StoreSettings } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatReceiptDate } from "@/lib/utils";
+
+// pdf-lib StandardFonts use WinAnsi — ₵ (U+20B5) is outside that set; use "GHC" instead.
+function ghc(amount: number): string {
+  return "GHC " + amount.toFixed(2);
+}
+
+function num(amount: number): string {
+  return amount.toFixed(2);
+}
 
 interface ReceiptData {
   sale: Sale;
   items: SaleItem[];
   payments: Payment[];
   cashierName: string;
-  customerName?: string;
   settings: StoreSettings;
 }
 
 export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
-  const { sale, items, payments, cashierName, customerName, settings } = data;
+  const { sale, items, payments, cashierName, settings } = data;
 
-  const doc = await PDFDocument.create();
-  const page = doc.addPage([226, estimateHeight(items.length)]);
+  const doc     = await PDFDocument.create();
+  const page    = doc.addPage([226, estimateHeight(items.length)]);
   const { width, height } = page.getSize();
 
   const regular = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const bold    = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  let y = height - 20;
-  const left = 10;
-  const right = width - 10;
-  const col2 = right - 50;
+  const LEFT  = 14;
+  const RIGHT = width - 14;
+  let y = height - 14;
 
-  const line = (
-    text: string,
-    x: number,
-    font = regular,
-    size = 8,
-    color = rgb(0, 0, 0)
-  ) => {
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  const draw = (text: string, x: number, font = regular, size = 9, color = rgb(0, 0, 0)) =>
     page.drawText(text, { x, y, font, size, color });
+
+  const center = (text: string, font = regular, size = 9, color = rgb(0, 0, 0)) => {
+    const w = font.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: Math.max(LEFT, (width - w) / 2), y, font, size, color });
   };
 
-  const rule = () => {
-    y -= 4;
+  const drawRight = (text: string, font = regular, size = 9, color = rgb(0, 0, 0)) => {
+    const w = font.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: RIGHT - w, y, font, size, color });
+  };
+
+  const row = (label: string, value: string, labelFont = regular, valueFont = regular, size = 9) => {
+    draw(label, LEFT, labelFont, size);
+    drawRight(value, valueFont, size);
+  };
+
+  const gap = (n = 9) => { y -= n; };
+
+  // Centered word-wrapped text
+  const centeredText = (text: string, font = regular, size = 8, color = rgb(0, 0, 0)) => {
+    const maxWidth = RIGHT - LEFT;
+    const words = text.split(" ");
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(test, size) > maxWidth) {
+        center(line, font, size, color);
+        gap(size + 3);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) { center(line, font, size, color); gap(size + 3); }
+  };
+
+  // Thin hairline rule — used only once, between TOTAL and payments
+  const thinRule = () => {
+    y -= 5;
     page.drawLine({
-      start: { x: left, y },
-      end: { x: right, y },
-      thickness: 0.5,
-      color: rgb(0.7, 0.7, 0.7),
+      start: { x: LEFT, y },
+      end:   { x: RIGHT, y },
+      thickness: 0.4,
+      color: rgb(0.75, 0.75, 0.75),
     });
-    y -= 6;
+    y -= 8;
   };
 
-  const gap = (n = 10) => { y -= n; };
+  // ── 1. Logo ───────────────────────────────────────────────────────────────────
 
-  // Header
-  line(settings.store_name, left, bold, 11);
-  gap(12);
-  if (settings.address) { line(settings.address, left, regular, 7); gap(9); }
-  if (settings.phone) { line(`Tel: ${settings.phone}`, left, regular, 7); gap(9); }
-  if (settings.vat_number) { line(`VAT Reg: ${settings.vat_number}`, left, regular, 7); gap(9); }
+  let logoLoaded = false;
+  try {
+    const imgBytes = await fetch("/logo-brand.png").then((r) => r.arrayBuffer());
+    const img      = await doc.embedPng(new Uint8Array(imgBytes));
+    const logoW    = Math.min(170, width - 28);
+    const logoH    = img.height * (logoW / img.width);
+    page.drawImage(img, { x: (width - logoW) / 2, y: y - logoH, width: logoW, height: logoH });
+    y -= logoH + 6;
+    logoLoaded = true;
+  } catch { /* fall through to text */ }
 
-  rule();
-
-  line(`Date: ${formatDate(sale.created_at)}`, left, regular, 7);
-  gap(9);
-  line(`Receipt #: ${sale.id.slice(0, 8).toUpperCase()}`, left, regular, 7);
-  gap(9);
-  line(`Cashier: ${cashierName}`, left, regular, 7);
-  gap(9);
-  if (customerName) { line(`Customer: ${customerName}`, left, regular, 7); gap(9); }
-
-  rule();
-
-  // Column headers
-  line("ITEM", left, bold, 7);
-  line("TOTAL", col2, bold, 7);
-  gap(10);
-
-  // Items
-  for (const item of items) {
-    const name = (item.product?.name ?? "Unknown").slice(0, 24);
-    const total = formatCurrency(item.total_price);
-    const isKg = item.product?.unit === "kg";
-    const calcLine = isKg
-      ? `  ${item.quantity}kg / ${formatCurrency(item.unit_price)}`
-      : `  ${item.quantity} x ${formatCurrency(item.unit_price)}`;
-
-    line(name, left, regular, 7);
-    line(total, col2, regular, 7);
-    gap(9);
-    line(calcLine, left, regular, 6, rgb(0.4, 0.4, 0.4));
+  if (!logoLoaded) {
+    center(settings.store_name.toUpperCase(), bold, 11);
+    gap(14);
+    center("Always fresh...always in season", regular, 8, rgb(0.45, 0.45, 0.45));
     gap(8);
+  }
+
+  // ── 2. Store info ─────────────────────────────────────────────────────────────
+
+  gap(14);
+
+  if (settings.address) {
+    centeredText(settings.address, regular, 8, rgb(0.25, 0.25, 0.25));
+  }
+  if (settings.phone) {
+    center(`Tel: ${settings.phone}`, regular, 8, rgb(0.25, 0.25, 0.25));
+    gap(11);
+  }
+  if (settings.vat_number) {
+    center(`VAT Reg: ${settings.vat_number}`, regular, 8, rgb(0.25, 0.25, 0.25));
+    gap(11);
+  }
+
+  // ── 3. Sale meta ──────────────────────────────────────────────────────────────
+
+  gap(16);
+
+  const saleRef = `#${sale.id.slice(0, 8).toUpperCase()}`;
+
+  row("Receipt", saleRef, regular, bold, 9);
+  gap(13);
+  row("Date", formatReceiptDate(sale.created_at), regular, regular, 9);
+  gap(13);
+  row("Cashier", cashierName, regular, regular, 9);
+  gap(18);
+
+  // ── 4. Items ──────────────────────────────────────────────────────────────────
+
+  const METHOD_LABELS: Record<string, string> = {
+    cash:        "Cash",
+    momo:        "Mobile Money",
+    pos_machine: "POS Machine",
+    account:     "On Account",
+  };
+
+  for (const item of items) {
+    const name   = (item.product?.name ?? "Unknown").toUpperCase();
+    const isKg   = item.product?.unit === "kg";
+    const detail = isKg
+      ? `  ${item.quantity}kg  /  GHC ${num(item.unit_price)}`
+      : `  ${item.quantity} x  GHC ${num(item.unit_price)}`;
+
+    // Word-wrap the product name; price on the right of the first line
+    const maxNameWidth = RIGHT - LEFT - bold.widthOfTextAtSize("999.99", 9) - 8;
+    const words = name.split(" ");
+    let nameLine = "";
+    let firstLine = true;
+    for (const w of words) {
+      const test = nameLine ? `${nameLine} ${w}` : w;
+      if (bold.widthOfTextAtSize(test, 9) > maxNameWidth) {
+        if (firstLine) {
+          draw(nameLine, LEFT, bold, 9);
+          drawRight(num(item.total_price), bold, 9);
+          firstLine = false;
+        } else {
+          draw(nameLine, LEFT, bold, 9);
+        }
+        gap(12);
+        nameLine = w;
+      } else {
+        nameLine = test;
+      }
+    }
+    if (nameLine) {
+      if (firstLine) {
+        draw(nameLine, LEFT, bold, 9);
+        drawRight(num(item.total_price), bold, 9);
+      } else {
+        draw(nameLine, LEFT, bold, 9);
+      }
+      gap(12);
+    }
+
+    draw(detail, LEFT, regular, 8, rgb(0.45, 0.45, 0.45));
+    gap(10);
 
     if (item.discount_amount > 0) {
-      line(`  Disc: -${formatCurrency(item.discount_amount)}`, left, regular, 6, rgb(0.5, 0, 0));
-      gap(8);
+      draw(`  Disc: -${num(item.discount_amount)}`, LEFT, regular, 8, rgb(0.55, 0.35, 0));
+      gap(10);
     }
+
+    gap(4); // item breathing room
   }
 
-  rule();
+  // ── 5. Pre-total lines (discount / tax) ───────────────────────────────────────
 
-  // Totals
-  const twoCol = (label: string, value: string, f = regular, s = 8) => {
-    line(label, left, f, s);
-    line(value, col2, f, s);
-    gap(s + 3);
-  };
+  gap(6);
 
-  twoCol("Subtotal", formatCurrency(sale.subtotal));
   if (sale.discount_amount > 0) {
-    twoCol("Discount", `-${formatCurrency(sale.discount_amount)}`, regular, 8);
+    row("Subtotal", num(sale.subtotal), regular, regular, 9);
+    gap(12);
+    draw("Discount", LEFT, regular, 9);
+    drawRight(`-${num(sale.discount_amount)}`, regular, 9, rgb(0.55, 0.35, 0));
+    gap(12);
   }
+
   if (settings.tax_enabled && settings.tax_rate > 0) {
     const taxable = sale.subtotal - sale.discount_amount;
     if (settings.vat_number) {
-      twoCol("VAT (15%)", formatCurrency(taxable * 0.15), regular, 7);
-      twoCol("NHIL/GETFL (2.5%)", formatCurrency(taxable * 0.025), regular, 7);
+      row("VAT (15%)", num(taxable * 0.15), regular, regular, 8);
+      gap(12);
+      row("NHIL/GETFL (2.5%)", num(taxable * 0.025), regular, regular, 8);
+      gap(12);
     } else {
-      twoCol(`Tax (${settings.tax_rate}%)`, formatCurrency(taxable * (settings.tax_rate / 100)), regular, 8);
+      row(`Tax (${settings.tax_rate}%)`, num(taxable * (settings.tax_rate / 100)), regular, regular, 9);
+      gap(12);
     }
   }
-  twoCol("TOTAL", formatCurrency(sale.total_amount), bold, 10);
 
-  rule();
+  // ── 6. TOTAL ──────────────────────────────────────────────────────────────────
 
-  // Payments
-  line("PAYMENT", left, bold, 7);
-  gap(9);
+  gap(4);
+  draw("TOTAL", LEFT, bold, 13);
+  drawRight(ghc(sale.total_amount), bold, 13);
+  gap(22);
+
+  thinRule();
+
+  // ── 7. Payments ───────────────────────────────────────────────────────────────
+
+  draw("PAYMENT", LEFT, bold, 7, rgb(0.5, 0.5, 0.5));
+  gap(13);
+
   for (const p of payments) {
-    const method =
-      p.method === "momo"        ? "Mobile Money" :
-      p.method === "pos_machine" ? "POS Machine"  :
-      p.method === "account"     ? "On Account"   : "Cash";
-    twoCol(method, formatCurrency(p.amount), regular, 7);
-    if (p.reference) { line(`  Ref: ${p.reference}`, left, regular, 7); gap(9); }
+    row(METHOD_LABELS[p.method] ?? p.method, num(p.amount), regular, regular, 9);
+    gap(12);
   }
 
-  rule();
+  const hasCash   = payments.some((p) => p.method === "cash");
+  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+  const change    = hasCash ? Math.max(0, totalPaid - sale.total_amount) : 0;
 
-  // Footer
+  if (change > 0) {
+    gap(4);
+    draw("Change", LEFT, bold, 11);
+    drawRight(ghc(change), bold, 11, rgb(0, 0.45, 0.2));
+    gap(18);
+  } else {
+    gap(8);
+  }
+
+  // ── 8. Footer ─────────────────────────────────────────────────────────────────
+
   const footer = settings.receipt_footer ?? "Thank you for shopping with us!";
-  const words = footer.split(" ");
-  let currentLine = "";
-  for (const word of words) {
-    const test = currentLine ? `${currentLine} ${word}` : word;
-    if (test.length > 32) {
-      const centerX = left + (width - left * 2 - regular.widthOfTextAtSize(currentLine, 7)) / 2;
-      line(currentLine, Math.max(left, centerX), regular, 7);
-      gap(9);
-      currentLine = word;
-    } else {
-      currentLine = test;
-    }
-  }
-  if (currentLine) {
-    const centerX = left + (width - left * 2 - regular.widthOfTextAtSize(currentLine, 7)) / 2;
-    line(currentLine, Math.max(left, centerX), regular, 7);
-    gap(9);
-  }
+  centeredText(footer, regular, 8, rgb(0.45, 0.45, 0.45));
 
   return doc.save();
 }
 
 function estimateHeight(itemCount: number): number {
-  return Math.max(400, 220 + itemCount * 40);
+  return Math.max(560, 390 + itemCount * 70);
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -12,23 +12,26 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { AlertTriangle, X, Clock, TrendingUp } from "lucide-react";
+import { AlertTriangle, X, Clock, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { cn, formatCurrency } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-interface RecentSale {
-  id: string;
-  total: number;
-  cashier: string;
-  method: string;
-  created_at: string;
-}
 
 interface DashboardClientProps {
   todayRevenue: number;
   todayTransactions: number;
   todayDiscount: number;
+  todayCogs: number;
+  todayGrossProfit: number;
+  todayExpenses: number;
+  todayNetProfit: number;
+  sevenDayRevenue: number;
+  sevenDayCogs: number;
+  sevenDayGrossProfit: number;
+  sevenDayExpenses: number;
+  sevenDayNetProfit: number;
+  expensesByCategory: { name: string; total: number }[];
   stockValue: number;
   activeProductCount: number;
   lowStockItems: { name: string; stock_quantity: number; low_stock_threshold: number; unit: string }[];
@@ -37,31 +40,19 @@ interface DashboardClientProps {
   categoryMix: { name: string; revenue: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
   topProducts: { name: string; revenue: number; units: number }[];
-  recentSales: RecentSale[];
+  outstandingPayablesTotal: number;
+  outstandingPayablesCount: number;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DONUT_COLORS = ["#CC1B14", "#1B50C0", "#16A34A", "#D97706", "#7C3AED", "#0891B2", "#6B7280"];
-
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash",
-  momo: "MoMo",
-  pos_machine: "POS",
-};
+const DONUT_COLORS = ["#1B50C0", "#16A34A", "#D97706", "#7C3AED", "#0891B2", "#0F172A", "#6B7280"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatShortDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-GH", { month: "short", day: "numeric" });
-}
-
-function formatTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString("en-GH", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function daysUntil(dateStr: string) {
@@ -100,6 +91,16 @@ export function DashboardClient({
   todayRevenue,
   todayTransactions,
   todayDiscount,
+  todayCogs,
+  todayGrossProfit,
+  todayExpenses,
+  todayNetProfit,
+  sevenDayRevenue,
+  sevenDayCogs,
+  sevenDayGrossProfit,
+  sevenDayExpenses,
+  sevenDayNetProfit,
+  expensesByCategory,
   stockValue,
   activeProductCount,
   lowStockItems,
@@ -108,9 +109,26 @@ export function DashboardClient({
   categoryMix,
   peakHours,
   topProducts,
-  recentSales,
+  outstandingPayablesTotal,
+  outstandingPayablesCount,
 }: DashboardClientProps) {
+  // Persist alert dismissals per calendar day so they don't nag on every refresh,
+  // but reset naturally each day (in case the underlying situation is still true).
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const storageKey = `bedarts.dismissedAlerts.${todayKey}`;
+
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) setDismissedAlerts(JSON.parse(raw));
+    } catch { /* ignore parse errors */ }
+  }, [storageKey]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(storageKey, JSON.stringify(dismissedAlerts)); } catch {}
+  }, [dismissedAlerts, storageKey]);
 
   const urgentExpiry = expiringItems.filter((e) => e.urgent);
   const hasLowStock = lowStockItems.length > 0;
@@ -121,7 +139,21 @@ export function DashboardClient({
   const maxHourCount = Math.max(...peakHours.map((h) => h.count), 1);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <>
+      {/* Branded page banner */}
+      <div className="relative bg-white overflow-hidden">
+        <div className="border-b border-border px-4 lg:px-6 py-4 lg:py-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 self-stretch rounded-full bg-primary shrink-0" />
+            <div>
+              <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest mb-1">Bedarts Cold Supplies</p>
+              <h1 className="text-foreground leading-none" style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "clamp(1.5rem, 3vw, 2.25rem)" }}>Dashboard</h1>
+            </div>
+          </div>
+          <img src="/icon-192.png" className="h-12 w-auto opacity-[0.08]" aria-hidden="true" draggable={false} />
+        </div>
+      </div>
+    <div className="p-4 lg:p-6 space-y-4 lg:space-y-6 max-w-[1400px] mx-auto">
 
       {/* ── Alert banners ───────────────────────────────────────── */}
       <div className="space-y-2">
@@ -175,18 +207,20 @@ export function DashboardClient({
       </div>
 
       {/* ── Stat cards ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
         <StatCard
           label="Today's Revenue"
           value={formatCurrency(todayRevenue)}
           sub={`${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""}`}
           accent="accent"
+          hero="red"
         />
         <StatCard
           label="7-Day Revenue"
           value={formatCurrency(totalRevenue7d)}
           sub="last 7 days"
           accent="accent"
+          hero="navy"
         />
         <StatCard
           label="Stock Value"
@@ -194,6 +228,20 @@ export function DashboardClient({
           sub="cost basis"
           accent="neutral"
         />
+        <StatCard
+          label="Payables"
+          value={formatCurrency(outstandingPayablesTotal)}
+          sub={
+            outstandingPayablesCount === 0
+              ? "no outstanding invoices"
+              : `${outstandingPayablesCount} unpaid invoice${outstandingPayablesCount !== 1 ? "s" : ""}`
+          }
+          accent={outstandingPayablesCount > 0 ? "warning" : "success"}
+        />
+      </div>
+
+      {/* ── Secondary stat cards ─────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-3">
         <StatCard
           label="Active Products"
           value={String(activeProductCount)}
@@ -214,14 +262,29 @@ export function DashboardClient({
         />
       </div>
 
+      {/* ── P&L snapshot ─────────────────────────────────────────── */}
+      <ProfitLossPanel
+        todayRevenue={todayRevenue}
+        todayCogs={todayCogs}
+        todayGrossProfit={todayGrossProfit}
+        todayExpenses={todayExpenses}
+        todayNetProfit={todayNetProfit}
+        sevenDayRevenue={sevenDayRevenue}
+        sevenDayCogs={sevenDayCogs}
+        sevenDayGrossProfit={sevenDayGrossProfit}
+        sevenDayExpenses={sevenDayExpenses}
+        sevenDayNetProfit={sevenDayNetProfit}
+        expensesByCategory={expensesByCategory}
+      />
+
       {/* ── Revenue + Category ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Revenue bar chart */}
         <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Revenue</p>
-              <p className="text-sm font-semibold text-foreground mt-0.5">Last 7 days</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Revenue</p>
+              <h3 className="text-lg text-foreground mt-0.5">Last 7 days</h3>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <TrendingUp className="w-3.5 h-3.5" />
@@ -229,24 +292,30 @@ export function DashboardClient({
             </div>
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={revenueByDay} barSize={28} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <BarChart data={revenueByDay} barSize={24} margin={{ top: 0, right: 0, bottom: 0, left: -8 }}>
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 11, fill: "#6B7280" }}
                 axisLine={false}
                 tickLine={false}
               />
-              <YAxis hide />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                width={36}
+              />
               <Tooltip content={<RevenueTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-              <Bar dataKey="revenue" fill="#CC1B14" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" fill="#1B50C0" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Category donut */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Category Mix</p>
-          <p className="text-sm font-semibold text-foreground mb-4">7-day sales</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Category Mix</p>
+          <h3 className="text-lg text-foreground mb-4">7-day sales</h3>
           {categoryMix.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground">
               No sales data
@@ -302,12 +371,12 @@ export function DashboardClient({
       </div>
 
       {/* ── Peak Hours ───────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <div className="flex items-center gap-2 mb-5">
           <Clock className="w-4 h-4 text-muted-foreground" />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Peak Hours</p>
-            <p className="text-sm font-semibold text-foreground">Sales volume by hour · 7-day average</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Peak Hours</p>
+            <h3 className="text-lg text-foreground">Sales volume by hour · 7-day average</h3>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={120}>
@@ -326,82 +395,47 @@ export function DashboardClient({
         </ResponsiveContainer>
       </div>
 
-      {/* ── Top Products + Recent Sales ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Top 5 products */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">Top Products</p>
-          <p className="text-sm font-semibold text-foreground mb-4">By revenue · 7 days</p>
-          {topProducts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sales data</p>
-          ) : (
-            <div className="space-y-3">
-              {topProducts.map((p, i) => {
-                const pct = topProducts[0].revenue > 0 ? (p.revenue / topProducts[0].revenue) * 100 : 0;
-                return (
-                  <div key={p.name}>
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className="text-xs text-foreground truncate max-w-[60%]">
-                        <span className="text-muted-foreground mr-1.5 font-medium tabular-nums">{i + 1}.</span>
-                        {p.name}
-                      </span>
-                      <span className="text-xs font-semibold text-foreground tabular-nums">
-                        {formatCurrency(p.revenue)}
-                      </span>
-                    </div>
-                    <div className="h-1 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Recent transactions */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Recent Sales</p>
-            <p className="text-sm font-semibold text-foreground">Last 10 transactions</p>
-          </div>
-          {recentSales.length === 0 ? (
-            <div className="p-5 text-sm text-muted-foreground">No sales in the last 7 days</div>
-          ) : (
-            <div className="divide-y divide-border">
-              {recentSales.map((sale) => (
-                <div key={sale.id} className="flex items-center justify-between px-5 py-3 gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{sale.cashier}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatShortDate(sale.created_at)} · {formatTime(sale.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-secondary capitalize">
-                      {METHOD_LABELS[sale.method] ?? sale.method}
+      {/* ── Top Products ─────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Top Products</p>
+        <h3 className="text-lg text-foreground mb-4">By revenue · 7 days</h3>
+        {topProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No sales data</p>
+        ) : (
+          <div className="space-y-3 max-w-md">
+            {topProducts.map((p, i) => {
+              const pct = topProducts[0].revenue > 0 ? (p.revenue / topProducts[0].revenue) * 100 : 0;
+              return (
+                <div key={p.name}>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-xs text-foreground truncate max-w-[60%]">
+                      <span className="text-muted-foreground mr-1.5 font-medium tabular-nums">{i + 1}.</span>
+                      {p.name}
                     </span>
-                    <span className="text-sm font-semibold text-foreground tabular-nums">
-                      {formatCurrency(sale.total)}
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {formatCurrency(p.revenue)}
                     </span>
+                  </div>
+                  <div className="h-1 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Expiry + Low Stock lists ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 pb-4 lg:pb-6">
         {/* Expiry alert list */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
           <div className="px-5 py-4 border-b border-border">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Expiry Alerts</p>
-            <p className="text-sm font-semibold text-foreground">Stock batches expiring within 30 days</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Expiry Alerts</p>
+            <h3 className="text-lg text-foreground">Stock batches expiring within 30 days</h3>
           </div>
           {expiringItems.length === 0 ? (
             <div className="px-5 py-8 text-center">
@@ -438,10 +472,10 @@ export function DashboardClient({
         </div>
 
         {/* Low stock list */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
           <div className="px-5 py-4 border-b border-border">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Low Stock</p>
-            <p className="text-sm font-semibold text-foreground">Products below reorder threshold</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Low Stock</p>
+            <h3 className="text-lg text-foreground">Products below reorder threshold</h3>
           </div>
           {lowStockItems.length === 0 ? (
             <div className="px-5 py-8 text-center">
@@ -478,6 +512,182 @@ export function DashboardClient({
         </div>
       </div>
     </div>
+    </>
+  );
+}
+
+// ── Profit & Loss Panel ──────────────────────────────────────────────────────
+
+interface PLProps {
+  todayRevenue: number;
+  todayCogs: number;
+  todayGrossProfit: number;
+  todayExpenses: number;
+  todayNetProfit: number;
+  sevenDayRevenue: number;
+  sevenDayCogs: number;
+  sevenDayGrossProfit: number;
+  sevenDayExpenses: number;
+  sevenDayNetProfit: number;
+  expensesByCategory: { name: string; total: number }[];
+}
+
+function ProfitLossPanel({
+  todayRevenue, todayCogs, todayGrossProfit, todayExpenses, todayNetProfit,
+  sevenDayRevenue, sevenDayCogs, sevenDayGrossProfit, sevenDayExpenses, sevenDayNetProfit,
+  expensesByCategory,
+}: PLProps) {
+  const [window, setWindow] = useState<"today" | "7d">("today");
+
+  const isToday = window === "today";
+  const revenue     = isToday ? todayRevenue     : sevenDayRevenue;
+  const cogs        = isToday ? todayCogs        : sevenDayCogs;
+  const grossProfit = isToday ? todayGrossProfit : sevenDayGrossProfit;
+  const expenses    = isToday ? todayExpenses    : sevenDayExpenses;
+  const netProfit   = isToday ? todayNetProfit   : sevenDayNetProfit;
+
+  const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+  const netMargin   = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+  const netIsPositive = netProfit >= 0;
+  const NetIcon = netIsPositive ? TrendingUp : TrendingDown;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      {/* Header + toggle */}
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Profit & Loss</p>
+          <h3 className="text-lg text-foreground truncate">{isToday ? "Today" : "Last 7 days"}</h3>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-0.5 shrink-0">
+          {(["today", "7d"] as const).map((w) => (
+            <button
+              key={w}
+              onClick={() => setWindow(w)}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-semibold transition-colors",
+                window === w ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {w === "today" ? "Today" : "7 days"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Money flow — visible math */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-border">
+        {/* Left: line-by-line breakdown */}
+        <div className="lg:col-span-2 p-4 sm:p-5 space-y-2">
+          <PLRow label="Revenue"           value={revenue}     tone="neutral" />
+          <PLRow label="− Cost of goods"   value={cogs}        tone="deduct" />
+          <PLRow label="= Gross Profit"    value={grossProfit} tone="positive" strong sub={`${grossMargin.toFixed(1)}% margin`} />
+          <PLRow label="− Expenses"        value={expenses}    tone="deduct" href="/expenses" />
+          <div className="pt-2 mt-1 border-t border-border">
+            <PLRow
+              label="= Net Profit"
+              value={netProfit}
+              tone={netIsPositive ? "positive" : "negative"}
+              strong
+              sub={`${netMargin.toFixed(1)}% net margin`}
+              icon={NetIcon}
+              size="lg"
+            />
+          </div>
+        </div>
+
+        {/* Right: expense category mini-breakdown */}
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              Expense breakdown
+            </p>
+            <Link href="/expenses" className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+              All <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          {expensesByCategory.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No expenses recorded in the last 7 days.</p>
+          ) : (
+            <div className="space-y-2">
+              {expensesByCategory.slice(0, 6).map((c) => {
+                const pct = sevenDayExpenses > 0 ? (c.total / sevenDayExpenses) * 100 : 0;
+                return (
+                  <div key={c.name}>
+                    <div className="flex items-baseline justify-between gap-2 mb-1">
+                      <span className="text-xs text-foreground truncate">{c.name}</span>
+                      <span className="text-xs font-semibold text-foreground tabular-nums shrink-0">
+                        {formatCurrency(c.total)}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {expensesByCategory.length > 6 && (
+                <p className="text-[11px] text-muted-foreground pt-1">
+                  + {expensesByCategory.length - 6} more categories
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type PLTone = "neutral" | "positive" | "negative" | "deduct";
+const PL_TONE_CLASS: Record<PLTone, string> = {
+  neutral:  "text-foreground",
+  positive: "text-success",
+  negative: "text-destructive",
+  deduct:   "text-muted-foreground",
+};
+
+function PLRow({
+  label, value, tone, strong, sub, icon: Icon, size, href,
+}: {
+  label: string;
+  value: number;
+  tone: PLTone;
+  strong?: boolean;
+  sub?: string;
+  icon?: React.ElementType;
+  size?: "lg";
+  href?: string;
+}) {
+  const amountCls = cn(
+    "tabular-nums shrink-0",
+    PL_TONE_CLASS[tone],
+    size === "lg" ? "text-2xl" : "text-base",
+    strong ? "font-bold" : "font-medium",
+    strong && size === "lg" && "font-display font-black"
+  );
+  const labelCls = cn(
+    "text-sm",
+    strong ? "font-semibold text-foreground" : "text-muted-foreground"
+  );
+
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="flex items-center gap-1.5 min-w-0">
+        <span className={labelCls}>{label}</span>
+        {sub && <span className="text-[11px] text-muted-foreground truncate">{sub}</span>}
+        {href && (
+          <Link href={href} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center">
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        )}
+      </span>
+      <span className="flex items-center gap-1.5">
+        {Icon && <Icon className={cn("w-4 h-4", PL_TONE_CLASS[tone])} />}
+        <span className={amountCls}>{formatCurrency(value)}</span>
+      </span>
+    </div>
   );
 }
 
@@ -499,29 +709,46 @@ function StatCard({
   value,
   sub,
   accent,
+  hero,
 }: {
   label: string;
   value: string;
   sub: string;
   accent: AccentType;
+  hero?: "red" | "navy";
 }) {
+  if (hero === "red") {
+    return (
+      <div className="relative overflow-hidden rounded-2xl shadow-raised px-4 py-4 lg:px-5 lg:py-5" style={{ background: "#CC1B14" }}>
+        <img src="/icon-192.png" aria-hidden="true" draggable={false} className="absolute right-2 top-1 h-14 lg:h-16 w-auto opacity-15 rotate-12 select-none" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-2">{label}</p>
+        <p className="text-2xl lg:text-3xl text-white tabular-nums leading-none break-all" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{value}</p>
+        <p className="text-xs text-white/70 mt-2">{sub}</p>
+      </div>
+    );
+  }
+  if (hero === "navy") {
+    return (
+      <div className="relative overflow-hidden rounded-2xl shadow-raised px-4 py-4 lg:px-5 lg:py-5" style={{ background: "#060F40" }}>
+        <img src="/icon-192.png" aria-hidden="true" draggable={false} className="absolute right-2 top-1 h-14 lg:h-16 w-auto opacity-15 -rotate-12 select-none" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-sidebar-muted/80 mb-2">{label}</p>
+        <p className="text-2xl lg:text-3xl text-white tabular-nums leading-none break-all" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{value}</p>
+        <p className="text-xs text-sidebar-muted mt-2">{sub}</p>
+      </div>
+    );
+  }
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-border bg-card px-5 py-4 border-l-4",
-        ACCENT_BORDER[accent]
-      )}
-    >
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+    <div className="rounded-2xl border border-border bg-card px-4 py-4 lg:px-5 lg:py-5 shadow-card">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
         {label}
       </p>
       <p
-        className="text-2xl text-foreground tabular-nums leading-none"
+        className="text-2xl lg:text-3xl text-foreground tabular-nums leading-none break-all"
         style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
       >
         {value}
       </p>
-      <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>
+      <p className="text-xs text-muted-foreground mt-2">{sub}</p>
     </div>
   );
 }

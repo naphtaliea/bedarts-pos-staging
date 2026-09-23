@@ -22,6 +22,12 @@ export interface PurchaseRow {
   supplier: { name: string };
   receiver: { full_name: string };
   purchase_items?: PurchaseItemRow[];
+  payment_status: "unpaid" | "paid";
+  paid_at: string | null;
+  payment_method: string | null;
+  payment_reference: string | null;
+  paid_by: string | null;
+  payer?: { full_name: string } | null;
 }
 
 interface PurchaseTableProps {
@@ -29,7 +35,14 @@ interface PurchaseTableProps {
   onViewDetail: (purchase: PurchaseRow) => void;
 }
 
-const HEADINGS = ["Date", "Supplier", "Received By", "Items", "Total", "Actions"];
+const HEADINGS = ["Date", "Supplier", "Received By", "Items", "Total", "Status", "Actions"];
+
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  momo: "MoMo",
+  bank_transfer: "Bank Transfer",
+  cheque: "Cheque",
+};
 
 export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
   if (purchases.length === 0) {
@@ -58,6 +71,7 @@ export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
         <tbody className="divide-y divide-border">
           {purchases.map((purchase) => {
             const itemCount = purchase.purchase_items?.length ?? 0;
+            const isPaid = purchase.payment_status === "paid";
 
             return (
               <tr
@@ -89,6 +103,20 @@ export function PurchaseTable({ purchases, onViewDetail }: PurchaseTableProps) {
                 {/* Total */}
                 <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums font-medium text-foreground">
                   {formatCurrency(purchase.total_amount)}
+                </td>
+
+                {/* Status */}
+                <td className="whitespace-nowrap px-4 py-3">
+                  {isPaid ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                      Paid
+                      {purchase.payment_method ? ` · ${METHOD_LABELS[purchase.payment_method] ?? purchase.payment_method}` : ""}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
+                      Unpaid
+                    </span>
+                  )}
                 </td>
 
                 {/* Actions */}

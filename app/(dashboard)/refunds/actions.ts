@@ -1,21 +1,21 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth-guards";
+import { requireManagerOrAdmin } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
 
 export async function voidSale(
   saleId: string,
   reason: string
 ): Promise<{ error?: string }> {
-  const supabase = await requireAdmin().catch(() => null);
-  if (!supabase) return { error: "Admin access required" };
+  const supabase = await requireManagerOrAdmin().catch(() => null);
+  if (!supabase) return { error: "You don't have permission to void sales" };
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
   const { data: sale } = await supabase
     .from("sales")
-    .select("status, customer_id, payments(method, amount)")
+    .select("status, payments(method, amount)")
     .eq("id", saleId)
     .single();
 
@@ -30,28 +30,36 @@ export async function voidSale(
 
   if (voidErr) return { error: voidErr.message };
 
-  // Fetch sold items and current product cost prices for stock restoration
+  // Pull sold items with their historical cost_at_sale (accurate to the batches
+  // consumed by FEFO at time of sale). Falls back to current product.cost_price
+  // only for pre-migration rows where cost_at_sale is NULL.
   const { data: saleItems } = await supabase
     .from("sale_items")
-    .select("product_id, quantity")
+    .select("product_id, quantity, cost_at_sale")
     .eq("sale_id", saleId);
 
-  const productIds = (saleItems ?? []).map((i) => i.product_id);
-
-  const { data: products } = productIds.length
-    ? await supabase.from("products").select("id, cost_price").in("id", productIds)
+  const itemsMissingCost = (saleItems ?? []).filter((i) => i.cost_at_sale == null);
+  const fallbackIds = itemsMissingCost.map((i) => i.product_id);
+  const { data: fallbackProducts } = fallbackIds.length
+    ? await supabase.from("products").select("id, cost_price").in("id", fallbackIds)
     : { data: [] };
+  const fallbackMap = Object.fromEntries(
+    (fallbackProducts ?? []).map((p) => [p.id, p.cost_price ?? 0])
+  );
 
-  const costMap = Object.fromEntries((products ?? []).map((p) => [p.id, p.cost_price ?? 0]));
-
-  // Return stock — create a correction batch using the product's current cost price
+  // Return stock — create a correction batch using cost_at_sale for accuracy
   const today = new Date().toISOString().slice(0, 10);
   for (const item of saleItems ?? []) {
+    const unitCost =
+      item.cost_at_sale != null
+        ? Number(item.cost_at_sale)
+        : Number(fallbackMap[item.product_id] ?? 0);
+
     await supabase.from("stock_batches").insert({
       product_id: item.product_id,
       quantity_received: item.quantity,
       quantity_remaining: item.quantity,
-      cost_price: costMap[item.product_id] ?? 0,
+      cost_price: unitCost,
       received_date: today,
       expiry_date: null,
       notes: `Returned from voided sale ${saleId.slice(0, 8)}`,
@@ -59,23 +67,7 @@ export async function voidSale(
     });
   }
 
-  // Reverse credit balance for any on-account portion of the voided sale
-  if (sale.customer_id) {
-    const accountTotal = ((sale.payments as any[]) ?? [])
-      .filter((p) => p.method === "account")
-      .reduce((s: number, p: any) => s + p.amount, 0);
-
-    if (accountTotal > 0) {
-      await supabase.rpc("record_customer_payment", {
-        p_customer_id: sale.customer_id,
-        p_amount: accountTotal,
-        p_notes: `Auto-reversal for voided sale ${saleId.slice(0, 8)}`,
-      });
-    }
-  }
-
   revalidatePath("/refunds");
   revalidatePath("/inventory");
-  revalidatePath("/customers");
   return {};
 }

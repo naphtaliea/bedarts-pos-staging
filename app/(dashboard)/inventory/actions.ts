@@ -7,10 +7,9 @@ type ProductData = {
   name: string;
   category_id: string | null;
   unit: string;
+  units_per_box: number;
   selling_price: number;
-  cost_price: number;
   wholesale_price: number | null;
-  temperature_zone: "frozen" | "chilled" | "ambient";
   low_stock_threshold: number;
   image_url: string | null;
 };
@@ -107,7 +106,12 @@ export async function deleteCategory(id: string): Promise<{ error?: string }> {
   const supabase = await requireManagerOrAdmin();
 
   const { error } = await supabase.from("categories").delete().eq("id", id);
-  if (error) return { error: error.message };
+  if (error) {
+    if ((error as { code?: string }).code === "23503" || error.message.includes("foreign key")) {
+      return { error: "This category is used by one or more products. Reassign those products first, or delete them, before removing this category." };
+    }
+    return { error: error.message };
+  }
 
   revalidatePath("/inventory");
   return {};
@@ -117,7 +121,8 @@ export async function deleteCategory(id: string): Promise<{ error?: string }> {
 
 export async function receiveStock(data: {
   product_id: string;
-  supplier_id: string | null;
+  supplier_id: string;
+  payment_method: string;
   quantity_received: number;
   cost_price: number;
   expiry_date: string | null;
@@ -125,8 +130,11 @@ export async function receiveStock(data: {
   notes: string | null;
 }): Promise<{ error?: string }> {
   const supabase = await requireManagerOrAdmin();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
 
-  const { error } = await supabase.from("stock_batches").insert({
+  // Insert stock batch
+  const { error: batchErr } = await supabase.from("stock_batches").insert({
     product_id: data.product_id,
     quantity_received: data.quantity_received,
     quantity_remaining: data.quantity_received,
@@ -134,11 +142,122 @@ export async function receiveStock(data: {
     expiry_date: data.expiry_date,
     received_date: data.received_date,
     notes: data.notes,
-    supplier_id: data.supplier_id || null,
+    supplier_id: data.supplier_id,
   });
-  if (error) return { error: error.message };
+  if (batchErr) return { error: batchErr.message };
+
+  // Create purchase record — immediately marked as paid
+  const total_amount = data.quantity_received * data.cost_price;
+  const { data: purchase, error: purchaseErr } = await supabase
+    .from("purchases")
+    .insert({
+      supplier_id: data.supplier_id,
+      received_by: user.id,
+      total_amount,
+      notes: data.notes,
+      payment_status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_method: data.payment_method,
+      paid_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (purchaseErr) return { error: purchaseErr.message };
+
+  // Create purchase line item
+  const { error: itemErr } = await supabase.from("purchase_items").insert({
+    purchase_id: purchase.id,
+    product_id: data.product_id,
+    quantity: data.quantity_received,
+    cost_price: data.cost_price,
+    expiry_date: data.expiry_date,
+  });
+  if (itemErr) return { error: itemErr.message };
+
+  // Update product's current cost_price to the latest received cost
+  await supabase
+    .from("products")
+    .update({ cost_price: data.cost_price })
+    .eq("id", data.product_id);
 
   revalidatePath("/inventory");
+  revalidatePath("/suppliers");
+  return {};
+}
+
+export async function receiveBulkStock(data: {
+  supplier_id: string;
+  payment_method: string;
+  received_date: string;
+  notes: string | null;
+  items: Array<{
+    product_id: string;
+    quantity_received: number;
+    cost_price: number;
+    expiry_date: string | null;
+  }>;
+}): Promise<{ error?: string }> {
+  const supabase = await requireManagerOrAdmin();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const total_amount = data.items.reduce(
+    (sum, item) => sum + item.quantity_received * item.cost_price,
+    0
+  );
+
+  const { data: purchase, error: purchaseErr } = await supabase
+    .from("purchases")
+    .insert({
+      supplier_id: data.supplier_id,
+      received_by: user.id,
+      total_amount,
+      notes: data.notes,
+      payment_status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_method: data.payment_method,
+      paid_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (purchaseErr) return { error: purchaseErr.message };
+
+  const { error: batchErr } = await supabase.from("stock_batches").insert(
+    data.items.map((item) => ({
+      product_id: item.product_id,
+      quantity_received: item.quantity_received,
+      quantity_remaining: item.quantity_received,
+      cost_price: item.cost_price,
+      expiry_date: item.expiry_date,
+      received_date: data.received_date,
+      notes: data.notes,
+      supplier_id: data.supplier_id,
+    }))
+  );
+  if (batchErr) return { error: batchErr.message };
+
+  const { error: itemErr } = await supabase.from("purchase_items").insert(
+    data.items.map((item) => ({
+      purchase_id: purchase.id,
+      product_id: item.product_id,
+      quantity: item.quantity_received,
+      cost_price: item.cost_price,
+      expiry_date: item.expiry_date,
+    }))
+  );
+  if (itemErr) return { error: itemErr.message };
+
+  // Update each product's cost_price to the latest received cost
+  const latestCosts = new Map<string, number>();
+  for (const item of data.items) {
+    latestCosts.set(item.product_id, item.cost_price);
+  }
+  for (const [product_id, cost_price] of latestCosts) {
+    await supabase.from("products").update({ cost_price }).eq("id", product_id);
+  }
+
+  revalidatePath("/inventory");
+  revalidatePath("/suppliers");
   return {};
 }
 

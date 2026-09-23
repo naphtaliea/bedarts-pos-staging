@@ -24,5 +24,19 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
+	},
+	"env": {
+		"staging": {
+			"name": "pos-staging",
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "pos-staging"
+				}
+			],
+			"images": {
+				"binding": "IMAGES"
+			}
+		}
 	}
 }

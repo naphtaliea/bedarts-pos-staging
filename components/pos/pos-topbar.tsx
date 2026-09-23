@@ -2,19 +2,42 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Receipt, LayoutDashboard, LogOut } from "lucide-react";
+import { ArrowLeft, Receipt, LayoutDashboard, LogOut, X } from "lucide-react";
+import { DenomCalculator } from "@/components/pos/denom-calculator";
+import { cn } from "@/lib/utils";
 import { logout } from "@/app/(auth)/login/actions";
 import { BrandLogo } from "@/components/brand-logo";
+import { useCartStore } from "@/lib/pos-store";
 
 interface PosTopBarProps {
   cashierName: string;
+  avatarUrl?: string | null;
   showBack?: boolean;
   backHref?: string;
+  onBack?: () => void;
+  title?: string;
   hideDashboardLink?: boolean;
+  showTabs?: boolean;
+  onTabChange?: () => void;
+  onOrders?: () => void;
+  onDashboard?: () => void;
 }
 
-export function PosTopBar({ cashierName, showBack, backHref, hideDashboardLink }: PosTopBarProps) {
+export function PosTopBar({
+  cashierName,
+  avatarUrl,
+  showBack,
+  backHref,
+  onBack,
+  title,
+  hideDashboardLink,
+  showTabs,
+  onTabChange,
+  onOrders,
+  onDashboard,
+}: PosTopBarProps) {
   const [time, setTime] = useState("");
+  const { tabs, activeTabId, addTab, removeTab, setActiveTab } = useCartStore();
 
   useEffect(() => {
     const tick = () =>
@@ -31,58 +54,157 @@ export function PosTopBar({ cashierName, showBack, backHref, hideDashboardLink }
   }, []);
 
   return (
-    <header className="h-11 flex items-center gap-3 px-4 bg-sidebar border-b border-white/10 shrink-0">
-      {/* Left: back or logo */}
-      <div className="flex items-center gap-3 min-w-0">
-        {showBack && (
-          <Link
-            href={backHref ?? "/cashier"}
-            aria-label="Go back"
-            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-white/15 text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors shrink-0"
+    <header className="h-12 flex items-stretch bg-white border-b border-border shrink-0 overflow-hidden">
+
+      {/* ── Left: logo (+ back if needed) ── */}
+      <div className="flex items-center gap-2 px-3 border-r border-border shrink-0 min-w-[140px]">
+        {showBack ? (
+          onBack ? (
+            <button
+              onClick={onBack}
+              aria-label="Go back"
+              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href={backHref ?? "/cashier"}
+              aria-label="Go back"
+              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          )
+        ) : (
+          <div className="w-7 shrink-0" />
+        )}
+        <BrandLogo className="h-7 w-auto" />
+      </div>
+
+      {/* ── Middle: order tabs OR page info ── */}
+      {showTabs ? (
+        <div className="flex items-stretch flex-1 min-w-0 overflow-x-auto">
+          {tabs.map((tab) => {
+            const active = tab.id === activeTabId;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); onTabChange?.(); }}
+                className={cn(
+                  "flex items-center gap-1.5 h-full px-4 text-[13px] font-semibold border-r border-border shrink-0 transition-colors relative",
+                  active
+                    ? "text-primary bg-primary/5 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                )}
+              >
+                <span>{tab.name}</span>
+                {tabs.length > 1 && (
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); removeTab(tab.id); onTabChange?.(); }}
+                    className="w-4 h-4 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                    aria-label={`Close ${tab.name}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => { addTab(); onTabChange?.(); }}
+            aria-label="Add order"
+            className="h-full px-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 border-r border-border text-base font-bold transition-colors shrink-0"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            +
+          </button>
+          <div className="flex-1" />
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center px-4 min-w-0">
+          <div className="min-w-0">
+            {title && <p className="text-[13px] font-semibold text-slate-900 truncate leading-tight">{title}</p>}
+            <p className={cn("truncate", title ? "text-xs text-slate-500" : "text-[13px] font-semibold text-slate-900")}>
+              {cashierName}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Right: clock + actions ── */}
+      <div className="flex items-stretch border-l border-border shrink-0">
+        <span className="hidden sm:flex items-center px-3 border-r border-border text-xs font-mono text-slate-400 tabular-nums">
+          {time}
+        </span>
+
+        {onOrders ? (
+          <button
+            onClick={onOrders}
+            aria-label="Orders"
+            className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <Receipt className="w-4 h-4" />
+          </button>
+        ) : (
+          <Link
+            href="/cashier/orders"
+            aria-label="Orders"
+            className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+          >
+            <Receipt className="w-4 h-4" />
           </Link>
         )}
-        <BrandLogo className="h-8 w-auto" />
-      </div>
 
-      {/* Center: cashier name */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-sidebar-foreground truncate">{cashierName}</p>
-        <p className="text-xs text-sidebar-muted">POS · Main Counter</p>
-      </div>
-
-      {/* Right: clock + nav + sign out */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-sm font-mono text-sidebar-muted tabular-nums hidden sm:block">{time}</span>
-
-        <Link
-          href="/cashier/orders"
-          aria-label="Orders"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-medium text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
-        >
-          <Receipt className="w-4 h-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Orders</span>
-        </Link>
+        <DenomCalculator />
 
         {!hideDashboardLink && (
-          <Link
-            href="/cashier/dashboard"
-            aria-label="Dashboard"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-medium text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Dashboard</span>
-          </Link>
+          onDashboard ? (
+            <button
+              onClick={onDashboard}
+              aria-label="Dashboard"
+              className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href="/cashier/dashboard"
+              aria-label="Dashboard"
+              className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </Link>
+          )
         )}
 
-        <form action={logout}>
+        {/* Cashier avatar + name */}
+        <div className="flex items-center gap-2 px-3 border-l border-border">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={cashierName}
+              className="w-7 h-7 rounded-full object-cover ring-1 ring-border shrink-0"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-border shrink-0">
+              <span className="text-[11px] font-bold text-primary">
+                {cashierName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+          <span className="hidden sm:block text-xs font-semibold text-slate-700 max-w-[100px] truncate">
+            {cashierName}
+          </span>
+        </div>
+
+        <form action={logout} className="flex">
           <button
             type="submit"
             aria-label="Sign out"
-            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-white/15 text-sidebar-muted hover:bg-white/10 hover:text-sidebar-foreground transition-colors"
+            className="flex items-center justify-center w-11 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
-            <LogOut className="w-4 h-4" aria-hidden="true" />
+            <LogOut className="w-4 h-4" />
           </button>
         </form>
       </div>

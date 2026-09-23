@@ -7,9 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Product, Supplier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const WALKIN_SUPPLIER_ID = "00000000-0000-4000-8000-000000000001";
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "momo", label: "MoMo" },
+  { value: "pos_machine", label: "POS Machine" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+] as const;
+
 interface ReceiveStockData {
   product_id: string;
-  supplier_id: string | null;
+  supplier_id: string;
+  payment_method: string;
   quantity_received: number;
   cost_price: number;
   expiry_date: string | null;
@@ -36,7 +46,8 @@ const SELECT_CLASS = cn(
 function getDefaultForm(defaultProductId?: string): ReceiveStockData {
   return {
     product_id: defaultProductId ?? "",
-    supplier_id: null,
+    supplier_id: WALKIN_SUPPLIER_ID,
+    payment_method: "cash",
     quantity_received: 0,
     cost_price: 0,
     expiry_date: null,
@@ -67,6 +78,22 @@ export function ReceiveStockDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.product_id) {
+      setError("Select a product.");
+      return;
+    }
+    if (form.quantity_received <= 0) {
+      setError("Quantity received must be greater than 0.");
+      return;
+    }
+    if (form.cost_price <= 0) {
+      setError("Cost price must be greater than 0.");
+      return;
+    }
+    if (form.expiry_date && form.expiry_date < form.received_date) {
+      setError("Expiry date cannot be before the received date.");
+      return;
+    }
     setSubmitting(true);
     try {
       await onSave(form);
@@ -127,16 +154,33 @@ export function ReceiveStockDialog({
           {/* Supplier */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-muted-foreground">
-              Supplier
+              Supplier <span className="text-destructive">*</span>
             </label>
             <select
-              value={form.supplier_id ?? ""}
-              onChange={(e) => set("supplier_id", e.target.value || null)}
+              required
+              value={form.supplier_id}
+              onChange={(e) => set("supplier_id", e.target.value)}
               className={SELECT_CLASS}
             >
-              <option value="">No supplier / walk-in purchase</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Payment Method */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Payment Method <span className="text-destructive">*</span>
+            </label>
+            <select
+              required
+              value={form.payment_method}
+              onChange={(e) => set("payment_method", e.target.value)}
+              className={SELECT_CLASS}
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
           </div>

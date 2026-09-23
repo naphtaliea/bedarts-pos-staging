@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { readCashierSession } from "@/lib/cashier-session";
 import { PinClient } from "./pin-client";
 
 export default async function PinPage() {
@@ -8,13 +8,12 @@ export default async function PinPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Already have a PIN session — go straight to POS
-  const cookieStore = await cookies();
-  if (cookieStore.get("cashier_session")?.value) redirect("/cashier");
+  // Already have a valid PIN session — go straight to POS
+  if (await readCashierSession()) redirect("/cashier");
 
   const { data: cashiers } = await supabase
     .from("profiles")
-    .select("id, full_name, pin")
+    .select("id, full_name, pin, avatar_url")
     .eq("is_active", true)
     .eq("role", "cashier")
     .order("full_name");
@@ -23,6 +22,7 @@ export default async function PinPage() {
     id: c.id,
     full_name: c.full_name,
     hasPin: !!c.pin,
+    avatar_url: c.avatar_url as string | null,
   }));
 
   return <PinClient cashiers={cashierList} />;
