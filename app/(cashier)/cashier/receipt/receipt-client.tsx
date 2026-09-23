@@ -21,17 +21,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 function Dash() {
-  return <div className="border-t border-slate-200 mx-5" />;
-}
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="px-6 pt-3 pb-1">
-      <p className="text-[10px] font-black tracking-[0.2em] text-foreground uppercase pb-1 border-b-2 border-primary">
-        {children}
-      </p>
-    </div>
-  );
+  return <div className="border-t border-dashed border-border/50 mx-5" />;
 }
 
 function Row({ label, value, valueBold }: { label: string; value: string; valueBold?: boolean }) {
@@ -184,33 +174,37 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
             <div id="receipt-print" className="bg-white rounded-xl shadow-lg border border-black/5 overflow-hidden font-mono text-xs">
 
               {/* Logo */}
-              <div className="pt-5 pb-3 flex flex-col items-center px-6">
-                <img src="/logo-brand.png" alt="Bedarts Cold Supplies" className="h-14 object-contain" draggable={false} />
+              <div className="pt-4 pb-2 flex flex-col items-center px-6">
+                <img src="/logo-brand.png" alt="Bedarts Cold Supplies" className="h-10 object-contain" draggable={false} />
               </div>
-
-              {/* Store info */}
-              {(settings.address || settings.phone || settings.vat_number || settings.opening_hours || settings.sunday_hours) && (
-                <div className="px-6 pb-3 text-center space-y-0.5 text-[12px]">
-                  {settings.address && <p className="text-foreground leading-snug">{settings.address}</p>}
-                  {settings.phone && <p className="text-muted-foreground">Tel: {settings.phone}</p>}
-                  {settings.vat_number && <p className="text-muted-foreground">VAT Reg: {settings.vat_number}</p>}
-                  {settings.opening_hours && <p className="text-muted-foreground">Mon–Sat: {settings.opening_hours}</p>}
-                  {settings.sunday_hours && <p className="text-muted-foreground">Sun: {settings.sunday_hours}</p>}
-                </div>
-              )}
 
               <Dash />
 
+              {/* Store info */}
+              {(settings.address || settings.phone || settings.vat_number || settings.opening_hours || settings.sunday_hours) && (
+                <>
+                  <div className="px-6 py-2 text-center space-y-0.5 text-[12px]">
+                    {settings.address && <p className="text-foreground leading-snug">{settings.address}</p>}
+                    {settings.phone && <p className="text-muted-foreground">Tel: {settings.phone}</p>}
+                    {settings.vat_number && <p className="text-muted-foreground">VAT Reg: {settings.vat_number}</p>}
+                    {settings.opening_hours && <p className="text-muted-foreground">Mon–Sat: {settings.opening_hours}</p>}
+                    {settings.sunday_hours && <p className="text-muted-foreground">Sun: {settings.sunday_hours}</p>}
+                  </div>
+                  <Dash />
+                </>
+              )}
+
               {/* Sale meta */}
-              <div className="px-6 py-2.5 space-y-1 text-[12px]">
+              <div className="px-6 py-2 space-y-1 text-[12px]">
                 <Row label="Receipt" value={saleRef} valueBold />
                 <Row label="Date" value={saleDate} />
                 <Row label="Cashier" value={sale.cashier?.full_name ?? "Cashier"} />
               </div>
 
+              <Dash />
+
               {/* Items */}
-              <SectionHeader>Items</SectionHeader>
-              <div className="px-6 py-2 space-y-2.5">
+              <div className="px-6 py-2 space-y-2">
                 {(sale.sale_items ?? []).map((item) => {
                   const isKg = item.product?.unit === "kg";
                   return (
@@ -225,8 +219,8 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                         {item.package_label
                           ? `${item.package_label} · ${item.quantity}${isKg ? "kg" : "pcs"}`
                           : isKg
-                            ? `${item.quantity}kg / GH¢ ${item.unit_price.toFixed(2)}`
-                            : `${item.quantity} x GH¢ ${item.unit_price.toFixed(2)}`}
+                            ? `${item.quantity}kg / GHC ${item.unit_price.toFixed(2)}`
+                            : `${item.quantity} x GHC ${item.unit_price.toFixed(2)}`}
                       </div>
                       {item.discount_amount > 0 && (
                         <div className="text-warning pl-2 text-[12px]">Disc: -{item.discount_amount.toFixed(2)}</div>
@@ -236,10 +230,11 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                 })}
               </div>
 
+              <Dash />
+
               {/* Pre-total lines (discount / tax) */}
               {(sale.discount_amount > 0 || (settings.tax_enabled && settings.tax_rate > 0)) && (
                 <>
-                  <Dash />
                   <div className="px-6 py-2 space-y-1 text-[12px]">
                     {sale.discount_amount > 0 && (
                       <>
@@ -263,26 +258,28 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                       return <Row label={`Tax (${settings.tax_rate}%)`} value={(taxable * (settings.tax_rate / 100)).toFixed(2)} />;
                     })()}
                   </div>
+                  <Dash />
                 </>
               )}
 
               {/* TOTAL */}
-              <div className="mx-5 mt-2 border-t-2 border-primary" />
               <div className="px-6 py-3 flex justify-between items-baseline">
-                <span className="text-[16px] font-black tracking-wider text-foreground uppercase">Total</span>
-                <span className="text-[22px] font-black tabular-nums text-foreground">GH¢ {sale.total_amount.toFixed(2)}</span>
+                <span className="text-[16px] font-extrabold tracking-wide text-foreground">TOTAL</span>
+                <span className="text-[20px] font-extrabold tabular-nums text-foreground">GHC {sale.total_amount.toFixed(2)}</span>
               </div>
 
+              <Dash />
+
               {/* Payments */}
-              <SectionHeader>Payment</SectionHeader>
               <div className="px-6 py-2 space-y-1 text-[12px]">
+                <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Payment</p>
                 {payments.map((p) => (
                   <Row key={p.id} label={METHOD_LABELS[p.method] ?? p.method} value={p.amount.toFixed(2)} />
                 ))}
                 {change > 0 && (
-                  <div className="flex justify-between gap-4 pt-1 border-t border-slate-200 mt-1">
+                  <div className="flex justify-between gap-4 pt-1">
                     <span className="font-bold text-foreground">Change</span>
-                    <span className="tabular-nums font-bold text-[14px] text-success">GH¢ {change.toFixed(2)}</span>
+                    <span className="tabular-nums font-bold text-[14px] text-success">GHC {change.toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -290,15 +287,14 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
               <Dash />
 
               {/* Footer */}
-              <div className="px-6 py-3 text-center">
-                <p className="text-[12px] text-foreground font-semibold leading-snug">
-                  {settings.receipt_footer ?? "Thank you for shopping — see you again!"}
+              <div className="px-6 py-2 text-center">
+                <p className="text-[12px] text-muted-foreground/70 leading-snug">
+                  {settings.receipt_footer ?? "Thank you for shopping with us!"}
                 </p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">Bedarts Cold Supplies · Ghana</p>
               </div>
 
               {/* Order ID at the very bottom — small, unobtrusive */}
-              <div className="px-6 pt-1 pb-4 text-center">
+              <div className="px-6 pt-1.5 pb-3 text-center">
                 <p className="text-[9px] text-muted-foreground/40 tracking-widest font-mono">{saleRef}</p>
               </div>
 

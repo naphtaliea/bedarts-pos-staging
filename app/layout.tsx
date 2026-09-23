@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Big_Shoulders } from "next/font/google";
 import "./globals.css";
+import { StagingBanner } from "@/components/staging-banner";
 
 const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
 const bigShoulders = Big_Shoulders({
@@ -10,8 +11,10 @@ const bigShoulders = Big_Shoulders({
   display: "swap",
 });
 
+const IS_STAGING = process.env.NEXT_PUBLIC_APP_ENV === "staging";
+
 export const metadata: Metadata = {
-  title: "Bedarts Cold Supplies",
+  title: IS_STAGING ? "[STAGING] Bedarts Cold Supplies" : "Bedarts Cold Supplies",
   description: "POS and Management System",
   icons: {
     icon: [
@@ -24,7 +27,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Bedarts POS",
+    title: IS_STAGING ? "[STAGING] Bedarts POS" : "Bedarts POS",
   },
 };
 
@@ -38,7 +41,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${archivo.variable} ${bigShoulders.variable} h-full`}>
-      <body className="h-full">{children}</body>
+      <body className="h-full flex flex-col">
+        <StagingBanner />
+        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+      </body>
     </html>
   );
 }
