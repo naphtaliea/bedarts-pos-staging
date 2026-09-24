@@ -260,9 +260,8 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
                           "h-16 rounded-2xl btn-tactile-dark active:btn-tactile-dark-active disabled:opacity-40",
                           key === "del"
                             ? "text-sidebar-muted hover:text-white flex items-center justify-center"
-                            : "text-sidebar-foreground text-2xl font-black"
+                            : "text-sidebar-foreground text-2xl font-display-black"
                         )}
-                        style={key !== "del" ? { fontFamily: "var(--font-display)" } : undefined}
                       >
                         {key === "del" ? <Delete className="w-5 h-5" /> : key}
                       </button>

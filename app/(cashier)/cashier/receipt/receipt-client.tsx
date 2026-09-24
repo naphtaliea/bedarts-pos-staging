@@ -85,9 +85,9 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
         backHref="/cashier/orders"
       />
 
-      <div className="flex flex-1 min-h-0">
-        {/* ── LEFT: Success state + actions ─────────────────────── */}
-        <aside className="w-2/5 border-r border-border flex flex-col bg-white shrink-0">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+        {/* ── LEFT: Success state + actions — full width on mobile, 40% on lg+ ── */}
+        <aside className="w-full lg:w-2/5 border-b lg:border-b-0 lg:border-r border-border flex flex-col bg-white shrink-0">
           {/* Success banner */}
           <div className="bg-white border-b border-border">
             <div className="px-6 py-8 text-center">
@@ -219,8 +219,8 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                         {item.package_label
                           ? `${item.package_label} · ${item.quantity}${isKg ? "kg" : "pcs"}`
                           : isKg
-                            ? `${item.quantity}kg / GHC ${item.unit_price.toFixed(2)}`
-                            : `${item.quantity} x GHC ${item.unit_price.toFixed(2)}`}
+                            ? `${item.quantity}kg / GH¢${item.unit_price.toFixed(2)}`
+                            : `${item.quantity} x GH¢${item.unit_price.toFixed(2)}`}
                       </div>
                       {item.discount_amount > 0 && (
                         <div className="text-warning pl-2 text-[12px]">Disc: -{item.discount_amount.toFixed(2)}</div>
@@ -265,7 +265,7 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
               {/* TOTAL */}
               <div className="px-6 py-3 flex justify-between items-baseline">
                 <span className="text-[16px] font-extrabold tracking-wide text-foreground">TOTAL</span>
-                <span className="text-[20px] font-extrabold tabular-nums text-foreground">GHC {sale.total_amount.toFixed(2)}</span>
+                <span className="text-[20px] font-extrabold tabular-nums text-foreground">GH¢{sale.total_amount.toFixed(2)}</span>
               </div>
 
               <Dash />
@@ -279,7 +279,7 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                 {change > 0 && (
                   <div className="flex justify-between gap-4 pt-1">
                     <span className="font-bold text-foreground">Change</span>
-                    <span className="tabular-nums font-bold text-[14px] text-success">GHC {change.toFixed(2)}</span>
+                    <span className="tabular-nums font-bold text-[14px] text-success">GH¢{change.toFixed(2)}</span>
                   </div>
                 )}
               </div>

@@ -203,10 +203,10 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
     <div className="flex flex-col h-dvh bg-white select-none overflow-hidden animate-page-enter">
       <PosTopBar cashierName={cashierName} avatarUrl={avatarUrl} showBack backHref="/cashier" onBack={onBack} showTabs />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
 
-        {/* ── LEFT: Total, splits, method (35%) ── */}
-        <aside className="w-[35%] border-r border-border flex flex-col bg-white shrink-0">
+        {/* ── LEFT: Total, splits, method — full width on mobile, 35% on lg+ ── */}
+        <aside className="w-full lg:w-[35%] border-b lg:border-b-0 lg:border-r border-border flex flex-col bg-white shrink-0">
 
           {/* Total Due */}
           <div className="shrink-0 px-5 pt-5 pb-4 border-b border-border">
@@ -237,9 +237,9 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                     <button
                       onClick={() => removeSplit(p.id)}
                       aria-label="Remove split"
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1 rounded"
+                      className="text-muted-foreground hover:text-destructive transition-colors rounded min-w-[44px] min-h-[44px] flex items-center justify-center -my-2 -mr-2"
                     >
-                      <X className="w-3.5 h-3.5" aria-hidden="true" />
+                      <X className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>

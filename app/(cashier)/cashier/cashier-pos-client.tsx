@@ -525,9 +525,9 @@ export function CashierPOSClient({
                         if (selectedLineId === item.lineId) setSelectedLineId(next);
                       }}
                       aria-label={`Remove ${item.product.name}`}
-                      className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="w-9 h-9 -my-1 -mr-1 rounded-lg flex items-center justify-center shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
-                      <Trash2 className="w-3 h-3" aria-hidden="true" />
+                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 );
@@ -568,9 +568,9 @@ export function CashierPOSClient({
             {selectedLine && (
               <button
                 onClick={() => { setPackageModal(selectedLine.product); setPackageModalLineId(selectedLineId); }}
-                className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-md btn-tactile active:btn-tactile-active text-slate-500 hover:text-slate-900 text-xs font-semibold"
               >
-                <Scale className="w-3 h-3" aria-hidden="true" />
+                <Scale className="w-3.5 h-3.5" aria-hidden="true" />
                 Change UOM
               </button>
             )}

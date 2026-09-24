@@ -65,7 +65,7 @@ export function PosTopBar({
             <button
               onClick={onBack}
               aria-label="Go back"
-              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
+              className="flex items-center justify-center w-11 h-11 -ml-2 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -73,7 +73,7 @@ export function PosTopBar({
             <Link
               href={backHref ?? "/cashier"}
               aria-label="Go back"
-              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
+              className="flex items-center justify-center w-11 h-11 -ml-2 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -120,10 +120,10 @@ export function PosTopBar({
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); removeTab(tab.id); onTabChange?.(); }}
-                    className="w-4 h-4 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                    className="w-8 h-8 -mr-2 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
                     aria-label={`Close ${tab.name}`}
                   >
-                    <X className="w-2.5 h-2.5" />
+                    <X className="w-3 h-3" />
                   </span>
                 )}
               </button>
