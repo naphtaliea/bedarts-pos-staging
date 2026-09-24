@@ -252,7 +252,7 @@ export function CashierPOSClient({
 
   const kbRef = useRef<(e: KeyboardEvent) => void>(() => {});
   kbRef.current = (e: KeyboardEvent) => {
-    if (view.screen !== "pos") return;
+    if (view.screen !== "pos" || isPaymentScreen) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape") {
       e.preventDefault();
