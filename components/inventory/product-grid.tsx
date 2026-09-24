@@ -90,10 +90,16 @@ export function ProductGrid({ products, onEdit }: ProductGridProps) {
               </div>
             </div>
 
-            {/* Name */}
+            {/* Name + stock */}
             <div className="px-3 py-2.5">
               <p className="text-[13px] font-semibold text-foreground line-clamp-2 leading-snug min-h-[2.4em]">
                 {product.name}
+              </p>
+              <p className={cn(
+                "text-[11px] font-semibold tabular-nums mt-1",
+                isOutOfStock ? "text-destructive" : isLowStock ? "text-warning" : "text-muted-foreground"
+              )}>
+                {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit}
               </p>
             </div>
           </button>
