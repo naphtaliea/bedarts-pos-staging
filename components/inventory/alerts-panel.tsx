@@ -36,7 +36,7 @@ function getExpiryUrgency(days: number): ExpiryUrgency {
 
 interface ExpiryStyle {
   card: string;
-  border: string;
+  iconBg: string;
   icon: string;
   label: string;
 }
@@ -44,19 +44,19 @@ interface ExpiryStyle {
 const EXPIRY_STYLES: Record<ExpiryUrgency, ExpiryStyle> = {
   expired: {
     card: "bg-destructive/8",
-    border: "border-l-red-500",
+    iconBg: "bg-red-100",
     icon: "text-destructive",
     label: "text-red-700",
   },
   critical: {
     card: "bg-orange-50",
-    border: "border-l-orange-400",
+    iconBg: "bg-orange-100",
     icon: "text-orange-500",
     label: "text-orange-700",
   },
   warning: {
     card: "bg-yellow-50",
-    border: "border-l-yellow-400",
+    iconBg: "bg-yellow-100",
     icon: "text-yellow-600",
     label: "text-yellow-700",
   },
@@ -106,14 +106,11 @@ function ExpiryCard({ batch, days }: ExpiryCardProps) {
   }
 
   return (
-    <div
-      className={`rounded-xl border-l-4 px-4 py-3 ${styles.card} ${styles.border}`}
-    >
+    <div className={`rounded-xl border border-border px-4 py-3 ${styles.card}`}>
       <div className="flex items-start gap-3">
-        <AlertTriangle
-          className={`mt-0.5 h-4 w-4 shrink-0 ${styles.icon}`}
-          aria-hidden
-        />
+        <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${styles.iconBg}`}>
+          <AlertTriangle className={`h-3.5 w-3.5 ${styles.icon}`} aria-hidden />
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground truncate">
             {batch.product.name}
@@ -125,9 +122,7 @@ function ExpiryCard({ batch, days }: ExpiryCardProps) {
             <span className="text-xs text-muted-foreground">
               Expires {formatDateOnly(batch.expiry_date!)}
             </span>
-            <span
-              className={`text-xs font-semibold uppercase tracking-wide ${styles.label}`}
-            >
+            <span className={`text-xs font-semibold uppercase tracking-wide ${styles.label}`}>
               {expiryMessage(days)}
             </span>
           </div>
@@ -186,25 +181,15 @@ function StockCard({ product }: StockCardProps) {
   const isOut = product.stock_quantity === 0;
 
   return (
-    <div
-      className={`rounded-xl border-l-4 px-4 py-3 ${
-        isOut
-          ? "bg-destructive/8 border-l-red-500"
-          : "bg-yellow-50 border-l-yellow-400"
-      }`}
-    >
+    <div className={`rounded-xl border border-border px-4 py-3 ${isOut ? "bg-destructive/8" : "bg-yellow-50"}`}>
       <div className="flex items-start gap-3">
-        {isOut ? (
-          <PackageX
-            className="mt-0.5 h-4 w-4 shrink-0 text-destructive"
-            aria-hidden
-          />
-        ) : (
-          <Package
-            className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600"
-            aria-hidden
-          />
-        )}
+        <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isOut ? "bg-red-100" : "bg-yellow-100"}`}>
+          {isOut ? (
+            <PackageX className="h-3.5 w-3.5 text-destructive" aria-hidden />
+          ) : (
+            <Package className="h-3.5 w-3.5 text-yellow-600" aria-hidden />
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground truncate">
             {product.name}
@@ -239,17 +224,13 @@ export function AlertsPanel({ products, batches }: AlertsPanelProps) {
     .map((b) => ({ batch: b, days: daysUntilExpiry(b.expiry_date!) }))
     .sort((a, b) => a.days - b.days);
 
-  // --- Low stock: at or below threshold (not zero) -------------------------
+  // --- Low stock: above zero but at or below threshold ---------------------
   const lowStockProducts = products.filter(
-    (p) =>
-      p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold
+    (p) => p.stock_quantity > 0 && p.stock_quantity <= p.low_stock_threshold
   );
 
   // --- Out of stock: exactly zero ------------------------------------------
   const outOfStockProducts = products.filter((p) => p.stock_quantity === 0);
-
-  const noStockAlerts =
-    lowStockProducts.length === 0 && outOfStockProducts.length === 0;
 
   return (
     <div className="space-y-6">
@@ -269,18 +250,31 @@ export function AlertsPanel({ products, batches }: AlertsPanelProps) {
         )}
       </section>
 
-      {/* ---- Section 2: Low Stock ---- */}
+      {/* ---- Section 2: Out of Stock ---- */}
       <section>
         <h3 className="text-base font-semibold text-foreground mb-3">
-          Low Stock
+          Out of Stock
         </h3>
-        {noStockAlerts ? (
-          <EmptyCard message="All stock levels are healthy" />
+        {outOfStockProducts.length === 0 ? (
+          <EmptyCard message="No products are out of stock" />
         ) : (
           <div className="space-y-2">
             {outOfStockProducts.map((p) => (
               <StockCard key={p.id} product={p} />
             ))}
+          </div>
+        )}
+      </section>
+
+      {/* ---- Section 3: Low Stock ---- */}
+      <section>
+        <h3 className="text-base font-semibold text-foreground mb-3">
+          Low Stock
+        </h3>
+        {lowStockProducts.length === 0 ? (
+          <EmptyCard message="All stock levels are healthy" />
+        ) : (
+          <div className="space-y-2">
             {lowStockProducts.map((p) => (
               <StockCard key={p.id} product={p} />
             ))}

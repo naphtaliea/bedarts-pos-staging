@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { Product } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface ProductGridProps {
   products: Product[];
@@ -95,12 +95,17 @@ export function ProductGrid({ products, onEdit }: ProductGridProps) {
               <p className="text-[13px] font-semibold text-foreground line-clamp-2 leading-snug min-h-[2.4em]">
                 {product.name}
               </p>
-              <p className={cn(
-                "text-[11px] font-semibold tabular-nums mt-1",
-                isOutOfStock ? "text-destructive" : isLowStock ? "text-warning" : "text-muted-foreground"
-              )}>
-                {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit}
-              </p>
+              <div className="flex items-baseline justify-between gap-1 mt-1">
+                <p className={cn(
+                  "text-[11px] font-semibold tabular-nums",
+                  isOutOfStock ? "text-destructive" : isLowStock ? "text-warning" : "text-muted-foreground"
+                )}>
+                  {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit}
+                </p>
+                <p className="text-[11px] tabular-nums text-muted-foreground shrink-0">
+                  {formatCurrency(product.selling_price)}
+                </p>
+              </div>
             </div>
           </button>
         );

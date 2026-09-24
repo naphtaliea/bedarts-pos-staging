@@ -252,7 +252,10 @@ export function InventoryClient({
 
   // — Filter state
   const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(true);
   const [productFilter, setProductFilter] = useState("");
+  const [hideDepleted, setHideDepleted] = useState(false);
+  const [adjSearch, setAdjSearch] = useState("");
 
   // — Toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -272,9 +275,17 @@ export function InventoryClient({
   }, []);
 
   // — Derived data
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products.filter((p) => {
+    if (!showInactive && !p.is_active) return false;
+    return p.name.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const filteredAdjustments = adjSearch.trim() === ""
+    ? adjustments
+    : adjustments.filter((a) =>
+        a.product.name.toLowerCase().includes(adjSearch.toLowerCase()) ||
+        a.adjuster.full_name.toLowerCase().includes(adjSearch.toLowerCase())
+      );
 
   // — Action handlers
 
@@ -418,8 +429,8 @@ export function InventoryClient({
     if (activeTab === "products") {
       return (
         <div className="space-y-4">
-          {/* Search */}
-          <div className="flex items-center gap-3">
+          {/* Search + toggles */}
+          <div className="flex items-center gap-3 flex-wrap">
             <input
               type="search"
               value={search}
@@ -427,6 +438,15 @@ export function InventoryClient({
               placeholder="Search products…"
               className="h-9 w-full max-w-xs rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              Show inactive
+            </label>
           </div>
 
           {/* Grid */}
@@ -441,25 +461,29 @@ export function InventoryClient({
     if (activeTab === "stock") {
       return (
         <div className="space-y-4">
-          {/* Product filter */}
-          <div>
-            <select
+          {/* Filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="search"
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="">All Products</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Search product…"
+              className="h-9 w-full max-w-xs rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hideDepleted}
+                onChange={(e) => setHideDepleted(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              Hide depleted
+            </label>
           </div>
 
           {/* Table */}
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <StockTable batches={batches} productFilter={productFilter} />
+            <StockTable batches={batches} productSearch={productFilter} hideDepleted={hideDepleted} />
           </div>
         </div>
       );
@@ -467,81 +491,103 @@ export function InventoryClient({
 
     if (activeTab === "adjustments") {
       return (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          {adjustments.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-              No adjustments logged yet
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-0">
-                <thead>
-                  <tr>
-                    {["Date", "Product", "Change", "Reason", "Notes", "Adjusted By"].map(
-                      (heading) => (
-                        <th
-                          key={heading}
-                          className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
-                        >
-                          {heading}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {adjustments.map((adj) => {
+        <div className="space-y-4">
+          {/* Search */}
+          <input
+            type="search"
+            value={adjSearch}
+            onChange={(e) => setAdjSearch(e.target.value)}
+            placeholder="Search product or staff…"
+            className="h-9 w-full max-w-xs rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {filteredAdjustments.length === 0 ? (
+              <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+                {adjSearch ? "No matching adjustments" : "No adjustments logged yet"}
+              </div>
+            ) : (
+              <>
+                {/* ── Mobile cards ── */}
+                <div className="lg:hidden divide-y divide-border">
+                  {filteredAdjustments.map((adj) => {
                     const isPositive = adj.quantity_change > 0;
                     return (
-                      <tr
-                        key={adj.id}
-                        className="hover:bg-secondary transition-colors"
-                      >
-                        {/* Date */}
-                        <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-muted-foreground">
-                          {formatDate(adj.created_at)}
-                        </td>
-
-                        {/* Product */}
-                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground">
-                          {adj.product.name}
-                        </td>
-
-                        {/* Change */}
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <span
-                            className={`text-sm font-semibold tabular-nums ${
-                              isPositive ? "text-success" : "text-destructive"
-                            }`}
-                          >
-                            {isPositive ? "+" : ""}
-                            {adj.quantity_change}
-                          </span>
-                        </td>
-
-                        {/* Reason */}
-                        <td className="whitespace-nowrap px-4 py-3">
+                      <div key={adj.id} className="px-4 py-3 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{adj.product.name}</p>
                           <ReasonBadge reason={adj.reason} />
-                        </td>
-
-                        {/* Notes */}
-                        <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">
-                          {adj.notes ?? (
-                            <span className="text-muted-foreground">—</span>
+                        </div>
+                        <p className={`text-base font-black tabular-nums ${isPositive ? "text-success" : "text-destructive"}`}>
+                          {isPositive ? "+" : ""}{adj.quantity_change}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span>{formatDate(adj.created_at)}</span>
+                          <span>·</span>
+                          <span>{adj.adjuster.full_name}</span>
+                          {adj.notes && (
+                            <>
+                              <span>·</span>
+                              <span className="truncate max-w-[180px]">{adj.notes}</span>
+                            </>
                           )}
-                        </td>
-
-                        {/* Adjusted By */}
-                        <td className="whitespace-nowrap px-4 py-3 pr-5 text-sm text-muted-foreground">
-                          {adj.adjuster.full_name}
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                </div>
+
+                {/* ── Desktop table ── */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="min-w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr>
+                        {["Date", "Product", "Change", "Reason", "Notes", "Adjusted By"].map(
+                          (heading) => (
+                            <th
+                              key={heading}
+                              className="sticky top-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground first:pl-5 last:pr-5"
+                            >
+                              {heading}
+                            </th>
+                          )
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredAdjustments.map((adj) => {
+                        const isPositive = adj.quantity_change > 0;
+                        return (
+                          <tr key={adj.id} className="hover:bg-secondary transition-colors">
+                            <td className="whitespace-nowrap px-4 py-3 pl-5 text-sm text-muted-foreground">
+                              {formatDate(adj.created_at)}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-foreground">
+                              {adj.product.name}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <span className={`text-sm font-semibold tabular-nums ${isPositive ? "text-success" : "text-destructive"}`}>
+                                {isPositive ? "+" : ""}{adj.quantity_change}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3">
+                              <ReasonBadge reason={adj.reason} />
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">
+                              {adj.notes ?? <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 pr-5 text-sm text-muted-foreground">
+                              {adj.adjuster.full_name}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       );
     }
@@ -568,9 +614,8 @@ export function InventoryClient({
           <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
         <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4 flex-wrap">
-          {/* Left: strip + title + tabs */}
+          {/* Left: title + tabs */}
           <div className="flex items-center gap-3 lg:gap-6 overflow-x-auto no-scrollbar">
-            <div className="w-1 self-stretch rounded-full bg-accent shrink-0" />
             <h1 className="text-lg font-bold text-foreground shrink-0">
               Inventory
             </h1>
