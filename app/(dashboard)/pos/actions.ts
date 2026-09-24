@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { readCashierSession } from "@/lib/cashier-session";
 import type { CartItem, PaymentEntry } from "@/lib/types";
 
+// Lightweight reachability check — throws on network failure, returns true otherwise.
+export async function pingServer(): Promise<true> { return true; }
+
 interface SubmitSaleArgs {
   items: CartItem[];
   payments: PaymentEntry[];

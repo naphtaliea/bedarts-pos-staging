@@ -9,7 +9,7 @@ import { PaymentClient } from "./payment/payment-client";
 import { ReceiptClient } from "./receipt/receipt-client";
 import { OrdersView } from "./orders-view";
 import { DashboardView } from "./dashboard-view";
-import { getSaleForReceipt } from "@/app/(dashboard)/pos/actions";
+import { getSaleForReceipt, pingServer } from "@/app/(dashboard)/pos/actions";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Profile, Category, Product, ProductPackage, Sale, StoreSettings } from "@/lib/types";
 
@@ -92,17 +92,36 @@ export function CashierPOSClient({
   // is in paymentTabIds. Switching tabs preserves each tab's screen state.
   const isPaymentScreen = paymentTabIds.includes(activeTabId);
 
-  // Silent hourly refresh — updates products/prices/stock without touching cart state.
-  // Skipped when: any tab has items, payment is active, or receipt is showing.
+  // Silent background refresh — re-fetches products/prices/stock every hour.
+  // Safe = no items in any tab, not in payment, not showing receipt.
+  // On skip or network failure: retries in 5 min. On success: waits the full hour.
   const safeToRefreshRef = useRef(true);
   safeToRefreshRef.current =
     !isPaymentScreen &&
     view.screen !== "receipt" &&
     items.length === 0 &&
     Object.values(snapshots).every((s) => s.items.length === 0);
+
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const scheduleRefreshRef = useRef<(ms: number) => void>(() => {});
+  scheduleRefreshRef.current = (ms: number) => {
+    refreshTimerRef.current = setTimeout(async () => {
+      if (!safeToRefreshRef.current) {
+        scheduleRefreshRef.current(5 * 60 * 1000);
+        return;
+      }
+      try {
+        await pingServer();
+        router.refresh();
+        scheduleRefreshRef.current(60 * 60 * 1000);
+      } catch {
+        scheduleRefreshRef.current(5 * 60 * 1000);
+      }
+    }, ms);
+  };
   useEffect(() => {
-    const id = setInterval(() => { if (safeToRefreshRef.current) router.refresh(); }, 60 * 60 * 1000);
-    return () => clearInterval(id);
+    scheduleRefreshRef.current(60 * 60 * 1000);
+    return () => clearTimeout(refreshTimerRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
