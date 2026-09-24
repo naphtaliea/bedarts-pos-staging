@@ -551,11 +551,9 @@ function RevenueHero({
   const TrendIcon = netPositive ? TrendingUp : TrendingDown;
 
   return (
-    <section className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 relative overflow-hidden">
-      <div className="absolute top-0 left-0 h-full w-1 bg-primary" aria-hidden="true" />
-
+    <section className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6">
       {/* 3fr : 2fr split gives revenue the weight it deserves on tablet+ */}
-      <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-5 sm:gap-6 items-start pl-2">
+      <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-5 sm:gap-6 items-start">
         {/* Revenue */}
         <div>
           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
