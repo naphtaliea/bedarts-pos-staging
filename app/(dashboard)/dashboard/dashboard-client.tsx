@@ -148,8 +148,11 @@ export function DashboardClient({
 
   return (
     <div className="min-h-full bg-slate-50">
-      {/* ── Sticky header ─────────────────────────────────────────── */}
-      <header className="sticky top-14 lg:top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+      {/* ── Page header (scrolls with content) ────────────────────
+         Sticky was fighting the mobile-navbar padding — see git history.
+         Plain non-sticky header keeps positioning predictable on every
+         breakpoint. */}
+      <header className="bg-white border-b border-slate-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">

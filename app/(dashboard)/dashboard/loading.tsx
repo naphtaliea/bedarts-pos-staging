@@ -4,8 +4,8 @@
 export default function DashboardLoading() {
   return (
     <div className="min-h-full bg-slate-50">
-      {/* Sticky header */}
-      <div className="sticky top-14 lg:top-0 z-20 bg-white border-b border-slate-200">
+      {/* Page header */}
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="space-y-2">
             <div className="h-2.5 w-16 rounded bg-slate-200 animate-pulse" />
