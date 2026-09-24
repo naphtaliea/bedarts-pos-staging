@@ -9,8 +9,8 @@
     "lint": "eslint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "echo '⛔  Use npm run deploy:prod or npm run deploy:staging — bare deploy is disabled' && exit 1",
-    "deploy:staging": "node scripts/deploy-preflight.mjs staging && next build --webpack && env -u CLOUDFLARE_API_TOKEN opennextjs-cloudflare build && env -u CLOUDFLARE_API_TOKEN wrangler deploy --config wrangler.jsonc --env staging",
-    "deploy:prod": "node scripts/deploy-preflight.mjs production && next build --webpack && env -u CLOUDFLARE_API_TOKEN opennextjs-cloudflare build && env -u CLOUDFLARE_API_TOKEN wrangler deploy --config wrangler.jsonc",
+    "deploy:staging": "node scripts/deploy-preflight.mjs staging && next build --webpack && opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc --env staging",
+    "deploy:prod": "node scripts/deploy-preflight.mjs production && next build --webpack && opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc --env=\"\"",
     "dev:staging": "node scripts/deploy-preflight.mjs staging && next dev --webpack",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"

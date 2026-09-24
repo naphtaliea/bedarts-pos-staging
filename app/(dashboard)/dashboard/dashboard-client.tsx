@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import {
   BarChart,
   Bar,
@@ -11,12 +12,22 @@ import {
   PieChart,
   Pie,
   Cell,
+  CartesianGrid,
 } from "recharts";
-import { AlertTriangle, X, Clock, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRight,
+  ArrowUpRight,
+  Clock,
+  Package,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DashboardClientProps {
   todayRevenue: number;
@@ -34,8 +45,12 @@ interface DashboardClientProps {
   expensesByCategory: { name: string; total: number }[];
   stockValue: number;
   activeProductCount: number;
-  lowStockItems: { name: string; stock_quantity: number; low_stock_threshold: number; unit: string }[];
-  expiringItems: { name: string; expiry_date: string; quantity_remaining: number; urgent: boolean }[];
+  lowStockItems: {
+    name: string;
+    stock_quantity: number;
+    low_stock_threshold: number;
+    unit: string;
+  }[];
   revenueByDay: { day: string; label: string; revenue: number; count: number }[];
   categoryMix: { name: string; revenue: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
@@ -44,53 +59,47 @@ interface DashboardClientProps {
   outstandingPayablesCount: number;
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 
-const DONUT_COLORS = ["#1B50C0", "#16A34A", "#D97706", "#7C3AED", "#0891B2", "#0F172A", "#6B7280"];
+// Muted, print-friendly, colour-blind-safe palette for donut/bar accents.
+// Brand red is reserved for CTAs and destructive states only.
+const DONUT_COLORS = [
+  "#1B50C0", // brand blue
+  "#0D9448", // success green
+  "#C07C00", // warning amber
+  "#7C3AED", // violet
+  "#0891B2", // teal
+  "#DB2777", // pink
+  "#475569", // slate
+];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Custom chart tooltips ───────────────────────────────────────────────────
 
-function formatShortDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-GH", { month: "short", day: "numeric" });
-}
-
-function daysUntil(dateStr: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);
-  return Math.round((target.getTime() - today.getTime()) / 86400000);
-}
-
-// ── Custom tooltip for revenue chart ─────────────────────────────────────────
-
-function RevenueTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
+function ChartTooltip({
+  label,
+  value,
+  sub,
+  accent = "text-accent",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: string;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-card shadow-md px-3 py-2 text-xs">
-      <p className="font-medium text-foreground mb-1">{label}</p>
-      <p className="text-primary font-bold">{formatCurrency(payload[0].value)}</p>
-      <p className="text-muted-foreground">{payload[0].payload.count} sales</p>
+    <div className="rounded-lg border border-slate-200 bg-white shadow-lg px-3 py-2 text-xs">
+      <p className="font-semibold text-slate-900 mb-1">{label}</p>
+      <p className={cn("font-black tabular-nums", accent)}>{value}</p>
+      {sub && <p className="text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
 }
 
-function HoursTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-border bg-card shadow-md px-3 py-2 text-xs">
-      <p className="font-medium text-foreground mb-1">{label}</p>
-      <p className="text-accent font-bold">{payload[0].value} sales</p>
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ─── Main component ──────────────────────────────────────────────────────────
 
 export function DashboardClient({
   todayRevenue,
   todayTransactions,
-  todayDiscount,
   todayCogs,
   todayGrossProfit,
   todayExpenses,
@@ -104,7 +113,6 @@ export function DashboardClient({
   stockValue,
   activeProductCount,
   lowStockItems,
-  expiringItems,
   revenueByDay,
   categoryMix,
   peakHours,
@@ -112,643 +120,762 @@ export function DashboardClient({
   outstandingPayablesTotal,
   outstandingPayablesCount,
 }: DashboardClientProps) {
-  // Persist alert dismissals per calendar day so they don't nag on every refresh,
-  // but reset naturally each day (in case the underlying situation is still true).
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const storageKey = `bedarts.dismissedAlerts.${todayKey}`;
+  const [range, setRange] = useState<"today" | "7d">("today");
 
-  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+  const revenue     = range === "today" ? todayRevenue     : sevenDayRevenue;
+  const cogs        = range === "today" ? todayCogs        : sevenDayCogs;
+  const grossProfit = range === "today" ? todayGrossProfit : sevenDayGrossProfit;
+  const expenses    = range === "today" ? todayExpenses    : sevenDayExpenses;
+  const netProfit   = range === "today" ? todayNetProfit   : sevenDayNetProfit;
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) setDismissedAlerts(JSON.parse(raw));
-    } catch { /* ignore parse errors */ }
-  }, [storageKey]);
-
-  useEffect(() => {
-    try { window.localStorage.setItem(storageKey, JSON.stringify(dismissedAlerts)); } catch {}
-  }, [dismissedAlerts, storageKey]);
-
-  const urgentExpiry = expiringItems.filter((e) => e.urgent);
-  const hasLowStock = lowStockItems.length > 0;
-  const hasUrgentExpiry = urgentExpiry.length > 0;
+  const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+  const netMargin   = revenue > 0 ? (netProfit   / revenue) * 100 : 0;
 
   const totalRevenue7d = revenueByDay.reduce((s, d) => s + d.revenue, 0);
-  const maxRevenue = Math.max(...revenueByDay.map((d) => d.revenue), 1);
-  const maxHourCount = Math.max(...peakHours.map((h) => h.count), 1);
+  const avgTicket7d = revenueByDay.reduce((s, d) => s + d.count, 0) > 0
+    ? totalRevenue7d / revenueByDay.reduce((s, d) => s + d.count, 0)
+    : 0;
+  const avgTicketToday = todayTransactions > 0 ? todayRevenue / todayTransactions : 0;
 
   return (
-    <>
-      {/* Branded page banner */}
-      <div className="relative bg-white overflow-hidden">
-        <div className="border-b border-border px-4 lg:px-6 py-4 lg:py-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-1 self-stretch rounded-full bg-primary shrink-0" />
-            <div>
-              <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest mb-1">Bedarts Cold Supplies</p>
-              <h1 className="text-foreground leading-none" style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "clamp(1.5rem, 3vw, 2.25rem)" }}>Dashboard</h1>
-            </div>
+    <div className="min-h-full bg-slate-50">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+              Overview
+            </p>
+            <h1
+              className="text-slate-900 leading-tight text-xl sm:text-2xl"
+              style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
+            >
+              Dashboard
+            </h1>
           </div>
-          <img src="/icon-192.png" className="h-12 w-auto opacity-[0.08]" aria-hidden="true" draggable={false} />
+
+          {/* Range toggle — segmented control */}
+          <div
+            role="tablist"
+            aria-label="Time range"
+            className="inline-flex rounded-lg bg-slate-100 p-0.5 shrink-0"
+          >
+            {(["today", "7d"] as const).map((r) => (
+              <button
+                key={r}
+                role="tab"
+                aria-selected={range === r}
+                onClick={() => setRange(r)}
+                className={cn(
+                  "px-3 sm:px-4 h-9 rounded-md text-xs font-bold transition-all min-w-[64px]",
+                  range === r
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                {r === "today" ? "Today" : "7 days"}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-    <div className="p-4 lg:p-6 space-y-4 lg:space-y-6 max-w-[1400px] mx-auto">
+      </header>
 
-      {/* ── Alert banners ───────────────────────────────────────── */}
-      <div className="space-y-2">
-        {hasUrgentExpiry && !dismissedAlerts.includes("expiry") && (
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-destructive">
-                  {urgentExpiry.length} batch{urgentExpiry.length > 1 ? "es" : ""} expiring within 7 days
-                </p>
-                <p className="text-xs text-destructive/80 mt-0.5">
-                  {urgentExpiry.slice(0, 3).map((e) => e.name).join(", ")}
-                  {urgentExpiry.length > 3 ? ` + ${urgentExpiry.length - 3} more` : ""}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setDismissedAlerts((d) => [...d, "expiry"])}
-              className="shrink-0 text-destructive/60 hover:text-destructive transition-colors"
-              aria-label="Dismiss alert"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
-        {hasLowStock && !dismissedAlerts.includes("lowstock") && (
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-warning">
-                  {lowStockItems.length} product{lowStockItems.length > 1 ? "s" : ""} below reorder threshold
-                </p>
-                <p className="text-xs text-warning/80 mt-0.5">
-                  {lowStockItems.slice(0, 3).map((p) => p.name).join(", ")}
-                  {lowStockItems.length > 3 ? ` + ${lowStockItems.length - 3} more` : ""}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setDismissedAlerts((d) => [...d, "lowstock"])}
-              className="shrink-0 text-warning/60 hover:text-warning transition-colors"
-              aria-label="Dismiss alert"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Stat cards ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-        <StatCard
-          label="Today's Revenue"
-          value={formatCurrency(todayRevenue)}
-          sub={`${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""}`}
-          accent="accent"
-          hero="red"
-        />
-        <StatCard
-          label="7-Day Revenue"
-          value={formatCurrency(totalRevenue7d)}
-          sub="last 7 days"
-          accent="accent"
-          hero="navy"
-        />
-        <StatCard
-          label="Stock Value"
-          value={formatCurrency(stockValue)}
-          sub="cost basis"
-          accent="neutral"
-        />
-        <StatCard
-          label="Payables"
-          value={formatCurrency(outstandingPayablesTotal)}
-          sub={
-            outstandingPayablesCount === 0
-              ? "no outstanding invoices"
-              : `${outstandingPayablesCount} unpaid invoice${outstandingPayablesCount !== 1 ? "s" : ""}`
+        {/* ── Hero: Revenue ─────────────────────────────────────────── */}
+        <RevenueHero
+          revenue={revenue}
+          previous={range === "today" ? null : null}
+          transactionsSub={
+            range === "today"
+              ? `${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""} today`
+              : `${revenueByDay.reduce((s, d) => s + d.count, 0)} sales over 7 days`
           }
-          accent={outstandingPayablesCount > 0 ? "warning" : "success"}
+          netProfit={netProfit}
+          netMargin={netMargin}
         />
-      </div>
 
-      {/* ── Secondary stat cards ─────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-3">
-        <StatCard
-          label="Active Products"
-          value={String(activeProductCount)}
-          sub="in catalogue"
-          accent="neutral"
-        />
-        <StatCard
-          label="Low Stock"
-          value={String(lowStockItems.length)}
-          sub={lowStockItems.length === 0 ? "all clear" : "need restocking"}
-          accent={lowStockItems.length > 0 ? "warning" : "success"}
-        />
-        <StatCard
-          label="Expiring Soon"
-          value={String(expiringItems.length)}
-          sub={expiringItems.length === 0 ? "nothing due" : "within 30 days"}
-          accent={urgentExpiry.length > 0 ? "destructive" : expiringItems.length > 0 ? "warning" : "success"}
-        />
-      </div>
-
-      {/* ── P&L snapshot ─────────────────────────────────────────── */}
-      <ProfitLossPanel
-        todayRevenue={todayRevenue}
-        todayCogs={todayCogs}
-        todayGrossProfit={todayGrossProfit}
-        todayExpenses={todayExpenses}
-        todayNetProfit={todayNetProfit}
-        sevenDayRevenue={sevenDayRevenue}
-        sevenDayCogs={sevenDayCogs}
-        sevenDayGrossProfit={sevenDayGrossProfit}
-        sevenDayExpenses={sevenDayExpenses}
-        sevenDayNetProfit={sevenDayNetProfit}
-        expensesByCategory={expensesByCategory}
-      />
-
-      {/* ── Revenue + Category ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-        {/* Revenue bar chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Revenue</p>
-              <h3 className="text-lg text-foreground mt-0.5">Last 7 days</h3>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <TrendingUp className="w-3.5 h-3.5" />
-              {formatCurrency(totalRevenue7d)} total
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={revenueByDay} barSize={24} margin={{ top: 0, right: 0, bottom: 0, left: -8 }}>
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: "#6B7280" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                width={36}
-              />
-              <Tooltip content={<RevenueTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-              <Bar dataKey="revenue" fill="#1B50C0" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* ── Key metrics grid ──────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <MetricCard
+            icon={Receipt}
+            label="Avg Ticket"
+            value={formatCurrency(range === "today" ? avgTicketToday : avgTicket7d)}
+            sub={range === "today" ? "per sale today" : "7-day average"}
+            tone="neutral"
+          />
+          <MetricCard
+            icon={Package}
+            label="Stock Value"
+            value={formatCurrency(stockValue)}
+            sub={`${activeProductCount} active products`}
+            tone="neutral"
+          />
+          <MetricCard
+            icon={Wallet}
+            label="Payables"
+            value={formatCurrency(outstandingPayablesTotal)}
+            sub={
+              outstandingPayablesCount === 0
+                ? "no unpaid invoices"
+                : `${outstandingPayablesCount} unpaid invoice${outstandingPayablesCount !== 1 ? "s" : ""}`
+            }
+            tone={outstandingPayablesCount > 0 ? "warning" : "success"}
+            href="/suppliers"
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Low Stock"
+            value={String(lowStockItems.length)}
+            sub={lowStockItems.length === 0 ? "all clear" : "need restocking"}
+            tone={lowStockItems.length > 0 ? "warning" : "success"}
+            href="/inventory"
+          />
         </div>
 
-        {/* Category donut */}
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Category Mix</p>
-          <h3 className="text-lg text-foreground mb-4">7-day sales</h3>
-          {categoryMix.length === 0 ? (
-            <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground">
-              No sales data
+        {/* ── Revenue trend (7-day) + category mix ─────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Revenue trend */}
+          <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
+              <div>
+                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                  Revenue trend
+                </p>
+                <h3
+                  className="text-slate-900 text-base sm:text-lg mt-0.5"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+                >
+                  Last 7 days
+                </h3>
+              </div>
+              <div className="text-right shrink-0">
+                <p
+                  className="text-slate-900 tabular-nums text-lg sm:text-xl"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
+                >
+                  {formatCurrency(totalRevenue7d)}
+                </p>
+                <p className="text-[10px] text-slate-500">total</p>
+              </div>
             </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie
-                    data={categoryMix}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={72}
-                    dataKey="revenue"
-                    paddingAngle={2}
-                  >
-                    {categoryMix.map((_, i) => (
-                      <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value) => formatCurrency(Number(value))}
-                    contentStyle={{
-                      fontSize: 12,
-                      borderRadius: 8,
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-card)",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-1.5 mt-2">
-                {categoryMix.slice(0, 5).map((c, i) => {
-                  const pct = totalRevenue7d > 0 ? (c.revenue / totalRevenue7d) * 100 : 0;
-                  return (
-                    <div key={c.name} className="flex items-center gap-2">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: -4 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "#64748B" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#94A3B8" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                  width={40}
+                />
+                <Tooltip
+                  cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <ChartTooltip
+                        label={String(label)}
+                        value={formatCurrency(Number(payload[0].value))}
+                        sub={`${payload[0].payload.count} sales`}
                       />
-                      <span className="text-xs text-foreground truncate flex-1">{c.name}</span>
-                      <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                        {pct.toFixed(0)}%
-                      </span>
-                    </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="revenue" fill="#1B50C0" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+
+          {/* Category mix donut */}
+          <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+              Category mix
+            </p>
+            <h3
+              className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4"
+              style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+            >
+              7-day sales
+            </h3>
+
+            {categoryMix.length === 0 ? (
+              <EmptyBlock height={200} icon={Package} title="No sales yet" hint="Categories appear as sales come in" />
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={categoryMix}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={48}
+                      outerRadius={72}
+                      dataKey="revenue"
+                      paddingAngle={2}
+                      strokeWidth={0}
+                    >
+                      {categoryMix.map((_, i) => (
+                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const item = payload[0];
+                        return (
+                          <ChartTooltip
+                            label={String(item.name ?? item.payload?.name ?? "")}
+                            value={formatCurrency(Number(item.value))}
+                          />
+                        );
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <ul className="space-y-1.5 mt-3">
+                  {categoryMix.slice(0, 5).map((c, i) => {
+                    const pct = totalRevenue7d > 0 ? (c.revenue / totalRevenue7d) * 100 : 0;
+                    return (
+                      <li key={c.name} className="flex items-center gap-2 text-xs">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                        />
+                        <span className="text-slate-700 truncate flex-1">{c.name}</span>
+                        <span className="text-slate-500 tabular-nums font-semibold">{pct.toFixed(0)}%</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </section>
+        </div>
+
+        {/* ── P&L breakdown ─────────────────────────────────────────── */}
+        <ProfitLossPanel
+          range={range}
+          revenue={revenue}
+          cogs={cogs}
+          grossProfit={grossProfit}
+          expenses={expenses}
+          netProfit={netProfit}
+          grossMargin={grossMargin}
+          netMargin={netMargin}
+          expensesByCategory={expensesByCategory}
+          sevenDayExpenses={sevenDayExpenses}
+        />
+
+        {/* ── Peak hours + Top products ────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Peak hours */}
+          <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-slate-400" strokeWidth={2} />
+              <div>
+                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                  Peak hours
+                </p>
+                <h3
+                  className="text-slate-900 text-base sm:text-lg"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+                >
+                  Sales volume · 7-day average
+                </h3>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={peakHours} barSize={12} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "#64748B" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={1}
+                />
+                <YAxis hide />
+                <Tooltip
+                  cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <ChartTooltip
+                        label={String(label)}
+                        value={`${payload[0].value} sales`}
+                        sub={formatCurrency(Number(payload[0].payload.revenue))}
+                      />
+                    );
+                  }}
+                />
+                <Bar dataKey="count" fill="#1B50C0" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+
+          {/* Top products */}
+          <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+              Top products
+            </p>
+            <h3
+              className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4"
+              style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+            >
+              By revenue · 7 days
+            </h3>
+            {topProducts.length === 0 ? (
+              <EmptyBlock height={160} icon={TrendingUp} title="No sales yet" hint="Best sellers appear here as sales come in" />
+            ) : (
+              <ol className="space-y-3">
+                {topProducts.map((p, i) => {
+                  const pct = topProducts[0].revenue > 0 ? (p.revenue / topProducts[0].revenue) * 100 : 0;
+                  return (
+                    <li key={p.name}>
+                      <div className="flex items-baseline justify-between mb-1.5 gap-2">
+                        <span className="text-xs text-slate-700 min-w-0 flex items-baseline gap-1.5">
+                          <span className="text-[10px] font-black text-slate-400 tabular-nums shrink-0 w-4">
+                            {i + 1}
+                          </span>
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                        <span
+                          className="text-xs text-slate-900 tabular-nums shrink-0"
+                          style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+                        >
+                          {formatCurrency(p.revenue)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-accent transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </li>
                   );
                 })}
-              </div>
-            </>
-          )}
+              </ol>
+            )}
+          </section>
         </div>
-      </div>
 
-      {/* ── Peak Hours ───────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-        <div className="flex items-center gap-2 mb-5">
-          <Clock className="w-4 h-4 text-muted-foreground" />
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Peak Hours</p>
-            <h3 className="text-lg text-foreground">Sales volume by hour · 7-day average</h3>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={peakHours} barSize={14} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 10, fill: "#6B7280" }}
-              axisLine={false}
-              tickLine={false}
-              interval={1}
-            />
-            <YAxis hide />
-            <Tooltip content={<HoursTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-            <Bar dataKey="count" fill="#1B50C0" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ── Top Products ─────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Top Products</p>
-        <h3 className="text-lg text-foreground mb-4">By revenue · 7 days</h3>
-        {topProducts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sales data</p>
-        ) : (
-          <div className="space-y-3 max-w-md">
-            {topProducts.map((p, i) => {
-              const pct = topProducts[0].revenue > 0 ? (p.revenue / topProducts[0].revenue) * 100 : 0;
-              return (
-                <div key={p.name}>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-xs text-foreground truncate max-w-[60%]">
-                      <span className="text-muted-foreground mr-1.5 font-medium tabular-nums">{i + 1}.</span>
-                      {p.name}
-                    </span>
-                    <span className="text-xs font-semibold text-foreground tabular-nums">
-                      {formatCurrency(p.revenue)}
-                    </span>
-                  </div>
-                  <div className="h-1 rounded-full bg-secondary overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Expiry + Low Stock lists ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 pb-4 lg:pb-6">
-        {/* Expiry alert list */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Expiry Alerts</p>
-            <h3 className="text-lg text-foreground">Stock batches expiring within 30 days</h3>
-          </div>
-          {expiringItems.length === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <p className="text-sm text-muted-foreground">No batches expiring in the next 30 days</p>
+        {/* ── Low Stock ─────────────────────────────────────────────── */}
+        <section className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+          <div className="px-4 sm:px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                Low stock
+              </p>
+              <h3
+                className="text-slate-900 text-base sm:text-lg"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+              >
+                Products below reorder threshold
+              </h3>
             </div>
-          ) : (
-            <div className="divide-y divide-border max-h-72 overflow-y-auto">
-              {expiringItems.map((item, i) => {
-                const days = daysUntil(item.expiry_date);
-                return (
-                  <div key={i} className="flex items-center justify-between px-5 py-3 gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.quantity_remaining.toFixed(2)} remaining
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p
-                        className={cn(
-                          "text-xs font-semibold",
-                          item.urgent ? "text-destructive" : "text-warning"
-                        )}
-                      >
-                        {days === 0 ? "Expires today" : days < 0 ? "Expired" : `${days}d left`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{formatShortDate(item.expiry_date)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Low stock list */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Low Stock</p>
-            <h3 className="text-lg text-foreground">Products below reorder threshold</h3>
+            {lowStockItems.length > 0 && (
+              <Link
+                href="/inventory"
+                className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80 shrink-0"
+              >
+                Manage stock <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
+
           {lowStockItems.length === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <p className="text-sm text-muted-foreground">All products are adequately stocked</p>
-            </div>
+            <EmptyBlock height={140} icon={Package} title="All stocked up" hint="No products below their reorder threshold" />
           ) : (
-            <div className="divide-y divide-border max-h-72 overflow-y-auto">
+            <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
               {lowStockItems.map((item, i) => {
                 const pct = item.low_stock_threshold > 0
                   ? Math.min((item.stock_quantity / item.low_stock_threshold) * 100, 100)
                   : 0;
+                const critical = pct < 25;
                 return (
-                  <div key={i} className="px-5 py-3">
-                    <div className="flex items-baseline justify-between mb-1.5">
-                      <p className="text-sm font-medium text-foreground truncate max-w-[65%]">{item.name}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums shrink-0">
-                        {item.stock_quantity.toFixed(2)} / {item.low_stock_threshold} {item.unit}
+                  <li key={i} className="px-4 sm:px-5 py-3">
+                    <div className="flex items-baseline justify-between gap-3 mb-2">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
+                      <p className="text-xs text-slate-500 tabular-nums shrink-0">
+                        <span
+                          className={cn(
+                            "font-bold",
+                            critical ? "text-destructive" : "text-warning"
+                          )}
+                        >
+                          {item.stock_quantity.toFixed(2)}
+                        </span>
+                        <span className="text-slate-400"> / {item.low_stock_threshold} {item.unit}</span>
                       </p>
                     </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          pct < 25 ? "bg-destructive" : "bg-warning"
+                          critical ? "bg-destructive" : "bg-warning"
                         )}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
-    </>
   );
 }
 
-// ── Profit & Loss Panel ──────────────────────────────────────────────────────
+// ─── Revenue hero ────────────────────────────────────────────────────────────
 
-interface PLProps {
-  todayRevenue: number;
-  todayCogs: number;
-  todayGrossProfit: number;
-  todayExpenses: number;
-  todayNetProfit: number;
-  sevenDayRevenue: number;
-  sevenDayCogs: number;
-  sevenDayGrossProfit: number;
-  sevenDayExpenses: number;
-  sevenDayNetProfit: number;
-  expensesByCategory: { name: string; total: number }[];
-}
-
-function ProfitLossPanel({
-  todayRevenue, todayCogs, todayGrossProfit, todayExpenses, todayNetProfit,
-  sevenDayRevenue, sevenDayCogs, sevenDayGrossProfit, sevenDayExpenses, sevenDayNetProfit,
-  expensesByCategory,
-}: PLProps) {
-  const [window, setWindow] = useState<"today" | "7d">("today");
-
-  const isToday = window === "today";
-  const revenue     = isToday ? todayRevenue     : sevenDayRevenue;
-  const cogs        = isToday ? todayCogs        : sevenDayCogs;
-  const grossProfit = isToday ? todayGrossProfit : sevenDayGrossProfit;
-  const expenses    = isToday ? todayExpenses    : sevenDayExpenses;
-  const netProfit   = isToday ? todayNetProfit   : sevenDayNetProfit;
-
-  const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-  const netMargin   = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-
-  const netIsPositive = netProfit >= 0;
-  const NetIcon = netIsPositive ? TrendingUp : TrendingDown;
+function RevenueHero({
+  revenue,
+  previous,
+  transactionsSub,
+  netProfit,
+  netMargin,
+}: {
+  revenue: number;
+  previous: number | null;
+  transactionsSub: string;
+  netProfit: number;
+  netMargin: number;
+}) {
+  const netPositive = netProfit >= 0;
+  const TrendIcon = netPositive ? TrendingUp : TrendingDown;
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      {/* Header + toggle */}
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border flex-wrap">
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Profit & Loss</p>
-          <h3 className="text-lg text-foreground truncate">{isToday ? "Today" : "Last 7 days"}</h3>
+    <section className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 relative overflow-hidden">
+      {/* Corner accent stripe */}
+      <div className="absolute top-0 left-0 h-full w-1 bg-primary" aria-hidden="true" />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+        {/* Revenue */}
+        <div>
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
+            Revenue
+          </p>
+          <p
+            className="text-slate-900 tabular-nums leading-none text-4xl sm:text-5xl"
+            style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.02em" }}
+          >
+            {formatCurrency(revenue)}
+          </p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-3">{transactionsSub}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-0.5 shrink-0">
-          {(["today", "7d"] as const).map((w) => (
-            <button
-              key={w}
-              onClick={() => setWindow(w)}
+
+        {/* Net profit */}
+        <div className="border-t sm:border-t-0 sm:border-l border-slate-200 pt-4 sm:pt-0 sm:pl-6">
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
+            Net profit
+          </p>
+          <div className="flex items-baseline gap-2">
+            <p
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-colors",
-                window === w ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                "tabular-nums leading-none text-3xl sm:text-4xl",
+                netPositive ? "text-success" : "text-destructive"
               )}
+              style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.02em" }}
             >
-              {w === "today" ? "Today" : "7 days"}
-            </button>
-          ))}
+              {formatCurrency(netProfit)}
+            </p>
+            <TrendIcon
+              className={cn("w-5 h-5 sm:w-6 sm:h-6 shrink-0", netPositive ? "text-success" : "text-destructive")}
+              strokeWidth={2.5}
+            />
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-3 tabular-nums">
+            {netMargin.toFixed(1)}% margin
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Metric card ─────────────────────────────────────────────────────────────
+
+const TONE_ACCENT: Record<"neutral" | "warning" | "success" | "destructive", string> = {
+  neutral:     "text-slate-500 bg-slate-100",
+  warning:     "text-warning bg-warning/10",
+  success:     "text-success bg-success/10",
+  destructive: "text-destructive bg-destructive/10",
+};
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone,
+  href,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub: string;
+  tone: "neutral" | "warning" | "success" | "destructive";
+  href?: string;
+}) {
+  const iconClasses = cn("w-4 h-4", TONE_ACCENT[tone].split(" ")[0]);
+  const iconBg = TONE_ACCENT[tone].split(" ")[1];
+
+  const inner = (
+    <>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", iconBg)}>
+          <Icon className={iconClasses} strokeWidth={2.25} />
+        </div>
+        {href && (
+          <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" strokeWidth={2} />
+        )}
+      </div>
+      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p
+        className="text-slate-900 tabular-nums mt-1 text-xl sm:text-2xl leading-tight"
+        style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.01em" }}
+      >
+        {value}
+      </p>
+      <p className="text-[11px] text-slate-500 mt-1.5 truncate">{sub}</p>
+    </>
+  );
+
+  const shell = "group rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 transition-all";
+  const hover = href ? "hover:border-slate-300 hover:shadow-sm cursor-pointer active:scale-[0.99]" : "";
+
+  return href ? (
+    <Link href={href} className={cn(shell, hover, "block")}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cn(shell)}>{inner}</div>
+  );
+}
+
+// ─── P&L Panel ───────────────────────────────────────────────────────────────
+
+function ProfitLossPanel({
+  range,
+  revenue,
+  cogs,
+  grossProfit,
+  expenses,
+  netProfit,
+  grossMargin,
+  netMargin,
+  expensesByCategory,
+  sevenDayExpenses,
+}: {
+  range: "today" | "7d";
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  expenses: number;
+  netProfit: number;
+  grossMargin: number;
+  netMargin: number;
+  expensesByCategory: { name: string; total: number }[];
+  sevenDayExpenses: number;
+}) {
+  const netPositive = netProfit >= 0;
+
+  return (
+    <section className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+      <div className="px-4 sm:px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+            Profit &amp; loss
+          </p>
+          <h3
+            className="text-slate-900 text-base sm:text-lg"
+            style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
+          >
+            {range === "today" ? "Today" : "Last 7 days"}
+          </h3>
         </div>
       </div>
 
-      {/* Money flow — visible math */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-border">
-        {/* Left: line-by-line breakdown */}
-        <div className="lg:col-span-2 p-4 sm:p-5 space-y-2">
-          <PLRow label="Revenue"           value={revenue}     tone="neutral" />
-          <PLRow label="− Cost of goods"   value={cogs}        tone="deduct" />
-          <PLRow label="= Gross Profit"    value={grossProfit} tone="positive" strong sub={`${grossMargin.toFixed(1)}% margin`} />
-          <PLRow label="− Expenses"        value={expenses}    tone="deduct" href="/expenses" />
-          <div className="pt-2 mt-1 border-t border-border">
+      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+        {/* P&L rows */}
+        <div className="lg:col-span-2 p-4 sm:p-5 space-y-2.5">
+          <PLRow label="Revenue" value={revenue} tone="neutral" />
+          <PLRow label="− Cost of goods sold" value={cogs} tone="deduct" />
+          <div className="pt-2 mt-1 border-t border-slate-100">
             <PLRow
-              label="= Net Profit"
+              label="Gross profit"
+              value={grossProfit}
+              tone="positive"
+              strong
+              sub={`${grossMargin.toFixed(1)}% gross margin`}
+            />
+          </div>
+          <PLRow label="− Operating expenses" value={expenses} tone="deduct" href="/expenses" />
+          <div className="pt-3 mt-2 border-t border-slate-200">
+            <PLRow
+              label="Net profit"
               value={netProfit}
-              tone={netIsPositive ? "positive" : "negative"}
+              tone={netPositive ? "positive" : "negative"}
               strong
               sub={`${netMargin.toFixed(1)}% net margin`}
-              icon={NetIcon}
               size="lg"
             />
           </div>
         </div>
 
-        {/* Right: expense category mini-breakdown */}
+        {/* Expense breakdown */}
         <div className="p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
               Expense breakdown
             </p>
-            <Link href="/expenses" className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+            <Link
+              href="/expenses"
+              className="text-[11px] font-semibold text-accent hover:text-accent/80 inline-flex items-center gap-0.5"
+            >
               All <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
           {expensesByCategory.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No expenses recorded in the last 7 days.</p>
+            <p className="text-xs text-slate-500">No expenses recorded in the last 7 days.</p>
           ) : (
-            <div className="space-y-2">
-              {expensesByCategory.slice(0, 6).map((c) => {
+            <ul className="space-y-2.5">
+              {expensesByCategory.slice(0, 6).map((c, i) => {
                 const pct = sevenDayExpenses > 0 ? (c.total / sevenDayExpenses) * 100 : 0;
                 return (
-                  <div key={c.name}>
+                  <li key={c.name}>
                     <div className="flex items-baseline justify-between gap-2 mb-1">
-                      <span className="text-xs text-foreground truncate">{c.name}</span>
-                      <span className="text-xs font-semibold text-foreground tabular-nums shrink-0">
+                      <span className="text-xs text-slate-700 truncate">{c.name}</span>
+                      <span className="text-xs text-slate-900 font-semibold tabular-nums shrink-0">
                         {formatCurrency(c.total)}
                       </span>
                     </div>
-                    <div className="h-1 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                    <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${pct}%`,
+                          background: DONUT_COLORS[i % DONUT_COLORS.length],
+                        }}
+                      />
                     </div>
-                  </div>
+                  </li>
                 );
               })}
               {expensesByCategory.length > 6 && (
-                <p className="text-[11px] text-muted-foreground pt-1">
+                <p className="text-[11px] text-slate-500 pt-1">
                   + {expensesByCategory.length - 6} more categories
                 </p>
               )}
-            </div>
+            </ul>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 type PLTone = "neutral" | "positive" | "negative" | "deduct";
-const PL_TONE_CLASS: Record<PLTone, string> = {
-  neutral:  "text-foreground",
+const PL_TONE: Record<PLTone, string> = {
+  neutral:  "text-slate-900",
   positive: "text-success",
   negative: "text-destructive",
-  deduct:   "text-muted-foreground",
+  deduct:   "text-slate-500",
 };
 
 function PLRow({
-  label, value, tone, strong, sub, icon: Icon, size, href,
+  label,
+  value,
+  tone,
+  strong,
+  sub,
+  size,
+  href,
 }: {
   label: string;
   value: number;
   tone: PLTone;
   strong?: boolean;
   sub?: string;
-  icon?: React.ElementType;
   size?: "lg";
   href?: string;
 }) {
-  const amountCls = cn(
-    "tabular-nums shrink-0",
-    PL_TONE_CLASS[tone],
-    size === "lg" ? "text-2xl" : "text-base",
-    strong ? "font-bold" : "font-medium",
-    strong && size === "lg" && "font-display font-black"
-  );
-  const labelCls = cn(
-    "text-sm",
-    strong ? "font-semibold text-foreground" : "text-muted-foreground"
-  );
-
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="flex items-center gap-1.5 min-w-0">
-        <span className={labelCls}>{label}</span>
-        {sub && <span className="text-[11px] text-muted-foreground truncate">{sub}</span>}
+        <span
+          className={cn(
+            "text-sm",
+            strong ? "font-bold text-slate-900" : "text-slate-600"
+          )}
+        >
+          {label}
+        </span>
+        {sub && <span className="text-[11px] text-slate-500 truncate">{sub}</span>}
         {href && (
-          <Link href={href} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center">
+          <Link
+            href={href}
+            className="text-[11px] text-slate-400 hover:text-slate-700 flex items-center transition-colors"
+            aria-label={`Open ${label}`}
+          >
             <ArrowRight className="w-3 h-3" />
           </Link>
         )}
       </span>
-      <span className="flex items-center gap-1.5">
-        {Icon && <Icon className={cn("w-4 h-4", PL_TONE_CLASS[tone])} />}
-        <span className={amountCls}>{formatCurrency(value)}</span>
+      <span
+        className={cn(
+          "tabular-nums shrink-0",
+          PL_TONE[tone],
+          size === "lg" ? "text-2xl sm:text-3xl" : "text-base",
+          strong ? "font-bold" : "font-semibold",
+          strong && size === "lg" && "font-display font-black"
+        )}
+        style={strong && size === "lg" ? { fontFamily: "var(--font-display)", letterSpacing: "-0.01em" } : undefined}
+      >
+        {formatCurrency(value)}
       </span>
     </div>
   );
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ─── Empty state block ───────────────────────────────────────────────────────
 
-type AccentType = "primary" | "accent" | "success" | "warning" | "destructive" | "neutral";
-
-const ACCENT_BORDER: Record<AccentType, string> = {
-  primary:     "border-l-primary",
-  accent:      "border-l-accent",
-  success:     "border-l-success",
-  warning:     "border-l-warning",
-  destructive: "border-l-destructive",
-  neutral:     "border-l-border",
-};
-
-function StatCard({
-  label,
-  value,
-  sub,
-  accent,
-  hero,
+function EmptyBlock({
+  height,
+  icon: Icon,
+  title,
+  hint,
 }: {
-  label: string;
-  value: string;
-  sub: string;
-  accent: AccentType;
-  hero?: "red" | "navy";
+  height: number;
+  icon: React.ElementType;
+  title: string;
+  hint: string;
 }) {
-  if (hero === "red") {
-    return (
-      <div className="relative overflow-hidden rounded-2xl shadow-raised px-4 py-4 lg:px-5 lg:py-5" style={{ background: "#CC1B14" }}>
-        <img src="/icon-192.png" aria-hidden="true" draggable={false} className="absolute right-2 top-1 h-14 lg:h-16 w-auto opacity-15 rotate-12 select-none" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-2">{label}</p>
-        <p className="text-2xl lg:text-3xl text-white tabular-nums leading-none break-all" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{value}</p>
-        <p className="text-xs text-white/70 mt-2">{sub}</p>
-      </div>
-    );
-  }
-  if (hero === "navy") {
-    return (
-      <div className="relative overflow-hidden rounded-2xl shadow-raised px-4 py-4 lg:px-5 lg:py-5" style={{ background: "#060F40" }}>
-        <img src="/icon-192.png" aria-hidden="true" draggable={false} className="absolute right-2 top-1 h-14 lg:h-16 w-auto opacity-15 -rotate-12 select-none" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-sidebar-muted/80 mb-2">{label}</p>
-        <p className="text-2xl lg:text-3xl text-white tabular-nums leading-none break-all" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{value}</p>
-        <p className="text-xs text-sidebar-muted mt-2">{sub}</p>
-      </div>
-    );
-  }
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-4 lg:px-5 lg:py-5 shadow-card">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-        {label}
-      </p>
-      <p
-        className="text-2xl lg:text-3xl text-foreground tabular-nums leading-none break-all"
-        style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
-      >
-        {value}
-      </p>
-      <p className="text-xs text-muted-foreground mt-2">{sub}</p>
+    <div
+      style={{ minHeight: height }}
+      className="flex flex-col items-center justify-center text-center px-4 py-6 gap-3"
+    >
+      <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center">
+        <Icon className="w-5 h-5 text-slate-400" strokeWidth={1.75} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="text-xs text-slate-500 mt-1">{hint}</p>
+      </div>
     </div>
   );
 }

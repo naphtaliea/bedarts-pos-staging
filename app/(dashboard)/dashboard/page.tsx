@@ -26,12 +26,6 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
-  const thirtyDaysFromNow = new Date(today);
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const thirtyDaysFromNowStr = thirtyDaysFromNow.toISOString().split("T")[0];
-  const sevenDaysFromNowStr = new Date(today.getTime() + 7 * 86400000)
-    .toISOString()
-    .split("T")[0];
 
   const [salesRes, productsRes, batchesRes, expensesRes, payablesRes] = await Promise.all([
     supabase
@@ -51,9 +45,11 @@ export default async function DashboardPage() {
       .select("id, name, stock_quantity, low_stock_threshold, unit")
       .eq("is_active", true),
 
+    // Batches — only for stock value (not for expiry alerts, which have been
+    // removed from the main dashboard in favour of a dedicated Inventory → Alerts view)
     supabase
       .from("stock_batches")
-      .select("quantity_remaining, cost_price, expiry_date, product:products(name)")
+      .select("quantity_remaining, cost_price")
       .gt("quantity_remaining", 0),
 
     supabase
@@ -197,17 +193,6 @@ export default async function DashboardPage() {
     0
   );
 
-  // Expiry alerts
-  const expiringItems = allBatches
-    .filter((b: any) => b.expiry_date && b.expiry_date <= thirtyDaysFromNowStr)
-    .map((b: any) => ({
-      name: b.product?.name ?? "Unknown",
-      expiry_date: b.expiry_date as string,
-      quantity_remaining: b.quantity_remaining as number,
-      urgent: (b.expiry_date as string) <= sevenDaysFromNowStr,
-    }))
-    .sort((a: any, b: any) => a.expiry_date.localeCompare(b.expiry_date));
-
   // Low stock
   const lowStockItems = allProducts
     .filter((p: any) => p.stock_quantity < p.low_stock_threshold)
@@ -239,7 +224,6 @@ export default async function DashboardPage() {
       stockValue={stockValue}
       activeProductCount={activeProductCount}
       lowStockItems={lowStockItems}
-      expiringItems={expiringItems}
       revenueByDay={revenueByDay}
       categoryMix={categoryMix}
       peakHours={peakHours}
