@@ -95,7 +95,6 @@ export default async function DashboardPage() {
   const todaySales = allSales.filter((s) => s.created_at.startsWith(todayStr));
   const todayRevenue = round2(todaySales.reduce((sum: number, s: any) => sum + Number(s.total_amount), 0));
   const todayTransactions = todaySales.length;
-  const todayDiscount = round2(todaySales.reduce((sum: number, s: any) => sum + Number(s.discount_amount), 0));
   const todayCogs = round2(todaySales.reduce((sum: number, s: any) => sum + cogsOfSale(s), 0));
   const todayGrossProfit = round2(todayRevenue - todayCogs);
 
@@ -210,7 +209,6 @@ export default async function DashboardPage() {
     <DashboardClient
       todayRevenue={todayRevenue}
       todayTransactions={todayTransactions}
-      todayDiscount={todayDiscount}
       todayCogs={todayCogs}
       todayGrossProfit={todayGrossProfit}
       todayExpenses={todayExpenses}

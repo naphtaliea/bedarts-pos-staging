@@ -111,6 +111,21 @@ h1, h2, h3 {
   &::-webkit-scrollbar { display: none; }
 }
 
+/* ── Display face helpers ────────────────────────────────
+   Encapsulate the "Big Shoulders" display face + condensed metric
+   weights we use throughout dashboards, so numbers don't need
+   inline style blocks. */
+@utility font-display-black {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@utility font-display-heading {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-weight: 800;
+}
+
 /* ── Page entrance animation ─────────────────────────────── */
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(5px); }

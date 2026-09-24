@@ -15,9 +15,10 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
-  AlertTriangle,
+  AlertCircle,
   ArrowRight,
   ArrowUpRight,
+  BarChart3,
   Clock,
   Package,
   Receipt,
@@ -32,7 +33,6 @@ import { cn, formatCurrency } from "@/lib/utils";
 interface DashboardClientProps {
   todayRevenue: number;
   todayTransactions: number;
-  todayDiscount: number;
   todayCogs: number;
   todayGrossProfit: number;
   todayExpenses: number;
@@ -59,10 +59,13 @@ interface DashboardClientProps {
   outstandingPayablesCount: number;
 }
 
+type Range = "today" | "7d";
+type Tone = "neutral" | "warning" | "success" | "destructive";
+
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-// Muted, print-friendly, colour-blind-safe palette for donut/bar accents.
-// Brand red is reserved for CTAs and destructive states only.
+// Muted, print-friendly, colour-blind-safe palette. Brand red is reserved for
+// destructive states and CTAs — never accent decoration.
 const DONUT_COLORS = [
   "#1B50C0", // brand blue
   "#0D9448", // success green
@@ -73,7 +76,11 @@ const DONUT_COLORS = [
   "#475569", // slate
 ];
 
-// ─── Custom chart tooltips ───────────────────────────────────────────────────
+// Standard stroke widths — used consistently so icons feel like one set.
+const STROKE_STANDARD = 2;
+const STROKE_MUTED = 1.75;
+
+// ─── Small helpers ────────────────────────────────────────────────────────────
 
 function ChartTooltip({
   label,
@@ -87,7 +94,7 @@ function ChartTooltip({
   accent?: string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white shadow-lg px-3 py-2 text-xs">
+    <div className="rounded-lg border border-border bg-card shadow-card px-3 py-2 text-xs">
       <p className="font-semibold text-slate-900 mb-1">{label}</p>
       <p className={cn("font-black tabular-nums", accent)}>{value}</p>
       {sub && <p className="text-slate-500 mt-0.5">{sub}</p>}
@@ -120,44 +127,43 @@ export function DashboardClient({
   outstandingPayablesTotal,
   outstandingPayablesCount,
 }: DashboardClientProps) {
-  const [range, setRange] = useState<"today" | "7d">("today");
+  const [range, setRange] = useState<Range>("today");
+  const isToday = range === "today";
 
-  const revenue     = range === "today" ? todayRevenue     : sevenDayRevenue;
-  const cogs        = range === "today" ? todayCogs        : sevenDayCogs;
-  const grossProfit = range === "today" ? todayGrossProfit : sevenDayGrossProfit;
-  const expenses    = range === "today" ? todayExpenses    : sevenDayExpenses;
-  const netProfit   = range === "today" ? todayNetProfit   : sevenDayNetProfit;
+  const revenue     = isToday ? todayRevenue     : sevenDayRevenue;
+  const cogs        = isToday ? todayCogs        : sevenDayCogs;
+  const grossProfit = isToday ? todayGrossProfit : sevenDayGrossProfit;
+  const expenses    = isToday ? todayExpenses    : sevenDayExpenses;
+  const netProfit   = isToday ? todayNetProfit   : sevenDayNetProfit;
 
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
   const netMargin   = revenue > 0 ? (netProfit   / revenue) * 100 : 0;
 
-  const totalRevenue7d = revenueByDay.reduce((s, d) => s + d.revenue, 0);
-  const avgTicket7d = revenueByDay.reduce((s, d) => s + d.count, 0) > 0
-    ? totalRevenue7d / revenueByDay.reduce((s, d) => s + d.count, 0)
-    : 0;
+  // Use the prop directly — no redundant recomputation from revenueByDay.
+  const sevenDaySalesCount = revenueByDay.reduce((s, d) => s + d.count, 0);
+
+  const avgTicket7d = sevenDaySalesCount > 0 ? sevenDayRevenue / sevenDaySalesCount : 0;
   const avgTicketToday = todayTransactions > 0 ? todayRevenue / todayTransactions : 0;
+  const avgTicket = isToday ? avgTicketToday : avgTicket7d;
 
   return (
     <div className="min-h-full bg-slate-50">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+      {/* ── Sticky header ─────────────────────────────────────────── */}
+      <header className="sticky top-14 lg:top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
               Overview
             </p>
-            <h1
-              className="text-slate-900 leading-tight text-xl sm:text-2xl"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
-            >
+            <h1 className="text-slate-900 leading-tight text-xl sm:text-2xl font-display-black">
               Dashboard
             </h1>
           </div>
 
-          {/* Range toggle — segmented control */}
+          {/* Range toggle — segmented control. h-11 = 44px min touch target. */}
           <div
             role="tablist"
-            aria-label="Time range"
+            aria-label="Time range for Revenue and P&amp;L"
             className="inline-flex rounded-lg bg-slate-100 p-0.5 shrink-0"
           >
             {(["today", "7d"] as const).map((r) => (
@@ -167,7 +173,7 @@ export function DashboardClient({
                 aria-selected={range === r}
                 onClick={() => setRange(r)}
                 className={cn(
-                  "px-3 sm:px-4 h-9 rounded-md text-xs font-bold transition-all min-w-[64px]",
+                  "px-3 sm:px-4 h-11 rounded-md text-xs font-bold transition-all min-w-[72px]",
                   range === r
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-900"
@@ -180,28 +186,28 @@ export function DashboardClient({
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
-        {/* ── Hero: Revenue ─────────────────────────────────────────── */}
+        {/* ── Hero: Revenue + Net profit (range-driven) ──────────── */}
         <RevenueHero
+          rangeLabel={isToday ? "Today's revenue" : "7-day revenue"}
           revenue={revenue}
-          previous={range === "today" ? null : null}
           transactionsSub={
-            range === "today"
+            isToday
               ? `${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""} today`
-              : `${revenueByDay.reduce((s, d) => s + d.count, 0)} sales over 7 days`
+              : `${sevenDaySalesCount} sales over 7 days`
           }
           netProfit={netProfit}
           netMargin={netMargin}
         />
 
-        {/* ── Key metrics grid ──────────────────────────────────────── */}
+        {/* ── Key metrics grid ──────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             icon={Receipt}
             label="Avg Ticket"
-            value={formatCurrency(range === "today" ? avgTicketToday : avgTicket7d)}
-            sub={range === "today" ? "per sale today" : "7-day average"}
+            value={formatCurrency(avgTicket)}
+            sub={isToday ? "per sale today" : "7-day average"}
             tone="neutral"
           />
           <MetricCard
@@ -224,7 +230,7 @@ export function DashboardClient({
             href="/suppliers"
           />
           <MetricCard
-            icon={AlertTriangle}
+            icon={AlertCircle}
             label="Low Stock"
             value={String(lowStockItems.length)}
             sub={lowStockItems.length === 0 ? "all clear" : "need restocking"}
@@ -233,7 +239,7 @@ export function DashboardClient({
           />
         </div>
 
-        {/* ── Revenue trend (7-day) + category mix ─────────────────── */}
+        {/* ── Revenue trend + Category mix (always 7-day) ──────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Revenue trend */}
           <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
@@ -242,25 +248,20 @@ export function DashboardClient({
                 <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
                   Revenue trend
                 </p>
-                <h3
-                  className="text-slate-900 text-base sm:text-lg mt-0.5"
-                  style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-                >
+                <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading">
                   Last 7 days
                 </h3>
               </div>
               <div className="text-right shrink-0">
-                <p
-                  className="text-slate-900 tabular-nums text-lg sm:text-xl"
-                  style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}
-                >
-                  {formatCurrency(totalRevenue7d)}
+                <p className="text-slate-900 tabular-nums text-lg sm:text-xl font-display-black">
+                  {formatCurrency(sevenDayRevenue)}
                 </p>
                 <p className="text-[10px] text-slate-500">total</p>
               </div>
             </div>
+            {/* Responsive chart margin — 0 left on mobile so labels don't clip */}
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: -4 }}>
+              <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
                 <XAxis
                   dataKey="label"
@@ -299,15 +300,12 @@ export function DashboardClient({
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
               Category mix
             </p>
-            <h3
-              className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-            >
-              7-day sales
+            <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4 font-display-heading">
+              Last 7 days
             </h3>
 
             {categoryMix.length === 0 ? (
-              <EmptyBlock height={200} icon={Package} title="No sales yet" hint="Categories appear as sales come in" />
+              <EmptyBlock height={280} icon={BarChart3} title="No sales yet" hint="Categories appear as sales come in" />
             ) : (
               <>
                 <ResponsiveContainer width="100%" height={160}>
@@ -342,15 +340,19 @@ export function DashboardClient({
                 </ResponsiveContainer>
                 <ul className="space-y-1.5 mt-3">
                   {categoryMix.slice(0, 5).map((c, i) => {
-                    const pct = totalRevenue7d > 0 ? (c.revenue / totalRevenue7d) * 100 : 0;
+                    const pct = sevenDayRevenue > 0 ? (c.revenue / sevenDayRevenue) * 100 : 0;
                     return (
                       <li key={c.name} className="flex items-center gap-2 text-xs">
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
                         />
-                        <span className="text-slate-700 truncate flex-1">{c.name}</span>
-                        <span className="text-slate-500 tabular-nums font-semibold">{pct.toFixed(0)}%</span>
+                        <span className="text-slate-700 truncate flex-1" title={c.name}>
+                          {c.name}
+                        </span>
+                        <span className="text-slate-900 tabular-nums font-semibold shrink-0">
+                          {pct.toFixed(0)}%
+                        </span>
                       </li>
                     );
                   })}
@@ -360,9 +362,9 @@ export function DashboardClient({
           </section>
         </div>
 
-        {/* ── P&L breakdown ─────────────────────────────────────────── */}
+        {/* ── P&L breakdown (range-driven) ─────────────────────── */}
         <ProfitLossPanel
-          range={range}
+          isToday={isToday}
           revenue={revenue}
           cogs={cogs}
           grossProfit={grossProfit}
@@ -374,26 +376,23 @@ export function DashboardClient({
           sevenDayExpenses={sevenDayExpenses}
         />
 
-        {/* ── Peak hours + Top products ────────────────────────────── */}
+        {/* ── Peak hours + Top products ──────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Peak hours */}
           <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-slate-400" strokeWidth={2} />
+              <Clock className="w-4 h-4 text-slate-400" strokeWidth={STROKE_STANDARD} />
               <div>
                 <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
                   Peak hours
                 </p>
-                <h3
-                  className="text-slate-900 text-base sm:text-lg"
-                  style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-                >
+                <h3 className="text-slate-900 text-base sm:text-lg font-display-heading">
                   Sales volume · 7-day average
                 </h3>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={peakHours} barSize={12} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+              <BarChart data={peakHours} barSize={12} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
                 <XAxis
                   dataKey="label"
@@ -426,14 +425,11 @@ export function DashboardClient({
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
               Top products
             </p>
-            <h3
-              className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4"
-              style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-            >
-              By revenue · 7 days
+            <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4 font-display-heading">
+              By revenue · Last 7 days
             </h3>
             {topProducts.length === 0 ? (
-              <EmptyBlock height={160} icon={TrendingUp} title="No sales yet" hint="Best sellers appear here as sales come in" />
+              <EmptyBlock height={200} icon={TrendingUp} title="No sales yet" hint="Best sellers appear here as sales come in" />
             ) : (
               <ol className="space-y-3">
                 {topProducts.map((p, i) => {
@@ -445,12 +441,9 @@ export function DashboardClient({
                           <span className="text-[10px] font-black text-slate-400 tabular-nums shrink-0 w-4">
                             {i + 1}
                           </span>
-                          <span className="truncate">{p.name}</span>
+                          <span className="truncate" title={p.name}>{p.name}</span>
                         </span>
-                        <span
-                          className="text-xs text-slate-900 tabular-nums shrink-0"
-                          style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-                        >
+                        <span className="text-xs text-slate-900 tabular-nums shrink-0 font-display-heading">
                           {formatCurrency(p.revenue)}
                         </span>
                       </div>
@@ -468,26 +461,23 @@ export function DashboardClient({
           </section>
         </div>
 
-        {/* ── Low Stock ─────────────────────────────────────────────── */}
+        {/* ── Low Stock ────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
                 Low stock
               </p>
-              <h3
-                className="text-slate-900 text-base sm:text-lg"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-              >
-                Products below reorder threshold
+              <h3 className="text-slate-900 text-base sm:text-lg font-display-heading truncate">
+                Below reorder threshold
               </h3>
             </div>
             {lowStockItems.length > 0 && (
               <Link
                 href="/inventory"
-                className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80 shrink-0"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80 shrink-0 h-9 px-2.5 rounded-md hover:bg-slate-50 transition-colors"
               >
-                Manage stock <ArrowRight className="w-3.5 h-3.5" />
+                Manage <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             )}
           </div>
@@ -495,7 +485,7 @@ export function DashboardClient({
           {lowStockItems.length === 0 ? (
             <EmptyBlock height={140} icon={Package} title="All stocked up" hint="No products below their reorder threshold" />
           ) : (
-            <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <ul className="divide-y divide-slate-100 lg:max-h-80 lg:overflow-y-auto">
               {lowStockItems.map((item, i) => {
                 const pct = item.low_stock_threshold > 0
                   ? Math.min((item.stock_quantity / item.low_stock_threshold) * 100, 100)
@@ -504,7 +494,9 @@ export function DashboardClient({
                 return (
                   <li key={i} className="px-4 sm:px-5 py-3">
                     <div className="flex items-baseline justify-between gap-3 mb-2">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate" title={item.name}>
+                        {item.name}
+                      </p>
                       <p className="text-xs text-slate-500 tabular-nums shrink-0">
                         <span
                           className={cn(
@@ -532,7 +524,7 @@ export function DashboardClient({
             </ul>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }
@@ -540,14 +532,14 @@ export function DashboardClient({
 // ─── Revenue hero ────────────────────────────────────────────────────────────
 
 function RevenueHero({
+  rangeLabel,
   revenue,
-  previous,
   transactionsSub,
   netProfit,
   netMargin,
 }: {
+  rangeLabel: string;
   revenue: number;
-  previous: number | null;
   transactionsSub: string;
   netProfit: number;
   netMargin: number;
@@ -557,19 +549,16 @@ function RevenueHero({
 
   return (
     <section className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 relative overflow-hidden">
-      {/* Corner accent stripe */}
       <div className="absolute top-0 left-0 h-full w-1 bg-primary" aria-hidden="true" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+      {/* 3fr : 2fr split gives revenue the weight it deserves on tablet+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-5 sm:gap-6 items-start pl-2">
         {/* Revenue */}
         <div>
           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
-            Revenue
+            {rangeLabel}
           </p>
-          <p
-            className="text-slate-900 tabular-nums leading-none text-4xl sm:text-5xl"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.02em" }}
-          >
+          <p className="text-slate-900 tabular-nums leading-none text-4xl sm:text-5xl font-display-black">
             {formatCurrency(revenue)}
           </p>
           <p className="text-xs sm:text-sm text-slate-500 mt-3">{transactionsSub}</p>
@@ -583,10 +572,9 @@ function RevenueHero({
           <div className="flex items-baseline gap-2">
             <p
               className={cn(
-                "tabular-nums leading-none text-3xl sm:text-4xl",
+                "tabular-nums leading-none text-3xl sm:text-4xl font-display-black",
                 netPositive ? "text-success" : "text-destructive"
               )}
-              style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.02em" }}
             >
               {formatCurrency(netProfit)}
             </p>
@@ -606,11 +594,12 @@ function RevenueHero({
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
 
-const TONE_ACCENT: Record<"neutral" | "warning" | "success" | "destructive", string> = {
-  neutral:     "text-slate-500 bg-slate-100",
-  warning:     "text-warning bg-warning/10",
-  success:     "text-success bg-success/10",
-  destructive: "text-destructive bg-destructive/10",
+// Object-shaped tone map — safer than string-split on className strings.
+const TONE: Record<Tone, { icon: string; bg: string }> = {
+  neutral:     { icon: "text-slate-500",  bg: "bg-slate-100" },
+  warning:     { icon: "text-warning",    bg: "bg-warning/10" },
+  success:     { icon: "text-success",    bg: "bg-success/10" },
+  destructive: { icon: "text-destructive", bg: "bg-destructive/10" },
 };
 
 function MetricCard({
@@ -625,29 +614,26 @@ function MetricCard({
   label: string;
   value: string;
   sub: string;
-  tone: "neutral" | "warning" | "success" | "destructive";
+  tone: Tone;
   href?: string;
 }) {
-  const iconClasses = cn("w-4 h-4", TONE_ACCENT[tone].split(" ")[0]);
-  const iconBg = TONE_ACCENT[tone].split(" ")[1];
-
   const inner = (
     <>
       <div className="flex items-center justify-between gap-2 mb-3">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", iconBg)}>
-          <Icon className={iconClasses} strokeWidth={2.25} />
+        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", TONE[tone].bg)}>
+          <Icon className={cn("w-4 h-4", TONE[tone].icon)} strokeWidth={STROKE_STANDARD} />
         </div>
         {href && (
-          <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" strokeWidth={2} />
+          <ArrowUpRight
+            className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors"
+            strokeWidth={STROKE_STANDARD}
+          />
         )}
       </div>
       <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
         {label}
       </p>
-      <p
-        className="text-slate-900 tabular-nums mt-1 text-xl sm:text-2xl leading-tight"
-        style={{ fontFamily: "var(--font-display)", fontWeight: 900, letterSpacing: "-0.01em" }}
-      >
+      <p className="text-slate-900 tabular-nums mt-1 text-xl sm:text-2xl leading-tight font-display-black">
         {value}
       </p>
       <p className="text-[11px] text-slate-500 mt-1.5 truncate">{sub}</p>
@@ -669,7 +655,7 @@ function MetricCard({
 // ─── P&L Panel ───────────────────────────────────────────────────────────────
 
 function ProfitLossPanel({
-  range,
+  isToday,
   revenue,
   cogs,
   grossProfit,
@@ -680,7 +666,7 @@ function ProfitLossPanel({
   expensesByCategory,
   sevenDayExpenses,
 }: {
-  range: "today" | "7d";
+  isToday: boolean;
   revenue: number;
   cogs: number;
   grossProfit: number;
@@ -700,17 +686,13 @@ function ProfitLossPanel({
           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
             Profit &amp; loss
           </p>
-          <h3
-            className="text-slate-900 text-base sm:text-lg"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 800 }}
-          >
-            {range === "today" ? "Today" : "Last 7 days"}
+          <h3 className="text-slate-900 text-base sm:text-lg font-display-heading">
+            {isToday ? "Today" : "Last 7 days"}
           </h3>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
-        {/* P&L rows */}
         <div className="lg:col-span-2 p-4 sm:p-5 space-y-2.5">
           <PLRow label="Revenue" value={revenue} tone="neutral" />
           <PLRow label="− Cost of goods sold" value={cogs} tone="deduct" />
@@ -736,11 +718,11 @@ function ProfitLossPanel({
           </div>
         </div>
 
-        {/* Expense breakdown */}
+        {/* Expense breakdown — always 7-day, clearly labelled */}
         <div className="p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-              Expense breakdown
+              7-day expense breakdown
             </p>
             <Link
               href="/expenses"
@@ -758,7 +740,9 @@ function ProfitLossPanel({
                 return (
                   <li key={c.name}>
                     <div className="flex items-baseline justify-between gap-2 mb-1">
-                      <span className="text-xs text-slate-700 truncate">{c.name}</span>
+                      <span className="text-xs text-slate-700 truncate" title={c.name}>
+                        {c.name}
+                      </span>
                       <span className="text-xs text-slate-900 font-semibold tabular-nums shrink-0">
                         {formatCurrency(c.total)}
                       </span>
@@ -839,11 +823,10 @@ function PLRow({
         className={cn(
           "tabular-nums shrink-0",
           PL_TONE[tone],
-          size === "lg" ? "text-2xl sm:text-3xl" : "text-base",
-          strong ? "font-bold" : "font-semibold",
-          strong && size === "lg" && "font-display font-black"
+          size === "lg" ? "text-2xl sm:text-3xl font-display-black" : "text-base",
+          strong && size !== "lg" && "font-bold",
+          !strong && "font-semibold"
         )}
-        style={strong && size === "lg" ? { fontFamily: "var(--font-display)", letterSpacing: "-0.01em" } : undefined}
       >
         {formatCurrency(value)}
       </span>
@@ -870,7 +853,7 @@ function EmptyBlock({
       className="flex flex-col items-center justify-center text-center px-4 py-6 gap-3"
     >
       <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center">
-        <Icon className="w-5 h-5 text-slate-400" strokeWidth={1.75} />
+        <Icon className="w-5 h-5 text-slate-400" strokeWidth={STROKE_MUTED} />
       </div>
       <div>
         <p className="text-sm font-semibold text-slate-900">{title}</p>
