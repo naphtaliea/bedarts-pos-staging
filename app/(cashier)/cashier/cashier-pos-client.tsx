@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, Ban } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { PosTopBar } from "@/components/pos/pos-topbar";
@@ -66,6 +67,7 @@ export function CashierPOSClient({
   initialPackages,
   initialSettings,
 }: CashierPOSClientProps) {
+  const router = useRouter();
   const [view, setView] = useState<PosView>({ screen: "pos" });
 
   const {
@@ -81,6 +83,7 @@ export function CashierPOSClient({
     total,
     activeTabId,
     paymentTabIds,
+    snapshots,
     enterPayment,
     exitPayment,
   } = useCartStore();
@@ -88,6 +91,20 @@ export function CashierPOSClient({
   // Payment view is derived per-tab: the current tab is "in payment" iff its id
   // is in paymentTabIds. Switching tabs preserves each tab's screen state.
   const isPaymentScreen = paymentTabIds.includes(activeTabId);
+
+  // Silent hourly refresh — updates products/prices/stock without touching cart state.
+  // Skipped when: any tab has items, payment is active, or receipt is showing.
+  const safeToRefreshRef = useRef(true);
+  safeToRefreshRef.current =
+    !isPaymentScreen &&
+    view.screen !== "receipt" &&
+    items.length === 0 &&
+    Object.values(snapshots).every((s) => s.items.length === 0);
+  useEffect(() => {
+    const id = setInterval(() => { if (safeToRefreshRef.current) router.refresh(); }, 60 * 60 * 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const subtotalVal = subtotal();
   const totalVal    = total();
