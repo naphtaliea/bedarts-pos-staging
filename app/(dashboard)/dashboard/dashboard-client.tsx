@@ -204,6 +204,20 @@ export function DashboardClient({
           netMargin={netMargin}
         />
 
+        {/* ── P&L breakdown (range-driven) ─────────────────────── */}
+        <ProfitLossPanel
+          isToday={isToday}
+          revenue={revenue}
+          cogs={cogs}
+          grossProfit={grossProfit}
+          expenses={expenses}
+          netProfit={netProfit}
+          grossMargin={grossMargin}
+          netMargin={netMargin}
+          expensesByCategory={expensesByCategory}
+          sevenDayExpenses={sevenDayExpenses}
+        />
+
         {/* ── Key metrics grid ──────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
@@ -364,20 +378,6 @@ export function DashboardClient({
             )}
           </section>
         </div>
-
-        {/* ── P&L breakdown (range-driven) ─────────────────────── */}
-        <ProfitLossPanel
-          isToday={isToday}
-          revenue={revenue}
-          cogs={cogs}
-          grossProfit={grossProfit}
-          expenses={expenses}
-          netProfit={netProfit}
-          grossMargin={grossMargin}
-          netMargin={netMargin}
-          expensesByCategory={expensesByCategory}
-          sevenDayExpenses={sevenDayExpenses}
-        />
 
         {/* ── Peak hours + Top products ──────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
