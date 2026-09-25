@@ -12,7 +12,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,6 +38,7 @@ interface PickupSale {
   pickup_note: string | null;
   pending_pickup?: boolean;
   picked_up_at?: string | null;
+  stock_deducted?: boolean;
   cashier: { full_name: string } | { full_name: string }[] | null;
   picker?: { full_name: string } | { full_name: string }[] | null;
   sale_items: SaleItemLite[];
@@ -352,19 +353,33 @@ export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProp
       </div>
 
       {/* Confirm-deliver dialog */}
-      {confirmDeliver && (
+      {confirmDeliver && (() => {
+        // A pre-order (stock_deducted === false) will consume inventory NOW
+        // via FEFO. A legacy retro-flagged pickup had its stock deducted at
+        // sale time, so this button is a log-only update.
+        const willDeductNow = confirmDeliver.stock_deducted === false;
+        return (
         <Backdrop onClose={() => !isPending && setConfirmDeliver(null)}>
           <div className="w-full max-w-sm bg-card rounded-2xl shadow-2xl p-5">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-success" aria-hidden />
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                willDeductNow ? "bg-warning/10" : "bg-success/10"
+              )}>
+                {willDeductNow ? (
+                  <PackageCheck className="w-5 h-5 text-warning" aria-hidden />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 text-success" aria-hidden />
+                )}
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-foreground">
                   Confirm delivery
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Hand the goods to the customer, then confirm. This only updates the pickup log — inventory was already deducted at sale time.
+                  {willDeductNow
+                    ? "Hand the goods to the customer. Stock for these items will be deducted from your current inventory now."
+                    : "Hand the goods to the customer, then confirm. This only updates the pickup log — inventory was already deducted at sale time."}
                 </p>
               </div>
             </div>
@@ -378,6 +393,14 @@ export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProp
                 <p className="text-xs text-foreground mt-1">{confirmDeliver.pickup_note}</p>
               )}
             </div>
+
+            {willDeductNow && (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 mb-4 text-xs text-foreground">
+                Deducts <span className="font-bold">{confirmDeliver.sale_items.reduce((s, it) => s + Number(it.quantity), 0)}</span>{" "}
+                unit(s) across {confirmDeliver.sale_items.length} product line(s) via FEFO.
+                If there isn&apos;t enough stock, this will fail and the pickup stays pending.
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2">
               <Button
@@ -400,7 +423,8 @@ export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProp
             </div>
           </div>
         </Backdrop>
-      )}
+        );
+      })()}
 
       {/* Add-pickup dialog */}
       {showAdd && (
