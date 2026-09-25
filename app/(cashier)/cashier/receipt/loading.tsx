@@ -56,7 +56,7 @@ export default function ReceiptLoading() {
         </aside>
 
         {/* Right — receipt paper */}
-        <main className="flex-1 flex justify-center px-6 py-8 bg-zinc-100">
+        <main className="flex-1 flex justify-center px-6 py-8 bg-secondary/50">
           <div className="w-full max-w-sm">
             <div className="bg-white rounded-xl shadow-lg border border-black/5 overflow-hidden">
               {/* Logo */}

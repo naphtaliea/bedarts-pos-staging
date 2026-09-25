@@ -146,7 +146,7 @@ export function PinClient({ cashiers }: { cashiers: Cashier[] }) {
   return (
     <div className="min-h-dvh bg-sidebar flex flex-col">
       <div className="flex flex-col items-center pt-10 pb-2">
-        <BrandLogo className="h-10 w-auto mb-5" />
+        <BrandLogo variant="reverse" className="h-10 w-auto mb-5" />
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">

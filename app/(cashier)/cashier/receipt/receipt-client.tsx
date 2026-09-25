@@ -126,7 +126,7 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
           <div className="flex-1 flex flex-col gap-2 p-5">
             <button
               onClick={() => window.print()}
-              className="flex items-center justify-center gap-2 h-12 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors"
+              className="flex items-center justify-center gap-2 h-12 rounded-xl font-semibold text-sm btn-tactile-primary active:btn-tactile-primary-active"
             >
               <Printer className="w-4 h-4" aria-hidden="true" />
               Print Receipt
@@ -169,7 +169,7 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
         </aside>
 
         {/* ── RIGHT: Receipt paper preview ──────────────────────── */}
-        <main className="flex-1 overflow-y-auto flex justify-center px-6 py-8 bg-zinc-100">
+        <main className="flex-1 overflow-y-auto flex justify-center px-6 py-8 bg-secondary/50">
           <div className="w-full max-w-sm">
             <div id="receipt-print" className="bg-white rounded-xl shadow-lg border border-black/5 overflow-hidden font-mono text-xs">
 

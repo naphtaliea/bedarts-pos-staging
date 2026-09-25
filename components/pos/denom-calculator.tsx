@@ -31,7 +31,7 @@ export function DenomCalculator() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Till counter"
-        className="flex items-center justify-center w-11 border-r border-border text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+        className="flex items-center justify-center w-11 border-r border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
       >
         <Calculator className="w-4 h-4" />
       </button>

@@ -57,7 +57,7 @@ function getCategoryStyle(categoryName: string): { bg: string; text: string; chi
     return { bg: "bg-indigo-100", text: "text-indigo-700", chip: "text-indigo-700 bg-indigo-50" };
   if (name.includes("vegetable") || name.includes("veg") || name.includes("produce") || name.includes("fruit"))
     return { bg: "bg-green-100", text: "text-green-700", chip: "text-green-700 bg-green-50" };
-  return { bg: "bg-slate-100", text: "text-slate-500", chip: "text-slate-600 bg-slate-100" };
+  return { bg: "bg-secondary", text: "text-muted-foreground", chip: "text-muted-foreground bg-secondary" };
 }
 
 export function CashierPOSClient({
@@ -437,7 +437,7 @@ export function CashierPOSClient({
           {/* Order header */}
           <div className="shrink-0 flex items-center justify-between px-3 py-1 border-b border-border">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.15em]">Order</span>
+              <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.15em]">Order</span>
               {items.length > 0 && (
                 <span className="text-[10px] font-black bg-primary text-white px-1.5 py-0.5 rounded-full leading-none tabular-nums">
                   {items.length}
@@ -461,7 +461,7 @@ export function CashierPOSClient({
                   "text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg transition-all",
                   confirmClear
                     ? "text-destructive bg-destructive/10"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
                 {confirmClear ? "Confirm?" : "Clear"}
@@ -477,8 +477,8 @@ export function CashierPOSClient({
                   <ShoppingCart className="w-7 h-7 text-primary/60" aria-hidden="true" strokeWidth={1.75} />
                 </div>
                 <div>
-                  <p className="font-display font-black text-slate-900 text-base">Start a new order</p>
-                  <p className="text-xs text-slate-500 mt-1">Tap a product on the right to add it</p>
+                  <p className="font-display font-black text-foreground text-base">Start a new order</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tap a product on the right to add it</p>
                 </div>
               </div>
             ) : (
@@ -493,20 +493,20 @@ export function CashierPOSClient({
                     tabIndex={-1}
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 cursor-pointer border-b border-border transition-all focus:outline-none",
-                      isSelected ? "bg-primary/[0.08]" : "hover:bg-slate-50"
+                      isSelected ? "bg-primary/[0.08]" : "hover:bg-secondary/60"
                     )}
                   >
                     {/* Thumbnail */}
-                    <div className="shrink-0 w-9 h-9 rounded-lg overflow-hidden bg-slate-100">
+                    <div className="shrink-0 w-9 h-9 rounded-lg overflow-hidden bg-secondary">
                       {item.product.image_url ? (
                         <img
                           src={item.product.image_url}
-                          alt=""
+                          alt={item.product.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-slate-400 font-bold text-sm" aria-hidden="true">
+                          <span className="text-muted-foreground/60 font-bold text-sm" aria-hidden="true">
                             {item.product.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -517,11 +517,11 @@ export function CashierPOSClient({
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-sm font-bold truncate leading-tight",
-                        isSelected ? "text-slate-900" : "text-slate-800"
+                        isSelected ? "text-foreground" : "text-foreground/90"
                       )}>
                         {item.product.name}
                       </p>
-                      <p className="text-[11px] mt-0.5 tabular-nums text-slate-500 leading-snug">
+                      <p className="text-[11px] mt-0.5 tabular-nums text-muted-foreground leading-snug">
                         {item.packageLabel
                           ? `${item.packageLabel} · ${item.quantity}${item.product.unit === "kg" ? "kg" : "pcs"}`
                           : item.product.unit === "kg"
@@ -544,7 +544,7 @@ export function CashierPOSClient({
                     {/* Total */}
                     <span className={cn(
                       "font-display font-black text-base tabular-nums shrink-0 tracking-tight",
-                      isSelected ? "text-primary" : "text-slate-900"
+                      isSelected ? "text-primary" : "text-foreground"
                     )}>
                       {formatCurrency(lineTotal)}
                     </span>
@@ -559,7 +559,7 @@ export function CashierPOSClient({
                         if (selectedLineId === item.lineId) setSelectedLineId(next);
                       }}
                       aria-label={`Remove ${item.product.name}`}
-                      className="w-9 h-9 -my-1 -mr-1 rounded-lg flex items-center justify-center shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="w-11 h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
@@ -570,14 +570,14 @@ export function CashierPOSClient({
           </div>
 
           {/* ── NUMPAD ── */}
-          <div className="shrink-0 bg-slate-50 border-t border-border p-2 space-y-1.5">
+          <div className="shrink-0 bg-secondary/40 border-t border-border p-2 space-y-1.5">
 
             {/* Selected line readout */}
             <div className="flex items-center justify-between gap-2 h-8">
               {selectedLine ? (
                 <>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.12em] truncate">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.12em] truncate">
                       {selectedLine.product.name}
                     </p>
                     {(boxPreview ?? weightPreview) && (
@@ -588,13 +588,13 @@ export function CashierPOSClient({
                     <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary text-white leading-none">
                       {mode === "Qty" && selectedLine.product.unit === "kg" ? "Wt" : mode}
                     </span>
-                    <span className="font-display font-black text-xl text-slate-900 tabular-nums">
+                    <span className="font-display font-black text-xl text-foreground tabular-nums">
                       {displayValue}
                     </span>
                   </div>
                 </>
               ) : (
-                <p className="text-[11px] text-slate-400 w-full text-center uppercase tracking-widest font-bold">Numpad</p>
+                <p className="text-[11px] text-muted-foreground w-full text-center uppercase tracking-widest font-bold">Numpad</p>
               )}
             </div>
 
@@ -602,7 +602,7 @@ export function CashierPOSClient({
             {selectedLine && (
               <button
                 onClick={() => { setPackageModal(selectedLine.product); setPackageModalLineId(selectedLineId); }}
-                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-md btn-tactile active:btn-tactile-active text-slate-500 hover:text-slate-900 text-xs font-semibold"
+                className="w-full flex items-center justify-center gap-1.5 h-9 rounded-md btn-tactile active:btn-tactile-active text-muted-foreground hover:text-foreground text-xs font-semibold"
               >
                 <Scale className="w-3.5 h-3.5" aria-hidden="true" />
                 Change UOM
@@ -614,7 +614,7 @@ export function CashierPOSClient({
               {/* Row 1: 1 2 3  Qty */}
               {["1","2","3"].map(k => (
                 <button key={k} onClick={() => pressKey(k)}
-                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-slate-900 font-display font-black text-xl">
+                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-foreground font-display font-black text-xl">
                   {k}
                 </button>
               ))}
@@ -624,7 +624,7 @@ export function CashierPOSClient({
                   "h-12 rounded-xl text-xs font-black uppercase tracking-wider",
                   mode === "Qty"
                     ? "btn-tactile-primary active:btn-tactile-primary-active"
-                    : "btn-tactile active:btn-tactile-active text-slate-500"
+                    : "btn-tactile active:btn-tactile-active text-muted-foreground"
                 )}
               >
                 {selectedLine?.product.unit === "kg" ? "Wt" : "Qty"}
@@ -633,7 +633,7 @@ export function CashierPOSClient({
               {/* Row 2: 4 5 6  Disc */}
               {["4","5","6"].map(k => (
                 <button key={k} onClick={() => pressKey(k)}
-                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-slate-900 font-display font-black text-xl">
+                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-foreground font-display font-black text-xl">
                   {k}
                 </button>
               ))}
@@ -643,7 +643,7 @@ export function CashierPOSClient({
                   "h-12 rounded-xl text-xs font-black uppercase tracking-wider",
                   mode === "Disc"
                     ? "btn-tactile-primary active:btn-tactile-primary-active"
-                    : "btn-tactile active:btn-tactile-active text-slate-500"
+                    : "btn-tactile active:btn-tactile-active text-muted-foreground"
                 )}
               >
                 Disc
@@ -652,7 +652,7 @@ export function CashierPOSClient({
               {/* Row 3: 7 8 9  Price */}
               {["7","8","9"].map(k => (
                 <button key={k} onClick={() => pressKey(k)}
-                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-slate-900 font-display font-black text-xl">
+                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-foreground font-display font-black text-xl">
                   {k}
                 </button>
               ))}
@@ -662,7 +662,7 @@ export function CashierPOSClient({
                   "h-12 rounded-xl text-xs font-black uppercase tracking-wider",
                   mode === "Price"
                     ? "btn-tactile-primary active:btn-tactile-primary-active"
-                    : "btn-tactile active:btn-tactile-active text-slate-500"
+                    : "btn-tactile active:btn-tactile-active text-muted-foreground"
                 )}
               >
                 Price
@@ -671,14 +671,14 @@ export function CashierPOSClient({
               {/* Row 4: 00 0 .  ⌫ */}
               {["00","0","."].map(k => (
                 <button key={k} onClick={() => pressKey(k)}
-                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-slate-900 font-display font-black text-xl">
+                  className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-foreground font-display font-black text-xl">
                   {k}
                 </button>
               ))}
               <button
                 onClick={() => pressKey("backspace")}
                 aria-label="Backspace"
-                className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-slate-500 hover:text-destructive flex items-center justify-center"
+                className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-muted-foreground hover:text-destructive flex items-center justify-center"
               >
                 <Delete className="w-5 h-5" aria-hidden="true" />
               </button>
@@ -686,10 +686,10 @@ export function CashierPOSClient({
           </div>
 
           {/* ── TOTALS + PAY ── */}
-          <div className="shrink-0 px-3 pb-3 pt-2 bg-slate-50 border-t-2 border-primary/10 space-y-2">
+          <div className="shrink-0 px-3 pb-3 pt-2 bg-secondary/40 border-t-2 border-primary/10 space-y-2">
             {discountVal > 0 && (
               <div className="flex justify-between text-[11px] tabular-nums px-1">
-                <span className="text-slate-500">Subtotal <span className="text-slate-800 font-semibold">{formatCurrency(subtotalVal)}</span></span>
+                <span className="text-muted-foreground">Subtotal <span className="text-foreground font-semibold">{formatCurrency(subtotalVal)}</span></span>
                 <span className="text-warning font-semibold">−{formatCurrency(discountVal)}</span>
               </div>
             )}
@@ -719,7 +719,7 @@ export function CashierPOSClient({
         <section
           aria-label="Product browser"
           className={cn(
-            "flex flex-col flex-1 min-w-0 bg-slate-50",
+            "flex flex-col flex-1 min-w-0 bg-secondary/30",
             mobileView === "products" ? "" : "hidden lg:flex"
           )}
         >
@@ -728,20 +728,20 @@ export function CashierPOSClient({
           <div className="shrink-0 px-4 pt-3 pb-2">
             <label htmlFor="product-search" className="sr-only">Search products</label>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" aria-hidden="true" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none" aria-hidden="true" />
               <input
                 id="product-search"
                 type="text"
                 placeholder="Search products…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
               />
               {search && (
                 <button
                   onClick={() => setSearch("")}
                   aria-label="Clear search"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -756,10 +756,10 @@ export function CashierPOSClient({
               <button
                 onClick={() => setCategory(null)}
                 className={cn(
-                  "shrink-0 h-9 px-4 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                  "shrink-0 h-10 px-4 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap",
                   category === null
-                    ? "bg-slate-900 text-white shadow-md"
-                    : "bg-white text-slate-500 shadow-sm hover:text-slate-800 hover:shadow-md hover:-translate-y-0.5"
+                    ? "bg-sidebar text-white shadow-md"
+                    : "bg-white text-muted-foreground shadow-sm hover:text-foreground hover:shadow-md hover:-translate-y-0.5"
                 )}
               >
                 All
@@ -773,9 +773,9 @@ export function CashierPOSClient({
                     key={cat.id}
                     onClick={() => setCategory(cat.id)}
                     className={cn(
-                      "shrink-0 h-9 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
+                      "shrink-0 h-10 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
                       isActive
-                        ? "bg-slate-900 text-white shadow-md"
+                        ? "bg-sidebar text-white shadow-md"
                         : `${chip} shadow-sm hover:shadow-md hover:-translate-y-0.5`
                     )}
                   >
@@ -784,14 +784,14 @@ export function CashierPOSClient({
                 );
               })}
             </div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-50 to-transparent" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-secondary/30 to-transparent" aria-hidden="true" />
           </div>
 
           {/* Mobile running total — sticky strip above product grid */}
           {items.length > 0 && (
-            <div className="lg:hidden shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900 border-b border-slate-800">
+            <div className="lg:hidden shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-sidebar border-b border-white/10">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">
+                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest leading-none mb-0.5">
                   {items.length} item{items.length !== 1 ? "s" : ""}
                 </p>
                 <p className="font-display font-black text-base text-white tabular-nums leading-none">{formatCurrency(totalVal)}</p>
@@ -810,12 +810,12 @@ export function CashierPOSClient({
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
             {filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 gap-4 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-                  <Search className="w-7 h-7 text-slate-400" strokeWidth={1.75} aria-hidden="true" />
+                <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center">
+                  <Search className="w-7 h-7 text-muted-foreground/60" strokeWidth={1.75} aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="font-display font-black text-base text-slate-900">No matches</p>
-                  <p className="text-xs text-slate-500 mt-1">Try a different search or category</p>
+                  <p className="font-display font-black text-base text-foreground">No matches</p>
+                  <p className="text-xs text-muted-foreground mt-1">Try a different search or category</p>
                 </div>
               </div>
             ) : (
@@ -884,14 +884,14 @@ export function CashierPOSClient({
 
                       {/* Info */}
                       <div className="p-2.5 pt-2">
-                        <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-2 mb-1.5">
+                        <p className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2 mb-1.5">
                           {product.name}
                         </p>
                         <div className="flex items-baseline justify-between gap-1">
                           <span className="font-display font-black text-base text-primary tabular-nums leading-none">
                             {formatCurrency(product.selling_price)}
                           </span>
-                          <span className="text-xs text-slate-400 font-medium shrink-0">
+                          <span className="text-xs text-muted-foreground font-medium shrink-0">
                             /{product.unit}
                           </span>
                         </div>
@@ -901,7 +901,7 @@ export function CashierPOSClient({
                           </p>
                         )}
                         {!isOutOfStock && !isLowStock && (
-                          <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                          <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                             {product.unit === "kg" ? stockQty.toFixed(2) : stockQty} {product.unit}
                           </p>
                         )}
@@ -915,7 +915,7 @@ export function CashierPOSClient({
 
                       {/* Out-of-stock overlay — locks the entire card */}
                       {isOutOfStock && (
-                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 rounded-2xl">
+                        <div className="absolute inset-0 bg-sidebar/70 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 rounded-2xl">
                           <Ban className="w-8 h-8 text-white/90" strokeWidth={2} aria-hidden="true" />
                           <span className="text-[10px] font-black text-white uppercase tracking-widest">
                             {isExpiredOnly ? "Expired" : "Out of Stock"}
@@ -938,17 +938,17 @@ export function CashierPOSClient({
           onClick={(e) => { if (e.target === e.currentTarget) { setPackageModal(null); setPackageModalLineId(null); } }}
         >
           <div className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl">
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 sm:hidden" aria-hidden="true" />
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{packageModalLineId ? "Change UOM" : "Add to order"}</p>
-            <h3 className="text-lg font-bold text-slate-900 mb-4">{packageModal.name}</h3>
+            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5 sm:hidden" aria-hidden="true" />
+            <p className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-0.5">{packageModalLineId ? "Change UOM" : "Add to order"}</p>
+            <h3 className="text-lg font-bold text-foreground mb-4">{packageModal.name}</h3>
             <div className="space-y-2">
               <button
                 onClick={() => handleAddLoose(packageModal)}
-                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] transition-all text-left"
+                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border hover:border-border/80 hover:bg-secondary/60 active:scale-[0.99] transition-all text-left"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-900">Loose — per {packageModal.unit}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Enter quantity with numpad</p>
+                  <p className="text-sm font-bold text-foreground">Loose — per {packageModal.unit}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Enter quantity with numpad</p>
                 </div>
                 <span className="font-display font-black text-lg text-primary tabular-nums ml-3 shrink-0">
                   {formatCurrency(effectivePrice(packageModal))}
@@ -962,8 +962,8 @@ export function CashierPOSClient({
                   className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-primary/5 border border-primary/15 hover:bg-primary/10 active:scale-[0.99] transition-all text-left"
                 >
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{pkg.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-sm font-bold text-foreground">{pkg.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {pkg.quantity} {packageModal.unit} · {formatCurrency(pkg.price / pkg.quantity)}/{packageModal.unit}
                     </p>
                   </div>
@@ -975,7 +975,7 @@ export function CashierPOSClient({
             </div>
             <button
               onClick={() => { setPackageModal(null); setPackageModalLineId(null); }}
-              className="w-full mt-3 h-11 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+              className="w-full mt-3 h-11 rounded-2xl border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary transition-colors"
             >
               Cancel
             </button>

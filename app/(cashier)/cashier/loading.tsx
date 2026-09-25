@@ -43,7 +43,7 @@ export default function CashierLoading() {
             <div className="h-3 w-28 rounded bg-slate-100 animate-pulse" />
           </div>
           {/* Numpad */}
-          <div className="shrink-0 bg-slate-50 border-t border-border p-2 space-y-1.5">
+          <div className="shrink-0 bg-secondary/40 border-t border-border p-2 space-y-1.5">
             <div className="h-8 rounded" />
             <div className="grid grid-cols-4 gap-1">
               {Array.from({ length: 16 }).map((_, i) => (
@@ -58,7 +58,7 @@ export default function CashierLoading() {
         </section>
 
         {/* Right panel — product browser */}
-        <section className="flex flex-col flex-1 min-w-0 bg-slate-50">
+        <section className="flex flex-col flex-1 min-w-0 bg-secondary/30">
           {/* Search */}
           <div className="shrink-0 px-4 pt-3 pb-2">
             <div className="h-11 rounded-2xl bg-slate-200 animate-pulse w-full" />

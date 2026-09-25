@@ -18,7 +18,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
 const METHOD_BADGE: Record<PaymentMethod | "split", string> = {
   cash: "bg-success/12 text-success",
   momo: "bg-accent/12 text-accent",
-  pos_machine: "bg-gray-100 text-gray-700",
+  pos_machine: "bg-secondary text-muted-foreground",
   split: "bg-primary/10 text-primary",
 };
 
@@ -87,7 +87,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
       <div className="shrink-0 border-b border-border px-4 lg:px-6 py-2 flex items-center justify-between gap-3 flex-wrap bg-white">
         <p className="text-sm text-muted-foreground">{dateLabel}</p>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-50 border border-border text-sm">
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-secondary border border-border text-sm">
             {canSeeRevenue && (
               <>
                 <div className="flex items-center gap-1.5">
@@ -104,7 +104,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           </div>
           <Link
             href={isYesterday ? "/cashier/orders?date=yesterday" : "/cashier/orders"}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             aria-label="Refresh orders"
           >
             <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />

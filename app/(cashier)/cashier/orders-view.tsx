@@ -17,7 +17,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
 const METHOD_BADGE: Record<PaymentMethod | "split" | "pending_sync", string> = {
   cash: "bg-success/12 text-success",
   momo: "bg-accent/12 text-accent",
-  pos_machine: "bg-gray-100 text-gray-700",
+  pos_machine: "bg-secondary text-muted-foreground",
   split: "bg-primary/10 text-primary",
   pending_sync: "bg-warning/15 text-warning",
 };
@@ -144,7 +144,7 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-50 border border-border text-sm">
+          <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-secondary border border-border text-sm">
             {canSeeRevenue && !isOffline && (
               <>
                 <div className="flex items-center gap-1.5">
@@ -161,7 +161,7 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
           </div>
           <button
             onClick={fetchOrders}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-slate-50 hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             aria-label="Refresh orders"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} aria-hidden="true" />
@@ -170,13 +170,13 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
           <div className="flex rounded-lg border border-border overflow-hidden text-xs font-medium">
             <button
               onClick={() => setIsYesterday(false)}
-              className={cn("px-3 py-1.5 transition-colors", !isYesterday ? "bg-foreground text-background" : "text-muted-foreground hover:bg-slate-50")}
+              className={cn("px-3 py-1.5 transition-colors", !isYesterday ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary")}
             >
               Today
             </button>
             <button
               onClick={() => setIsYesterday(true)}
-              className={cn("px-3 py-1.5 border-l border-border transition-colors", isYesterday ? "bg-foreground text-background" : "text-muted-foreground hover:bg-slate-50")}
+              className={cn("px-3 py-1.5 border-l border-border transition-colors", isYesterday ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary")}
             >
               Yesterday
             </button>
@@ -230,9 +230,11 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
                       <tr
                         key={order.id}
                         onClick={() => !isPending && onViewReceipt(order.id)}
+                        tabIndex={isPending ? undefined : 0}
+                        onKeyDown={(e) => { if (!isPending && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onViewReceipt(order.id); } }}
                         className={cn(
                           "transition-colors",
-                          isPending ? "cursor-default" : "hover:bg-secondary/40 cursor-pointer"
+                          isPending ? "cursor-default" : "hover:bg-secondary/40 cursor-pointer focus-visible:outline-none focus-visible:bg-secondary/40"
                         )}
                       >
                         <td className="px-4 py-2.5 font-mono font-medium text-foreground">{receiptRef}</td>

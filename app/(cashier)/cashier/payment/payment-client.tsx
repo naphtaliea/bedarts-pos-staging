@@ -277,7 +277,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                     "flex items-center gap-3 px-4 py-3 text-sm font-semibold border-b border-border/50 border-l-[3px] transition-all text-left w-full",
                     active
                       ? "border-l-primary bg-primary/[0.04] text-foreground"
-                      : "border-l-transparent text-muted-foreground hover:bg-slate-50 hover:text-foreground"
+                      : "border-l-transparent text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
                 >
                   <Icon className={cn("w-4 h-4 shrink-0", active && "text-primary")} aria-hidden="true" />
@@ -289,7 +289,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
         </aside>
 
         {/* ── RIGHT: Tendered display + numpad + confirm (65%) ── */}
-        <main className="flex-1 flex flex-col min-h-0 bg-slate-50">
+        <main className="flex-1 flex flex-col min-h-0 bg-secondary/30">
 
           {/* Tendered display */}
           <div className="shrink-0 px-6 pt-6 pb-3 text-center">
@@ -299,7 +299,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
             <p
               className={cn(
                 "font-display font-black tabular-nums leading-none tracking-tight",
-                entryAmount > 0 ? "text-primary" : "text-slate-200"
+                entryAmount > 0 ? "text-primary" : "text-foreground/10"
               )}
               style={{ fontSize: "clamp(2rem, 10vw, 4rem)" }}
             >
@@ -327,13 +327,13 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                     <div key={ri} className="grid grid-cols-4 gap-2">
                       {([k1, k2, k3] as string[]).map(key => (
                         <button key={key} onClick={() => pressTender(key)}
-                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active font-display text-2xl font-black text-slate-900">
+                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active font-display text-2xl font-black text-foreground">
                           {key}
                         </button>
                       ))}
                       {k4 === "⌫" ? (
                         <button onClick={() => pressTender("⌫")} aria-label="Backspace"
-                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active text-slate-500 hover:text-destructive flex items-center justify-center">
+                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active text-muted-foreground hover:text-destructive flex items-center justify-center">
                           <Delete className="w-5 h-5" aria-hidden="true" />
                         </button>
                       ) : (
@@ -351,12 +351,12 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                     <div key={ri} className="grid grid-cols-4 gap-2">
                       {row.map(key => (
                         <button key={key} onClick={() => pressTender(key)}
-                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active font-display text-2xl font-black text-slate-900">
+                          className="h-14 rounded-xl btn-tactile active:btn-tactile-active font-display text-2xl font-black text-foreground">
                           {key}
                         </button>
                       ))}
                       <button onClick={() => pressTender("⌫")} aria-label="Backspace"
-                        className="h-14 rounded-xl btn-tactile active:btn-tactile-active text-slate-500 hover:text-destructive flex items-center justify-center">
+                        className="h-14 rounded-xl btn-tactile active:btn-tactile-active text-muted-foreground hover:text-destructive flex items-center justify-center">
                         <Delete className="w-5 h-5" aria-hidden="true" />
                       </button>
                     </div>
