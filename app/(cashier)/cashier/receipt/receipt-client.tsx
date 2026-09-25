@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Printer, ClipboardList, CheckCircle2, ShoppingCart } from "lucide-react";
+import { Printer, ClipboardList, CheckCircle2, ShoppingCart, PackageCheck } from "lucide-react";
 import { formatCurrency, formatReceiptDate } from "@/lib/utils";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import type { Sale, StoreSettings } from "@/lib/types";
@@ -36,6 +36,8 @@ function Row({ label, value, valueBold }: { label: string; value: string; valueB
 export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: ReceiptClientProps) {
   const saleRef = `#${sale.id.slice(0, 8).toUpperCase()}`;
   const saleDate = formatReceiptDate(sale.created_at);
+  const isPickup = (sale as { pending_pickup?: boolean }).pending_pickup === true;
+  const pickupNote = (sale as { pickup_note?: string | null }).pickup_note ?? null;
 
   const payments = sale.payments ?? [];
   const hasCash = payments.some((p) => p.method === "cash");
@@ -91,12 +93,32 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
           {/* Success banner */}
           <div className="bg-white border-b border-border">
             <div className="px-6 py-8 text-center">
-              <div className="w-14 h-14 rounded-full bg-success/10 border border-success/20 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="w-8 h-8 text-success" aria-hidden="true" />
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                isPickup
+                  ? "bg-warning/10 border border-warning/30"
+                  : "bg-success/10 border border-success/20"
+              }`}>
+                {isPickup ? (
+                  <PackageCheck className="w-8 h-8 text-warning" aria-hidden="true" />
+                ) : (
+                  <CheckCircle2 className="w-8 h-8 text-success" aria-hidden="true" />
+                )}
               </div>
-              <p className="text-xl font-bold text-foreground">Payment Received</p>
+              <p className="text-xl font-bold text-foreground">
+                {isPickup ? "Pre-payment Received" : "Payment Received"}
+              </p>
               <p className="text-sm font-mono text-muted-foreground mt-1">{saleRef}</p>
               <p className="text-xs text-muted-foreground/60 mt-0.5">{saleDate}</p>
+              {isPickup && (
+                <div className="mt-4 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2.5 text-left">
+                  <p className="text-[10px] font-black text-warning uppercase tracking-widest mb-0.5">
+                    Pre-paid pickup
+                  </p>
+                  <p className="text-xs text-foreground">
+                    {pickupNote ?? "Customer to collect from a future shipment."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -177,6 +199,19 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
               <div className="pt-4 pb-2 flex flex-col items-center px-6">
                 <img src="/logo-brand.png" alt="Bedarts Cold Supplies" className="h-10 object-contain" draggable={false} />
               </div>
+
+              {/* Pre-paid pickup banner (prints too) */}
+              {isPickup && (
+                <div className="mx-4 my-2 border-2 border-dashed border-black rounded-md px-3 py-2 text-center">
+                  <p className="text-[13px] font-extrabold tracking-widest uppercase leading-tight">
+                    ★ Pre-paid Pickup ★
+                  </p>
+                  <p className="text-[11px] mt-1 leading-snug">Collect on delivery of next shipment</p>
+                  {pickupNote && (
+                    <p className="text-[12px] font-bold mt-1 leading-snug">{pickupNote}</p>
+                  )}
+                </div>
+              )}
 
               <Dash />
 

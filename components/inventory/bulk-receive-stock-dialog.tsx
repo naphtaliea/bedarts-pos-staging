@@ -42,6 +42,7 @@ interface Props {
   suppliers: Pick<Supplier, "id" | "name">[];
   onClose: () => void;
   onSave: (data: BulkReceiveData) => Promise<void>;
+  pickupSummary?: Record<string, { alreadyDeducted: number; awaiting: number }>;
 }
 
 const SELECT_CLASS = cn(
@@ -54,7 +55,7 @@ function newLine(): LineItem {
   return { key: crypto.randomUUID(), product_id: "", boxes: 0, cost_per_box: 0, expiry_date: null };
 }
 
-export function BulkReceiveStockDialog({ products, suppliers, onClose, onSave }: Props) {
+export function BulkReceiveStockDialog({ products, suppliers, onClose, onSave, pickupSummary = {} }: Props) {
   const today = new Date().toISOString().split("T")[0];
   const [supplierId, setSupplierId] = useState(WALKIN_SUPPLIER_ID);
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -191,8 +192,22 @@ export function BulkReceiveStockDialog({ products, suppliers, onClose, onSave }:
             {lines.map((line, idx) => {
               const { unit, totalUnits, costPerUnit, totalCost } = lineStats[idx];
               const unitLabel = unit === "kg" ? "kg" : "pcs";
+              const pu = line.product_id ? pickupSummary[line.product_id] : undefined;
               return (
-                <div key={line.key} className="grid grid-cols-1 sm:grid-cols-[1fr_80px_110px_130px_120px_36px] gap-3 items-center">
+              <div key={line.key} className="space-y-2">
+                {pu && pu.alreadyDeducted > 0 && (
+                  <div className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-foreground">
+                    <span className="font-bold text-warning">⚠ {pu.alreadyDeducted}{unitLabel} pre-paid pickup</span>{" "}
+                    already deducted from stock. If this line will fulfill it, enter only what&apos;s new to shop.
+                  </div>
+                )}
+                {pu && pu.awaiting > 0 && (
+                  <div className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-foreground">
+                    <span className="font-bold text-accent">i {pu.awaiting}{unitLabel} pending pickup</span>{" "}
+                    will deduct on delivery — enter full received quantity here.
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px_110px_130px_120px_36px] gap-3 items-center">
                   <select
                     aria-label={`Product for line ${idx + 1}`}
                     value={line.product_id}
@@ -256,6 +271,7 @@ export function BulkReceiveStockDialog({ products, suppliers, onClose, onSave }:
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
               );
             })}
 

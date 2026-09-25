@@ -13,6 +13,8 @@ interface SubmitSaleArgs {
   subtotal: number;
   discount: number;
   total: number;
+  pendingPickup?: boolean;
+  pickupNote?: string;
 }
 
 export async function submitSale(args: SubmitSaleArgs) {
@@ -39,9 +41,10 @@ export async function submitSale(args: SubmitSaleArgs) {
   }
   const cashierId = pinCashierId ?? user.id;
 
-  const { items, payments, subtotal, discount, total } = args;
+  const { items, payments, subtotal, discount, total, pendingPickup, pickupNote } = args;
 
-  // Early stock guard — single query, catches obvious overages before hitting the DB function
+  // Early stock guard — skipped for pre-orders (stock is deducted at pickup time).
+  // Still validates that products exist regardless.
   const { data: stocks } = await supabase
     .from("product_stock")
     .select("id, stock_quantity, name, unit")
@@ -51,7 +54,7 @@ export async function submitSale(args: SubmitSaleArgs) {
   for (const item of items) {
     const stock = stockMap[item.product.id];
     if (!stock) throw new Error(`Product not found: ${item.product.name}`);
-    if (stock.stock_quantity < item.quantity) {
+    if (!pendingPickup && stock.stock_quantity < item.quantity) {
       throw new Error(
         `Only ${stock.stock_quantity} ${item.product.unit ?? "units"} of "${stock.name}" available — requested ${item.quantity}`
       );
@@ -73,7 +76,7 @@ export async function submitSale(args: SubmitSaleArgs) {
     reference: p.reference?.trim() || "",
   }));
 
-  const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v3", {
+  const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v4", {
     p_cashier_id: cashierId,
     p_customer_id: null,
     p_subtotal: subtotal,
@@ -81,6 +84,8 @@ export async function submitSale(args: SubmitSaleArgs) {
     p_total: total,
     p_items: p_items,
     p_payments: p_payments,
+    p_pending_pickup: pendingPickup ?? false,
+    p_pickup_note: pickupNote ?? null,
   });
 
   if (rpcErr) throw new Error(rpcErr.message);

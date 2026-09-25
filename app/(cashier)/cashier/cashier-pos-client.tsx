@@ -104,6 +104,10 @@ export function CashierPOSClient({
     snapshots,
     enterPayment,
     exitPayment,
+    preorderMode,
+    preorderNote,
+    setPreorderMode,
+    setPreorderNote,
   } = useCartStore();
 
   // Payment view is derived per-tab: the current tab is "in payment" iff its id
@@ -203,7 +207,9 @@ export function CashierPOSClient({
     if (mode === "Qty") {
       // Allow qty=0 so the line shows 0 before a second backspace removes it
       const prod = products.find((p) => p.id === selectedLine?.product.id);
-      const maxQty = prod?.stock_quantity ?? Infinity;
+      // Pre-order mode bypasses the stock cap entirely — stock will be
+      // deducted from a future batch when the pickup is delivered.
+      const maxQty = preorderMode ? Infinity : (prod?.stock_quantity ?? Infinity);
       const capped = value > 0 ? Math.min(value, maxQty) : 0;
       if (maxQty !== Infinity && value > 0 && capped < value) {
         setStockCapId(selectedLineId);
@@ -339,8 +345,13 @@ export function CashierPOSClient({
             );
             const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
             if (sale) {
-              const items = (sale.sale_items ?? []) as { product_id: string; quantity: number }[];
-              applyStockDeductions(items.map((it) => ({ product_id: it.product_id, quantity: it.quantity })));
+              // Only decrement local stock for real sales — pre-orders don't
+              // touch stock until pickup delivery.
+              const stockAlreadyDeducted = (sale as { stock_deducted?: boolean }).stock_deducted !== false;
+              if (stockAlreadyDeducted) {
+                const items = (sale.sale_items ?? []) as { product_id: string; quantity: number }[];
+                applyStockDeductions(items.map((it) => ({ product_id: it.product_id, quantity: it.quantity })));
+              }
               setView({ screen: "receipt", sale, settings });
             }
           } catch {
@@ -349,6 +360,8 @@ export function CashierPOSClient({
         }}
         onOfflineComplete={(sale) => {
           exitPayment();
+          // Offline pre-orders aren't supported (submitSale wouldn't have queued
+          // them); this path always deducts.
           applyStockDeductions(
             (sale.sale_items ?? []).map((it) => ({ product_id: it.product_id, quantity: it.quantity }))
           );
@@ -469,7 +482,21 @@ export function CashierPOSClient({
                 </span>
               )}
             </div>
-            {items.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPreorderMode(!preorderMode)}
+                aria-pressed={preorderMode}
+                title={preorderMode ? "Turn off pre-order mode" : "Mark this order as a pre-paid pickup (stock deducted on delivery)"}
+                className={cn(
+                  "text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg transition-all",
+                  preorderMode
+                    ? "bg-warning text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                {preorderMode ? "Pre-order ✓" : "Pre-order"}
+              </button>
+              {items.length > 0 && (
               <button
                 onClick={() => {
                   if (!confirmClear) {
@@ -491,8 +518,30 @@ export function CashierPOSClient({
               >
                 {confirmClear ? "Confirm?" : "Clear"}
               </button>
-            )}
+              )}
+            </div>
           </div>
+
+          {/* Pre-order strip + customer note */}
+          {preorderMode && (
+            <div className="shrink-0 bg-warning/10 border-b border-warning/30 px-3 py-2 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-warning flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-black text-white">!</span>
+                </div>
+                <p className="text-[11px] font-black text-warning uppercase tracking-widest leading-none">
+                  Pre-order — stock deducted at pickup
+                </p>
+              </div>
+              <input
+                type="text"
+                value={preorderNote}
+                onChange={(e) => setPreorderNote(e.target.value)}
+                placeholder="Customer name + phone (required)"
+                className="w-full h-9 rounded-lg border border-warning/40 bg-white px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-warning/40"
+              />
+            </div>
+          )}
 
           {/* ── Order lines (scrollable) ── */}
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -850,7 +899,10 @@ export function CashierPOSClient({
                   const isActive      = selectedLineId !== null && items.some((i) => i.lineId === selectedLineId && i.product.id === product.id);
                   const stockQty      = product.stock_quantity ?? 0;
                   const isExpiredOnly = stockQty > 0 && !product.has_valid_stock;
-                  const isOutOfStock  = stockQty <= 0 || !product.has_valid_stock;
+                  const trueOutOfStock = stockQty <= 0 || !product.has_valid_stock;
+                  // In pre-order mode, out-of-stock items are addable
+                  // (stock will be deducted at pickup delivery time).
+                  const isOutOfStock  = trueOutOfStock && !preorderMode;
                   const isLowStock    = !isOutOfStock && stockQty < product.low_stock_threshold;
                   const catName       = categoryMap[product.category_id] ?? "";
                   const { bg, text }  = getCategoryStyle(catName);

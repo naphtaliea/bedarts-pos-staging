@@ -12,12 +12,22 @@ export interface OrderTab {
 }
 
 // Persisted snapshot of a tab's cart (saved when you leave the tab)
-type TabSnapshot = { items: CartItem[]; discount: number };
+type TabSnapshot = {
+  items: CartItem[];
+  discount: number;
+  preorderMode?: boolean;
+  preorderNote?: string;
+};
 
 interface PosStore {
   // Active cart (flat — mirrors the active tab at all times)
   items: CartItem[];
   discount: number;
+
+  // Pre-order mode is per-tab: when on, this tab bypasses stock caps and
+  // the sale is submitted as a pending pickup (stock deducted at delivery).
+  preorderMode: boolean;
+  preorderNote: string;
 
   // Tab list + which one is active
   tabs: OrderTab[];
@@ -47,6 +57,10 @@ interface PosStore {
   setDiscount: (discount: number) => void;
   clearCart: () => void;
 
+  // Pre-order controls
+  setPreorderMode: (on: boolean) => void;
+  setPreorderNote: (note: string) => void;
+
   // Computed (same API as before)
   subtotal: () => number;
   total: () => number;
@@ -63,6 +77,8 @@ export const useCartStore = create<PosStore>()(
     (set, get) => ({
       items: [],
       discount: 0,
+      preorderMode: false,
+      preorderNote: "",
       tabs: [FIRST_TAB],
       activeTabId: FIRST_TAB.id,
       snapshots: {},
@@ -76,12 +92,17 @@ export const useCartStore = create<PosStore>()(
         const counter = s.tabCounter + 1;
         const tab = makeTab(`Order ${counter}`);
         set({
-          snapshots: { ...s.snapshots, [s.activeTabId]: { items: s.items, discount: s.discount } },
+          snapshots: {
+            ...s.snapshots,
+            [s.activeTabId]: { items: s.items, discount: s.discount, preorderMode: s.preorderMode, preorderNote: s.preorderNote },
+          },
           tabs: [...s.tabs, tab],
           activeTabId: tab.id,
           tabCounter: counter,
           items: [],
           discount: 0,
+          preorderMode: false,
+          preorderNote: "",
         });
       },
 
@@ -96,6 +117,8 @@ export const useCartStore = create<PosStore>()(
         let newActiveId = s.activeTabId;
         let newItems = s.items;
         let newDiscount = s.discount;
+        let newPreorderMode = s.preorderMode;
+        let newPreorderNote = s.preorderNote;
 
         if (s.activeTabId === id) {
           // prefer the tab to the left; fall back to the first remaining tab
@@ -105,10 +128,21 @@ export const useCartStore = create<PosStore>()(
           const snap = newSnapshots[nextTab.id];
           newItems = snap?.items ?? [];
           newDiscount = snap?.discount ?? 0;
+          newPreorderMode = snap?.preorderMode ?? false;
+          newPreorderNote = snap?.preorderNote ?? "";
           delete newSnapshots[nextTab.id];
         }
 
-        set({ tabs: remaining, activeTabId: newActiveId, snapshots: newSnapshots, items: newItems, discount: newDiscount, paymentTabIds: newPaymentTabIds });
+        set({
+          tabs: remaining,
+          activeTabId: newActiveId,
+          snapshots: newSnapshots,
+          items: newItems,
+          discount: newDiscount,
+          preorderMode: newPreorderMode,
+          preorderNote: newPreorderNote,
+          paymentTabIds: newPaymentTabIds,
+        });
       },
 
       enterPayment: (tabId) => {
@@ -126,7 +160,7 @@ export const useCartStore = create<PosStore>()(
         if (s.activeTabId === id) return;
         const newSnapshots = {
           ...s.snapshots,
-          [s.activeTabId]: { items: s.items, discount: s.discount },
+          [s.activeTabId]: { items: s.items, discount: s.discount, preorderMode: s.preorderMode, preorderNote: s.preorderNote },
         };
         const snap = s.snapshots[id];
         delete newSnapshots[id];
@@ -135,6 +169,8 @@ export const useCartStore = create<PosStore>()(
           activeTabId: id,
           items: snap?.items ?? [],
           discount: snap?.discount ?? 0,
+          preorderMode: snap?.preorderMode ?? false,
+          preorderNote: snap?.preorderNote ?? "",
         });
       },
 
@@ -163,7 +199,10 @@ export const useCartStore = create<PosStore>()(
         set((s) => ({ items: s.items.map((i) => i.lineId === lineId ? { ...i, packageLabel: label } : i) })),
 
       setDiscount: (discount) => set({ discount: Math.max(0, discount) }),
-      clearCart: () => set({ items: [], discount: 0 }),
+      clearCart: () => set({ items: [], discount: 0, preorderMode: false, preorderNote: "" }),
+
+      setPreorderMode: (on) => set({ preorderMode: on, preorderNote: on ? get().preorderNote : "" }),
+      setPreorderNote: (note) => set({ preorderNote: note }),
 
       // ── Computed ─────────────────────────────────────────────
 

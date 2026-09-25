@@ -46,6 +46,7 @@ interface InventoryClientProps {
   adjustments: AdjustmentRow[];
   suppliers: Pick<Supplier, "id" | "name">[];
   packages: ProductPackage[];
+  pickupSummary: Record<string, { alreadyDeducted: number; awaiting: number }>;
 }
 
 // ─── Tab type ──────────────────────────────────────────────────────────────────
@@ -236,6 +237,7 @@ export function InventoryClient({
   adjustments,
   suppliers,
   packages,
+  pickupSummary,
 }: InventoryClientProps) {
   const router = useRouter();
 
@@ -685,6 +687,7 @@ export function InventoryClient({
           suppliers={suppliers}
           onClose={() => setShowReceiveStock(false)}
           onSave={handleReceiveStock}
+          pickupSummary={pickupSummary}
         />
       )}
 

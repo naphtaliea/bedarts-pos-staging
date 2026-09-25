@@ -29,6 +29,15 @@ export async function markPickupDelivered(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  // For pre-orders (stock_deducted=false), this runs FEFO deduction against
+  // whichever batch has valid stock. Raises on insufficient stock — caller
+  // sees that in the returned error. For sales whose stock was already
+  // deducted at sale time, this is a no-op.
+  const { error: deductErr } = await supabase.rpc("deduct_pickup_stock_v1", {
+    p_sale_id: saleId,
+  });
+  if (deductErr) return { error: deductErr.message };
+
   const { error } = await supabase
     .from("sales")
     .update({
@@ -40,6 +49,7 @@ export async function markPickupDelivered(
     .eq("pending_pickup", true);
   if (error) return { error: error.message };
   revalidatePath("/pickups");
+  revalidatePath("/inventory");
   return {};
 }
 

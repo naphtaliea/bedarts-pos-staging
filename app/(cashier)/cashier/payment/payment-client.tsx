@@ -50,7 +50,7 @@ interface PaymentClientProps {
 
 export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOfflineComplete }: PaymentClientProps) {
   const router = useRouter();
-  const { items, subtotal, total, discount, clearCart } = useCartStore();
+  const { items, subtotal, total, discount, clearCart, preorderMode, preorderNote } = useCartStore();
   const subtotalVal = subtotal();
   const totalVal    = total();
 
@@ -121,9 +121,25 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
       { method, amount: entryAmount, reference: "" },
     ].filter(p => p.amount > 0);
 
-    const payload = { items, payments, subtotal: subtotalVal, discount, total: totalVal };
+    const payload = {
+      items,
+      payments,
+      subtotal: subtotalVal,
+      discount,
+      total: totalVal,
+      pendingPickup: preorderMode,
+      pickupNote: preorderMode ? preorderNote.trim() : undefined,
+    };
     try {
-      if (!navigator.onLine) throw new Error("OFFLINE_MODE");
+      if (!navigator.onLine) {
+        if (preorderMode) {
+          throw new Error("Pre-orders require an internet connection.");
+        }
+        throw new Error("OFFLINE_MODE");
+      }
+      if (preorderMode && !preorderNote.trim()) {
+        throw new Error("Customer name/phone is required for a pre-order.");
+      }
       const { saleId } = await submitSale(payload);
       leavingForReceipt.current = true;
       clearCart();
@@ -207,6 +223,16 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
 
         {/* ── LEFT: Total, splits, method — full width on mobile, 35% on lg+ ── */}
         <aside className="w-full lg:w-[35%] border-b lg:border-b-0 lg:border-r border-border flex flex-col bg-white shrink-0">
+
+          {/* Pre-order banner */}
+          {preorderMode && (
+            <div className="shrink-0 bg-warning text-white px-5 py-2.5">
+              <p className="text-[10px] font-black uppercase tracking-widest leading-none">Pre-paid pickup</p>
+              <p className="text-[11px] mt-1 opacity-90 truncate">
+                {preorderNote.trim() || "⚠ Enter customer name in the cart panel"}
+              </p>
+            </div>
+          )}
 
           {/* Total Due */}
           <div className="shrink-0 px-5 pt-5 pb-4 border-b border-border">
