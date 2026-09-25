@@ -301,7 +301,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                 "font-display font-black tabular-nums leading-none tracking-tight",
                 entryAmount > 0 ? "text-primary" : "text-slate-200"
               )}
-              style={{ fontSize: "4rem" }}
+              style={{ fontSize: "clamp(2rem, 10vw, 4rem)" }}
             >
               {formatCurrency(entryAmount > 0 ? entryAmount : 0)}
             </p>

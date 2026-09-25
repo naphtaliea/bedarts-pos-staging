@@ -127,7 +127,6 @@ export function SettingsClient({ settings, users, categories, suppliers, pending
         </div>
         <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-1 self-stretch rounded-full bg-sidebar shrink-0" />
             <div>
               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-1">Administration</p>
               <h1 className="text-foreground leading-none">Settings</h1>
@@ -1100,9 +1099,9 @@ function IntegrityTab({
                   className={cn(
                     "w-full text-left px-5 py-4 flex items-start gap-4 transition-colors",
                     hasDetails ? "hover:bg-secondary/40 cursor-pointer" : "cursor-default",
-                    r.severity === "error" && "border-l-4 border-l-destructive",
-                    r.severity === "warning" && "border-l-4 border-l-warning",
-                    r.severity === "ok" && "border-l-4 border-l-success"
+                    r.severity === "error" && "bg-destructive/5",
+                    r.severity === "warning" && "bg-warning/5",
+                    r.severity === "ok" && ""
                   )}
                   onClick={() => hasDetails && setExpandedId(isExpanded ? null : r.id)}
                   disabled={!hasDetails}

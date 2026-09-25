@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 interface BrandLogoProps {
   className?: string;
   // "color" = full-color logo for light backgrounds
@@ -8,6 +12,10 @@ interface BrandLogoProps {
 
 export function BrandLogo({ className, variant = "color", style }: BrandLogoProps) {
   const src = variant === "reverse" ? "/logo-brand-reverse.png" : "/logo-brand.png";
+  const [failed, setFailed] = useState(false);
+
+  if (failed) return null;
+
   return (
     <img
       src={src}
@@ -15,6 +23,7 @@ export function BrandLogo({ className, variant = "color", style }: BrandLogoProp
       className={className}
       style={style}
       draggable={false}
+      onError={() => setFailed(true)}
     />
   );
 }
@@ -25,6 +34,10 @@ interface BrandIconProps {
 }
 
 export function BrandIcon({ className, style }: BrandIconProps) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) return null;
+
   return (
     <img
       src="/icon-192.png"
@@ -33,6 +46,7 @@ export function BrandIcon({ className, style }: BrandIconProps) {
       className={className}
       style={style}
       draggable={false}
+      onError={() => setFailed(true)}
     />
   );
 }

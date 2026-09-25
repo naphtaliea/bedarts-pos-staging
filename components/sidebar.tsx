@@ -83,10 +83,10 @@ export function Sidebar({ profile }: SidebarProps) {
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 pl-3 pr-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all min-h-[48px] border-l-4",
+                "flex items-center gap-3 pl-3 pr-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all min-h-[48px]",
                 active
-                  ? "bg-white/15 text-white border-sidebar-active"
-                  : "text-sidebar-muted hover:bg-white/8 hover:text-white border-transparent"
+                  ? "bg-white/20 text-white font-semibold"
+                  : "text-sidebar-muted hover:bg-white/8 hover:text-white"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />

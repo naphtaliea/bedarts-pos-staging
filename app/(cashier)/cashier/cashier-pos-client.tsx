@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, Ban } from "lucide-react";
+import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, Ban, X } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { PaymentClient } from "./payment/payment-client";
@@ -492,10 +492,8 @@ export function CashierPOSClient({
                     onClick={() => setSelectedLineId(item.lineId)}
                     tabIndex={-1}
                     className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 cursor-pointer border-b border-border transition-all focus:outline-none border-l-[3px]",
-                      isSelected
-                        ? "bg-primary/[0.04] border-l-primary"
-                        : "border-l-transparent hover:bg-slate-50"
+                      "flex items-center gap-2.5 px-3 py-2 cursor-pointer border-b border-border transition-all focus:outline-none",
+                      isSelected ? "bg-primary/[0.08]" : "hover:bg-slate-50"
                     )}
                   >
                     {/* Thumbnail */}
@@ -737,8 +735,17 @@ export function CashierPOSClient({
                 placeholder="Search products…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+                className="h-11 w-full rounded-2xl bg-white border-0 shadow-sm pl-11 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
               />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 

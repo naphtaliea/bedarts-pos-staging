@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle, Trash2 } from "lucide-react";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { SupplierTable } from "@/components/suppliers/supplier-table";
 import { SupplierFormDialog } from "@/components/suppliers/supplier-form-dialog";
@@ -57,6 +57,48 @@ const METHOD_LABELS: Record<string, string> = {
   bank_transfer: "Bank Transfer",
   cheque: "Cheque",
 };
+
+// ─── Confirm Delete Dialog ────────────────────────────────────────────────────
+
+interface ConfirmDeleteDialogProps {
+  supplierName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function ConfirmDeleteDialog({ supplierName, onClose, onConfirm }: ConfirmDeleteDialogProps) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+            <Trash2 className="h-5 w-5 text-destructive" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Delete supplier?</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              &ldquo;{supplierName}&rdquo; will be permanently removed.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-white hover:bg-destructive/90 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Mark Paid Dialog ──────────────────────────────────────────────────────────
 
@@ -343,6 +385,7 @@ export function SuppliersClient({
   const [showSupplierForm, setShowSupplierForm] = useState<null | "create" | Supplier>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null);
   const [markPaidTarget, setMarkPaidTarget] = useState<PurchaseRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -384,11 +427,13 @@ export function SuppliersClient({
   }
 
   async function handleDeleteSupplier(supplier: Supplier) {
-    const confirmed = window.confirm(
-      `Delete supplier "${supplier.name}"? This cannot be undone.`
-    );
-    if (!confirmed) return;
-    const result = await deleteSupplier(supplier.id);
+    setDeleteTarget(supplier);
+  }
+
+  async function confirmDeleteSupplier() {
+    if (!deleteTarget) return;
+    const result = await deleteSupplier(deleteTarget.id);
+    setDeleteTarget(null);
     if (result.error) {
       showToast("error", result.error);
     } else {
@@ -475,9 +520,8 @@ export function SuppliersClient({
           <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
         <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4 flex-wrap">
-          {/* Left: strip + title + tabs */}
+          {/* Left: title + tabs */}
           <div className="flex items-center gap-3 lg:gap-6 overflow-x-auto no-scrollbar">
-            <div className="w-1 self-stretch rounded-full bg-accent shrink-0" />
             <h1 className="text-lg font-bold text-foreground shrink-0">
               Suppliers
             </h1>
@@ -545,6 +589,15 @@ export function SuppliersClient({
         <PurchaseDetailDialog
           purchase={selectedPurchase}
           onClose={() => setSelectedPurchase(null)}
+        />
+      )}
+
+      {/* Confirm Delete dialog */}
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          supplierName={deleteTarget.name}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDeleteSupplier}
         />
       )}
 

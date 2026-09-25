@@ -132,7 +132,6 @@ export function ReportsClient({ fromDate, toDate, sales, adjustments, expenses =
           {/* Title + date filter row */}
           <div className="px-4 lg:px-6 pt-3 lg:pt-4 pb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-1 self-stretch rounded-full bg-primary shrink-0" />
               <h1 className="text-lg font-bold text-foreground shrink-0">Reports</h1>
             </div>
             <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">

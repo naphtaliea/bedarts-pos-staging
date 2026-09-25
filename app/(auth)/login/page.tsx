@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { login } from "./actions";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { BrandLogo } from "@/components/brand-logo";
@@ -91,7 +91,7 @@ export default function LoginPage() {
             </div>
 
             {state.error.length > 0 && (
-              <p className="text-sm text-red-300 bg-red-900/30 border border-red-500/30 rounded-xl px-4 py-2.5">
+              <p className="text-sm text-white bg-destructive/90 rounded-xl px-4 py-2.5">
                 {state.error}
               </p>
             )}
@@ -99,8 +99,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={pending}
-              className="mt-1 w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-1 w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {pending && <Loader2 className="w-4 h-4 animate-spin" />}
               {pending ? "Signing in…" : "Sign in"}
             </button>
           </form>
