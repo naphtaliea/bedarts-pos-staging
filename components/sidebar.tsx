@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Wallet,
+  PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Profile, Role } from "@/lib/types";
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { label: "Dashboard",    href: "/dashboard",  icon: LayoutDashboard, roles: ["admin", "manager", "accountant"] },
   { label: "Cashier View", href: "/cashier",    icon: Monitor,         roles: ["admin", "manager", "accountant"] },
   { label: "Inventory",    href: "/inventory",  icon: Package,         roles: ["admin", "manager", "accountant"] },
+  { label: "Pickups",      href: "/pickups",    icon: PackageCheck,    roles: ["admin", "manager", "accountant"] },
   { label: "Expenses",     href: "/expenses",   icon: Wallet,          roles: ["admin", "manager", "accountant"] },
   { label: "Refunds",      href: "/refunds",    icon: ReceiptText,     roles: ["admin", "manager", "accountant"] },
   { label: "Suppliers",    href: "/suppliers",  icon: Truck,           roles: ["admin", "manager", "accountant"] },
@@ -42,9 +44,10 @@ const navItems: NavItem[] = [
 
 interface SidebarProps {
   profile: Profile;
+  pendingPickups?: number;
 }
 
-export function Sidebar({ profile }: SidebarProps) {
+export function Sidebar({ profile, pendingPickups = 0 }: SidebarProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -90,7 +93,18 @@ export function Sidebar({ profile }: SidebarProps) {
               )}
             >
               <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/pickups" && pendingPickups > 0 && (
+                <span
+                  aria-label={`${pendingPickups} pending`}
+                  className={cn(
+                    "inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black tabular-nums shrink-0",
+                    active ? "bg-white text-sidebar-active" : "bg-primary text-white"
+                  )}
+                >
+                  {pendingPickups > 99 ? "99+" : pendingPickups}
+                </span>
+              )}
             </Link>
           );
         })}

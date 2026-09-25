@@ -37,9 +37,15 @@ export default async function DashboardLayout({
     redirect("/cashier");
   }
 
+  // Count pending pre-paid pickups so the sidebar can show an alert badge
+  const { count: pendingPickups } = await supabase
+    .from("sales")
+    .select("id", { count: "exact", head: true })
+    .eq("pending_pickup", true);
+
   return (
     <div className="flex h-dvh overflow-hidden">
-      <Sidebar profile={profile as Profile} />
+      <Sidebar profile={profile as Profile} pendingPickups={pendingPickups ?? 0} />
       <main className="flex-1 overflow-y-auto overflow-x-hidden bg-background pt-14 lg:pt-0">
         {children}
       </main>
