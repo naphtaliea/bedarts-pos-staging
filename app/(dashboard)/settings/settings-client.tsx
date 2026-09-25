@@ -3,24 +3,23 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
-import { Check, X, Plus, Trash2, UserPlus, KeyRound, Mail, RefreshCw, Smartphone, ShieldCheck, AlertTriangle, AlertCircle, ChevronDown, ChevronRight, Clock, Monitor } from "lucide-react";
+import {
+  Check, X, Plus, Trash2, UserPlus, KeyRound, Mail, RefreshCw,
+  Smartphone, ShieldCheck, AlertTriangle, AlertCircle,
+  ChevronDown, ChevronRight, Clock, Monitor,
+  Store, FileText, Percent, Users, Tag, Building2, Flame, Hash, Pencil,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import type { Profile, Category, Supplier, StoreSettings, IntegrityCheckResult, IntegritySeverity } from "@/lib/types";
+import type {
+  Profile, Category, Supplier, StoreSettings,
+  IntegrityCheckResult, IntegritySeverity,
+} from "@/lib/types";
 import {
-  updateStoreSettings,
-  updateUserRole,
-  setUserPin,
-  clearUserPin,
-  toggleUserActive,
-  inviteUser,
-  addCashier,
-  createTerminal,
-  uploadCashierAvatar,
-  approveUser,
-  rejectUser,
-  runIntegrityChecks,
+  updateStoreSettings, updateUserRole, setUserPin, clearUserPin,
+  toggleUserActive, inviteUser, addCashier, createTerminal,
+  uploadCashierAvatar, approveUser, rejectUser, runIntegrityChecks,
 } from "./actions";
 import { createCategory, deleteCategory } from "@/app/(dashboard)/inventory/actions";
 import { createSupplier, updateSupplier, deleteSupplier } from "@/app/(dashboard)/suppliers/actions";
@@ -61,14 +60,15 @@ function Toast({ toast }: { toast: { type: "success" | "error"; msg: string } | 
   if (!toast) return null;
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={cn(
-        "fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg",
-        toast.type === "success"
-          ? "bg-success text-white"
-          : "bg-destructive text-white"
+        "fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium shadow-lg w-max max-w-[90vw]",
+        "lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0",
+        toast.type === "success" ? "bg-success text-white" : "bg-destructive text-white"
       )}
     >
-      {toast.type === "success" ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+      {toast.type === "success" ? <Check className="w-4 h-4 shrink-0" /> : <X className="w-4 h-4 shrink-0" />}
       {toast.msg}
     </div>
   );
@@ -78,9 +78,16 @@ function Toast({ toast }: { toast: { type: "success" | "error"; msg: string } | 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-      <h3 className="text-xl text-foreground mb-5" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>{title}</h3>
-      {children}
+    <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border bg-secondary/40">
+        <h3
+          className="text-sm font-semibold text-foreground"
+          style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}
+        >
+          {title}
+        </h3>
+      </div>
+      <div className="p-5">{children}</div>
     </div>
   );
 }
@@ -89,8 +96,43 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-muted-foreground">{label}</label>
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-foreground">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+function EmptyState({
+  icon: Icon, title, sub,
+}: { icon: React.ElementType; title: string; sub: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+      <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center mb-3">
+        <Icon className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+      </div>
+      <p className="text-sm font-medium text-foreground mb-1">{title}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+// ── Initials helper ───────────────────────────────────────────────────────────
+
+function getInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
+}
+
+// ── Backdrop for modals ───────────────────────────────────────────────────────
+
+function Backdrop({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       {children}
     </div>
   );
@@ -98,7 +140,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function SettingsClient({ settings, users, categories, suppliers, pendingUsers, integrityResults }: SettingsClientProps) {
+export function SettingsClient({
+  settings, users, categories, suppliers, pendingUsers, integrityResults,
+}: SettingsClientProps) {
   const [tab, setTab] = useState<Tab>("store");
   const { toast, show } = useToast();
 
@@ -106,16 +150,35 @@ export function SettingsClient({ settings, users, categories, suppliers, pending
   const integrityWarnings = integrityResults.filter((r) => r.severity === "warning").length;
   const integrityBadge = integrityErrors > 0 ? integrityErrors : integrityWarnings > 0 ? integrityWarnings : undefined;
 
-  const TABS: { id: Tab; label: string; badge?: number; badgeColor?: string }[] = [
-    { id: "store", label: "Store Info" },
-    { id: "receipt", label: "Receipt" },
-    { id: "tax", label: "Tax" },
-    { id: "users", label: "Users & Roles", badge: pendingUsers.length || undefined },
-    { id: "categories", label: "Categories" },
-    { id: "suppliers", label: "Suppliers" },
-    { id: "app", label: "App" },
-    { id: "integrity", label: "Integrity", badge: integrityBadge, badgeColor: integrityErrors > 0 ? "bg-destructive" : "bg-warning" },
-    { id: "danger", label: "Danger Zone" },
+  interface TabDef {
+    id: Tab; label: string; icon: React.ElementType;
+    badge?: number; badgeColor?: string;
+  }
+
+  const TABS: TabDef[] = [
+    { id: "store",      label: "Store Info",  icon: Store       },
+    { id: "receipt",    label: "Receipt",     icon: FileText    },
+    { id: "tax",        label: "Tax",         icon: Percent     },
+    {
+      id: "users", label: "Users", icon: Users,
+      badge: pendingUsers.length || undefined,
+    },
+    { id: "categories", label: "Categories",  icon: Tag         },
+    { id: "suppliers",  label: "Suppliers",   icon: Building2   },
+    { id: "app",        label: "App",         icon: Smartphone  },
+    {
+      id: "integrity", label: "Integrity", icon: ShieldCheck,
+      badge: integrityBadge,
+      badgeColor: integrityErrors > 0 ? "bg-destructive" : "bg-warning",
+    },
+    { id: "danger",     label: "Danger",      icon: Flame       },
+  ];
+
+  const TAB_GROUPS: Array<{ label: string; ids: Tab[] }> = [
+    { label: "General",  ids: ["store", "receipt", "tax"]      },
+    { label: "People",   ids: ["users"]                        },
+    { label: "Catalog",  ids: ["categories", "suppliers"]      },
+    { label: "System",   ids: ["app", "integrity", "danger"]   },
   ];
 
   return (
@@ -126,84 +189,104 @@ export function SettingsClient({ settings, users, categories, suppliers, pending
           <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
         </div>
         <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div>
-              <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-1">Administration</p>
-              <h1 className="text-foreground leading-none">Settings</h1>
-            </div>
+          <div>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-1">Administration</p>
+            <h1 className="text-foreground leading-none">Settings</h1>
           </div>
           <img src="/icon-192.png" className="h-10 w-auto opacity-[0.08]" aria-hidden="true" draggable={false} />
         </div>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-      {/* Mobile: horizontal scrollable tab strip */}
-      <div className="lg:hidden shrink-0 bg-card border-b border-border overflow-x-auto no-scrollbar">
-        <div className="flex px-2 min-w-max">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors min-h-[48px]",
-                tab === t.id
-                  ? "border-accent text-accent"
-                  : "border-transparent text-muted-foreground"
-              )}
-            >
-              {t.label}
-              {t.badge != null && (
-                <span className={cn("min-w-[16px] h-4 flex items-center justify-center rounded-full text-white text-[10px] font-bold px-1", t.badgeColor ?? "bg-primary")}>
-                  {t.badge}
-                </span>
-              )}
-            </button>
+
+        {/* Mobile: horizontal pill tab strip */}
+        <div className="lg:hidden shrink-0 bg-card border-b border-border overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 px-3 py-2 min-w-max">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap rounded-full transition-colors min-h-[40px]",
+                  tab === t.id
+                    ? "bg-sidebar text-white"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                {t.label}
+                {t.badge != null && (
+                  <span className={cn(
+                    "min-w-[16px] h-4 flex items-center justify-center rounded-full text-[10px] font-bold px-1",
+                    tab === t.id ? "bg-white/30 text-white" : cn("text-white", t.badgeColor ?? "bg-primary")
+                  )}>
+                    {t.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: sidebar nav with section groups */}
+        <nav
+          className="hidden lg:flex w-52 shrink-0 border-r border-border bg-card flex-col py-3 overflow-y-auto"
+          aria-label="Settings navigation"
+        >
+          {TAB_GROUPS.map((group) => (
+            <div key={group.label} className="mb-1">
+              <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {group.label}
+              </p>
+              {group.ids.map((id) => {
+                const t = TABS.find((item) => item.id === id)!;
+                const isActive = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={cn(
+                      "w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-2.5",
+                      isActive
+                        ? "bg-accent/10 text-accent"
+                        : "text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <t.icon
+                      className={cn("w-4 h-4 shrink-0", isActive ? "text-accent" : "text-muted-foreground")}
+                      aria-hidden="true"
+                    />
+                    <span className="flex-1 text-left">{t.label}</span>
+                    {t.badge != null && (
+                      <span className={cn(
+                        "min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-white text-[10px] font-bold px-1",
+                        t.badgeColor ?? "bg-primary"
+                      )}>
+                        {t.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           ))}
+        </nav>
+
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          <div className="max-w-2xl space-y-6">
+            {tab === "store"      && <StoreTab      settings={settings}             show={show} />}
+            {tab === "receipt"    && <ReceiptTab    settings={settings}             show={show} />}
+            {tab === "tax"        && <TaxTab        settings={settings}             show={show} />}
+            {tab === "users"      && <UsersTab      users={users} pendingUsers={pendingUsers} show={show} />}
+            {tab === "categories" && <CategoriesTab categories={categories}         show={show} />}
+            {tab === "suppliers"  && <SuppliersTab  suppliers={suppliers}           show={show} />}
+            {tab === "app"        && <AppTab />}
+            {tab === "integrity"  && <IntegrityTab  results={integrityResults}      show={show} />}
+            {tab === "danger"     && <DangerTab />}
+          </div>
         </div>
-      </div>
 
-      {/* Desktop: sidebar nav */}
-      <nav className="hidden lg:flex w-48 shrink-0 border-r border-border bg-card flex-col py-4 gap-0.5 px-2">
-        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Settings
-        </p>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between",
-              tab === t.id
-                ? "bg-accent/10 text-accent"
-                : "text-foreground hover:bg-secondary"
-            )}
-          >
-            {t.label}
-            {t.badge != null && (
-              <span className={cn("ml-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-white text-[10px] font-bold px-1", t.badgeColor ?? "bg-primary")}>
-                {t.badge}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-        <div className="max-w-2xl space-y-6">
-          {tab === "store" && <StoreTab settings={settings} show={show} />}
-          {tab === "receipt" && <ReceiptTab settings={settings} show={show} />}
-          {tab === "tax" && <TaxTab settings={settings} show={show} />}
-          {tab === "users" && <UsersTab users={users} pendingUsers={pendingUsers} show={show} />}
-          {tab === "categories" && <CategoriesTab categories={categories} show={show} />}
-          {tab === "suppliers" && <SuppliersTab suppliers={suppliers} show={show} />}
-          {tab === "app" && <AppTab />}
-          {tab === "integrity" && <IntegrityTab results={integrityResults} show={show} />}
-          {tab === "danger" && <DangerTab />}
-        </div>
-      </div>
-
-      <Toast toast={toast} />
+        <Toast toast={toast} />
       </div>
     </div>
   );
@@ -233,10 +316,7 @@ function StoreTab({
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
-    if (!form.store_name.trim()) {
-      show("error", "Store name is required");
-      return;
-    }
+    if (!form.store_name.trim()) { show("error", "Store name is required"); return; }
     setSaving(true);
     const res = await updateStoreSettings({
       store_name: form.store_name.trim(),
@@ -256,21 +336,24 @@ function StoreTab({
 
   return (
     <Section title="Store Information">
-      <div className="space-y-4">
+      <div className="space-y-5">
         <Field label="Store Name">
           <Input value={form.store_name} onChange={(e) => setForm({ ...form, store_name: e.target.value })} />
         </Field>
+
         <Field label="Address">
-          <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, City, Region" />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Phone">
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+233 …" />
           </Field>
           <Field label="Email">
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="shop@example.com" />
           </Field>
         </div>
+
         <Field label="VAT / GRA Number">
           <Input
             value={form.vat_number}
@@ -278,23 +361,28 @@ function StoreTab({
             placeholder="e.g. GRA-0001234567"
           />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Mon – Sat Hours">
-            <Input
-              value={form.opening_hours}
-              onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
-              placeholder="e.g. 7am – 9pm"
-            />
-          </Field>
-          <Field label="Sunday Hours">
-            <Input
-              value={form.sunday_hours}
-              onChange={(e) => setForm({ ...form, sunday_hours: e.target.value })}
-              placeholder="e.g. 10am – 6pm"
-            />
-          </Field>
+
+        <div className="pt-1 border-t border-border">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4 mt-4">Opening Hours</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Mon – Sat">
+              <Input
+                value={form.opening_hours}
+                onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
+                placeholder="e.g. 7am – 9pm"
+              />
+            </Field>
+            <Field label="Sunday">
+              <Input
+                value={form.sunday_hours}
+                onChange={(e) => setForm({ ...form, sunday_hours: e.target.value })}
+                placeholder="e.g. 10am – 6pm or Closed"
+              />
+            </Field>
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
@@ -335,35 +423,47 @@ function ReceiptTab({
 
   return (
     <Section title="Receipt Settings">
-      <div className="space-y-4">
-        <Field label="Paper Size">
-          <div className="flex gap-2">
-            {(["58mm", "80mm"] as const).map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => setPaperSize(size)}
-                className={`px-4 h-10 rounded-lg border text-sm font-semibold transition-colors ${
-                  paperSize === size
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-card text-muted-foreground border-border hover:bg-secondary"
-                }`}
-              >
-                {size}
-              </button>
-            ))}
+      <div className="space-y-5">
+        <Field label="Paper Width">
+          <div className="flex gap-3">
+            {(["58mm", "80mm"] as const).map((size) => {
+              const isActive = paperSize === size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setPaperSize(size)}
+                  className={cn(
+                    "flex flex-col items-center gap-2.5 px-6 py-3.5 rounded-xl border-2 text-sm font-semibold transition-colors",
+                    isActive
+                      ? "border-sidebar bg-sidebar/5 text-sidebar"
+                      : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:bg-secondary"
+                  )}
+                >
+                  {/* Visual receipt strip */}
+                  <div className={cn(
+                    "rounded-sm border-2 h-9 transition-colors",
+                    size === "58mm" ? "w-6" : "w-10",
+                    isActive ? "border-sidebar" : "border-border"
+                  )} />
+                  {size}
+                </button>
+              );
+            })}
           </div>
         </Field>
-        <Field label="Receipt Footer Message">
+
+        <Field label="Footer Message">
           <textarea
             rows={3}
             value={footer}
             onChange={(e) => setFooter(e.target.value)}
             placeholder="e.g. Thank you for shopping with us!"
-            className="flex w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+            className="flex w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
           />
         </Field>
-        <Button onClick={handleSave} disabled={saving}>
+
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
@@ -382,14 +482,16 @@ function TaxTab({
 }) {
   return (
     <Section title="Tax Settings">
-      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
-        <p className="text-sm font-semibold text-foreground">VAT / tax collection is not yet enabled</p>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Sales are currently recorded without tax. Turning tax on would cause receipts and
-          financial reports to disagree because tax is not yet persisted with each sale.
-          If you need VAT collection, ask us to enable it — it requires a schema change and
-          careful backfill.
-        </p>
+      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 flex gap-3">
+        <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-semibold text-foreground mb-1">VAT / tax collection is not yet enabled</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Sales are currently recorded without tax. Enabling it requires a schema migration and
+            careful backfill — financial reports would otherwise disagree with receipts.
+            Contact us to enable VAT collection.
+          </p>
+        </div>
       </div>
     </Section>
   );
@@ -510,32 +612,31 @@ function UsersTab({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Pending requests */}
       {pendingUsers.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
-          <div className="px-5 py-3 border-b border-amber-200 flex items-center gap-2">
+        <div className="rounded-2xl border border-warning/30 bg-warning/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-warning/20 flex items-center gap-2.5">
             <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-primary text-white text-[10px] font-bold px-1.5">
               {pendingUsers.length}
             </span>
-            <h3 className="text-sm font-semibold text-amber-900">Pending Requests</h3>
+            <h3 className="text-sm font-semibold text-foreground">Pending Approval</h3>
           </div>
-          <div className="divide-y divide-amber-100">
+          <div className="divide-y divide-warning/10">
             {pendingUsers.map((u) => (
-              <div key={u.id} className="px-5 py-4 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-amber-900 truncate">{u.full_name}</p>
-                  <p className="text-xs text-amber-700 mt-0.5 truncate">{u.email}</p>
+              <div key={u.id} className="px-4 py-3.5 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-warning/20 shrink-0 flex items-center justify-center text-[11px] font-bold text-warning">
+                  {getInitials(u.full_name)}
                 </div>
-                <span className="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full capitalize shrink-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{u.full_name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{u.email}</p>
+                </div>
+                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full capitalize shrink-0 hidden sm:inline-flex">
                   {u.role}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    onClick={() => handleApprove(u.id, u.full_name)}
-                    className="h-8 px-3 text-xs"
-                  >
+                  <Button size="sm" onClick={() => handleApprove(u.id, u.full_name)} className="h-8 px-3 text-xs">
                     Approve
                   </Button>
                   <button
@@ -551,47 +652,51 @@ function UsersTab({
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      {/* Users header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="text-sm font-semibold text-foreground">Users & Roles</h3>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setTerminalModal(true)} className="gap-2">
-            <Monitor className="w-4 h-4" /> Add Terminal
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setTerminalModal(true)} className="gap-1.5 h-9 text-xs">
+            <Monitor className="w-3.5 h-3.5" aria-hidden="true" /> Terminal
           </Button>
-          <Button variant="outline" onClick={() => setCashierModal(true)} className="gap-2">
-            <UserPlus className="w-4 h-4" /> Add Cashier
+          <Button variant="outline" size="sm" onClick={() => setCashierModal(true)} className="gap-1.5 h-9 text-xs">
+            <UserPlus className="w-3.5 h-3.5" aria-hidden="true" /> Cashier
           </Button>
-          <Button onClick={() => setInviteModal(true)} className="gap-2">
-            <Mail className="w-4 h-4" /> Invite Staff
+          <Button size="sm" onClick={() => setInviteModal(true)} className="gap-1.5 h-9 text-xs">
+            <Mail className="w-3.5 h-3.5" aria-hidden="true" /> Invite Staff
           </Button>
         </div>
       </div>
 
       {/* POS Terminals */}
       {users.filter(u => u.role === "terminal").length > 0 && (
-        <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
-          <div className="px-4 py-2 bg-secondary/50">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-2.5 bg-secondary/50 border-b border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">POS Terminals</p>
           </div>
-          {users.filter(u => u.role === "terminal").map((u) => (
-            <div key={u.id} className={cn("px-4 py-3 flex items-center gap-3", !u.is_active && "opacity-50")}>
-              <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-                <Monitor className="w-4 h-4 text-accent" />
+          <div className="divide-y divide-border">
+            {users.filter(u => u.role === "terminal").map((u) => (
+              <div key={u.id} className={cn("px-4 py-3 flex items-center gap-3", !u.is_active && "opacity-50")}>
+                <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                  <Monitor className="w-4 h-4 text-accent" aria-hidden="true" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
+                  <p className="text-xs text-muted-foreground">Terminal · logs in with email + password</p>
+                </div>
+                <button
+                  onClick={() => handleToggleActive(u.id, !u.is_active)}
+                  className={cn("text-xs shrink-0", u.is_active ? "text-destructive hover:underline" : "text-success hover:underline")}
+                >
+                  {u.is_active ? "Deactivate" : "Activate"}
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
-                <p className="text-xs text-muted-foreground">Terminal · logs in with email + password</p>
-              </div>
-              <button
-                onClick={() => handleToggleActive(u.id, !u.is_active)}
-                className={cn("text-xs shrink-0", u.is_active ? "text-destructive hover:underline" : "text-success hover:underline")}
-              >
-                {u.is_active ? "Deactivate" : "Activate"}
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Staff & cashiers */}
       <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
         {users.filter(u => u.role !== "terminal").map((u) => (
           <div key={u.id} className={cn("px-4 py-3 flex items-start gap-3", !u.is_active && "opacity-50")}>
@@ -618,7 +723,7 @@ function UsersTab({
                   {u.avatar_url ? (
                     <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
                   ) : (
-                    u.full_name.split(" ").slice(0, 2).map(n => n[0] ?? "").join("").toUpperCase()
+                    getInitials(u.full_name)
                   )}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-card border border-border flex items-center justify-center group-hover:bg-accent group-hover:border-accent transition-all">
@@ -630,11 +735,11 @@ function UsersTab({
               </label>
             ) : (
               <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0 mt-0.5">
-                {u.full_name.split(" ").slice(0, 2).map(n => n[0] ?? "").join("").toUpperCase()}
+                {getInitials(u.full_name)}
               </div>
             )}
 
-            {/* Name + role + actions — stacked, flex-1 */}
+            {/* Info + actions */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
@@ -649,12 +754,11 @@ function UsersTab({
                 </select>
               </div>
 
-              {/* PIN status — cashiers only */}
               {u.role === "cashier" && (
                 <p className="text-xs mt-0.5">
                   {u.pin ? (
                     <span className="flex items-center gap-1 text-success">
-                      <KeyRound className="w-3 h-3" /> PIN set
+                      <KeyRound className="w-3 h-3" aria-hidden="true" /> PIN set
                     </span>
                   ) : (
                     <span className="text-muted-foreground">No PIN</span>
@@ -662,7 +766,6 @@ function UsersTab({
                 </p>
               )}
 
-              {/* Action row */}
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                 {u.role === "cashier" && (
                   <button
@@ -694,9 +797,8 @@ function UsersTab({
 
       {/* PIN Modal */}
       {pinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setPinModal(null)}>
-          <div className="bg-card rounded-2xl p-6 w-80 shadow-2xl">
+        <Backdrop onClose={() => setPinModal(null)}>
+          <div className="bg-card rounded-2xl p-6 w-80 shadow-2xl w-full max-w-sm">
             <h4 className="text-sm font-semibold text-foreground mb-1">Set PIN for {pinModal.name}</h4>
             <p className="text-xs text-muted-foreground mb-4">Enter a 4-digit PIN for this cashier to log in at the POS.</p>
             <Input
@@ -705,7 +807,7 @@ function UsersTab({
               maxLength={4}
               value={pinValue}
               onChange={(e) => setPinValue(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="Enter 4-digit PIN"
+              placeholder="· · · ·"
               className="mb-4 text-center text-xl tracking-widest"
             />
             <div className="flex gap-2">
@@ -715,14 +817,13 @@ function UsersTab({
               </Button>
             </div>
           </div>
-        </div>
+        </Backdrop>
       )}
 
       {/* Add Cashier Modal */}
       {cashierModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setCashierModal(false)}>
-          <div className="bg-card rounded-2xl p-6 w-80 shadow-2xl space-y-4">
+        <Backdrop onClose={() => setCashierModal(false)}>
+          <div className="bg-card rounded-2xl p-6 shadow-2xl w-full max-w-sm space-y-4">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Add Cashier</h4>
               <p className="text-xs text-muted-foreground mt-1">They'll set their own PIN at the terminal on first use.</p>
@@ -736,24 +837,23 @@ function UsersTab({
                 onKeyDown={(e) => e.key === "Enter" && handleAddCashier()}
               />
             </Field>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setCashierModal(false)} className="flex-1">Cancel</Button>
               <Button onClick={handleAddCashier} disabled={addingCashier || !cashierName.trim()} className="flex-1">
                 {addingCashier ? "Adding…" : "Add Cashier"}
               </Button>
             </div>
           </div>
-        </div>
+        </Backdrop>
       )}
 
       {/* Add Terminal Modal */}
       {terminalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setTerminalModal(false)}>
-          <div className="bg-card rounded-2xl p-6 w-96 shadow-2xl space-y-4">
+        <Backdrop onClose={() => setTerminalModal(false)}>
+          <div className="bg-card rounded-2xl p-6 shadow-2xl w-full max-w-md space-y-4">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Add POS Terminal</h4>
-              <p className="text-xs text-muted-foreground mt-1">Creates a shared terminal login. Cashiers then identify themselves by PIN.</p>
+              <p className="text-xs text-muted-foreground mt-1">Creates a shared terminal login. Cashiers identify themselves by PIN.</p>
             </div>
             <Field label="Terminal Name">
               <Input
@@ -780,26 +880,25 @@ function UsersTab({
                 minLength={8}
               />
             </Field>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setTerminalModal(false)} className="flex-1">Cancel</Button>
               <Button
                 onClick={handleAddTerminal}
                 disabled={addingTerminal || !terminalForm.full_name.trim() || !terminalForm.email.trim() || terminalForm.password.length < 8}
                 className="flex-1 gap-2"
               >
-                <Monitor className="w-4 h-4" />
+                <Monitor className="w-4 h-4" aria-hidden="true" />
                 {addingTerminal ? "Creating…" : "Create Terminal"}
               </Button>
             </div>
           </div>
-        </div>
+        </Backdrop>
       )}
 
       {/* Invite Staff Modal */}
       {inviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setInviteModal(false)}>
-          <div className="bg-card rounded-2xl p-6 w-96 shadow-2xl space-y-4">
+        <Backdrop onClose={() => setInviteModal(false)}>
+          <div className="bg-card rounded-2xl p-6 shadow-2xl w-full max-w-md space-y-4">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Invite Staff Member</h4>
               <p className="text-xs text-muted-foreground mt-1">They'll receive an email to set their password and log in.</p>
@@ -819,15 +918,15 @@ function UsersTab({
                 {INVITE_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>
             </Field>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setInviteModal(false)} className="flex-1">Cancel</Button>
               <Button onClick={handleInvite} disabled={inviting} className="flex-1 gap-2">
-                <Mail className="w-4 h-4" />
+                <Mail className="w-4 h-4" aria-hidden="true" />
                 {inviting ? "Sending…" : "Send Invite"}
               </Button>
             </div>
           </div>
-        </div>
+        </Backdrop>
       )}
     </div>
   );
@@ -852,7 +951,7 @@ function CategoriesTab({
     const res = await createCategory(newName.trim());
     setAdding(false);
     if ("error" in res) { show("error", res.error); return; }
-    show("success", `Category "${newName}" created`);
+    show("success", `"${newName}" created`);
     setNewName("");
     router.refresh();
   }
@@ -860,23 +959,35 @@ function CategoriesTab({
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete category "${name}"? Products in this category will become uncategorised.`)) return;
     const res = await deleteCategory(id);
-    res.error ? show("error", res.error) : show("success", `Category "${name}" deleted`);
+    res.error ? show("error", res.error) : show("success", `"${name}" deleted`);
     router.refresh();
   }
 
   return (
     <Section title="Categories">
-      <div className="space-y-3 mb-4">
-        {categories.map((c) => (
-          <div key={c.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary">
-            <span className="text-sm text-foreground">{c.name}</span>
-            <button onClick={() => handleDelete(c.id, c.name)} className="text-muted-foreground hover:text-destructive transition-colors">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-        {categories.length === 0 && <p className="text-sm text-muted-foreground">No categories yet</p>}
-      </div>
+      {categories.length === 0 ? (
+        <EmptyState
+          icon={Tag}
+          title="No categories yet"
+          sub="Add a category to organise your products"
+        />
+      ) : (
+        <div className="space-y-2 mb-5">
+          {categories.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-secondary">
+              <Hash className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+              <span className="flex-1 text-sm text-foreground">{c.name}</span>
+              <button
+                onClick={() => handleDelete(c.id, c.name)}
+                aria-label={`Delete ${c.name}`}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
         <Input
           value={newName}
@@ -884,15 +995,15 @@ function CategoriesTab({
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           placeholder="New category name"
         />
-        <Button onClick={handleAdd} disabled={adding || !newName.trim()} className="gap-1.5">
-          <Plus className="w-4 h-4" /> Add
+        <Button onClick={handleAdd} disabled={adding || !newName.trim()} className="gap-1.5 shrink-0">
+          <Plus className="w-4 h-4" aria-hidden="true" /> Add
         </Button>
       </div>
     </Section>
   );
 }
 
-// ── Suppliers Tab ─────────────────────────────────────────────────────────────
+// ── Suppliers Tab (in Settings) ───────────────────────────────────────────────
 
 function SuppliersTab({
   suppliers,
@@ -908,7 +1019,11 @@ function SuppliersTab({
   const [showForm, setShowForm] = useState(false);
 
   function openAdd() { setEditId(null); setForm({ name: "", phone: "", email: "", address: "" }); setShowForm(true); }
-  function openEdit(s: Supplier) { setEditId(s.id); setForm({ name: s.name, phone: s.phone ?? "", email: s.email ?? "", address: s.address ?? "" }); setShowForm(true); }
+  function openEdit(s: Supplier) {
+    setEditId(s.id);
+    setForm({ name: s.name, phone: s.phone ?? "", email: s.email ?? "", address: s.address ?? "" });
+    setShowForm(true);
+  }
 
   async function handleSave() {
     const data = { name: form.name, phone: form.phone || null, email: form.email || null, address: form.address || null };
@@ -932,40 +1047,77 @@ function SuppliersTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Suppliers</h3>
-        <Button onClick={openAdd} className="gap-1.5"><Plus className="w-4 h-4" /> Add Supplier</Button>
+        <Button onClick={openAdd} size="sm" className="gap-1.5 h-9 text-xs">
+          <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add Supplier
+        </Button>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card divide-y divide-border overflow-hidden">
-        {suppliers.map((s) => (
-          <div key={s.id} className="flex items-center justify-between px-5 py-3 gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">{s.name}</p>
-              <p className="text-xs text-muted-foreground">{[s.phone, s.email].filter(Boolean).join(" · ") || "No contact info"}</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => openEdit(s)} className="text-xs text-accent hover:underline">Edit</button>
-              <button onClick={() => handleDelete(s.id, s.name)} className="text-xs text-destructive hover:underline">Delete</button>
-            </div>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        {suppliers.length === 0 ? (
+          <EmptyState
+            icon={Building2}
+            title="No suppliers yet"
+            sub="Add your first supplier to get started"
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {suppliers.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="h-9 w-9 rounded-full bg-sidebar shrink-0 flex items-center justify-center text-[11px] font-bold text-white">
+                  {getInitials(s.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {[s.phone, s.email].filter(Boolean).join(" · ") || "No contact info"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => openEdit(s)}
+                    aria-label={`Edit ${s.name}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s.id, s.name)}
+                    aria-label={`Delete ${s.name}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-        {suppliers.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No suppliers yet</div>}
+        )}
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}>
-          <div className="bg-card rounded-2xl p-6 w-96 shadow-2xl space-y-4">
+        <Backdrop onClose={() => setShowForm(false)}>
+          <div className="bg-card rounded-2xl p-6 shadow-2xl w-full max-w-md space-y-4">
             <h4 className="text-sm font-semibold text-foreground">{editId ? "Edit Supplier" : "Add Supplier"}</h4>
-            <Field label="Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-            <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-            <Field label="Address"><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-            <div className="flex gap-2 pt-2">
+            <Field label="Name *">
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
+            </Field>
+            <Field label="Phone">
+              <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+233 …" />
+            </Field>
+            <Field label="Email">
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </Field>
+            <Field label="Address">
+              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            </Field>
+            <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setShowForm(false)} className="flex-1">Cancel</Button>
-              <Button onClick={handleSave} disabled={adding || !form.name.trim()} className="flex-1">{adding ? "Saving…" : "Save"}</Button>
+              <Button onClick={handleSave} disabled={adding || !form.name.trim()} className="flex-1">
+                {adding ? "Saving…" : "Save"}
+              </Button>
             </div>
           </div>
-        </div>
+        </Backdrop>
       )}
     </div>
   );
@@ -974,29 +1126,29 @@ function SuppliersTab({
 // ── Integrity Tab ─────────────────────────────────────────────────────────────
 
 const CHECK_META: Record<string, { label: string; category: string }> = {
-  sale_total_mismatch:      { label: "Sale Totals",        category: "Sales" },
-  sale_item_total_mismatch: { label: "Line Item Totals",   category: "Sales" },
-  sale_payment_mismatch:    { label: "Payment Coverage",   category: "Sales" },
-  negative_cost_at_sale:    { label: "Cost at Sale",       category: "Inventory" },
-  negative_stock_quantity:  { label: "Stock Quantity",     category: "Inventory" },
-  invalid_expense_amount:   { label: "Expense Amounts",    category: "Expenses" },
-  duplicate_reconciliation: { label: "Till Count Dupes",   category: "Reconciliation" },
+  sale_total_mismatch:      { label: "Sale Totals",        category: "Sales"           },
+  sale_item_total_mismatch: { label: "Line Item Totals",   category: "Sales"           },
+  sale_payment_mismatch:    { label: "Payment Coverage",   category: "Sales"           },
+  negative_cost_at_sale:    { label: "Cost at Sale",       category: "Inventory"       },
+  negative_stock_quantity:  { label: "Stock Quantity",     category: "Inventory"       },
+  invalid_expense_amount:   { label: "Expense Amounts",    category: "Expenses"        },
+  duplicate_reconciliation: { label: "Till Count Dupes",   category: "Reconciliation"  },
 };
 
 function SeverityBadge({ severity }: { severity: IntegritySeverity }) {
   if (severity === "ok") return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
-      <ShieldCheck className="w-3 h-3" /> OK
+      <ShieldCheck className="w-3 h-3" aria-hidden="true" /> OK
     </span>
   );
   if (severity === "warning") return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-warning/10 text-warning border border-warning/20">
-      <AlertTriangle className="w-3 h-3" /> Warning
+      <AlertTriangle className="w-3 h-3" aria-hidden="true" /> Warning
     </span>
   );
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20">
-      <AlertCircle className="w-3 h-3" /> Error
+      <AlertCircle className="w-3 h-3" aria-hidden="true" /> Error
     </span>
   );
 }
@@ -1041,45 +1193,39 @@ function IntegrityTab({
       <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-xl text-foreground mb-1" style={{ fontFamily: "var(--font-display)", fontWeight: 900 }}>
+            <h3 className="text-base font-semibold text-foreground mb-1" style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>
               Data Integrity
             </h3>
             {lastRunId ? (
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                Last checked {new Date(lastRunId).toLocaleString("en-GH", {
-                  dateStyle: "medium", timeStyle: "short"
-                })}
+                <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                Last checked {new Date(lastRunId).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" })}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">No checks have been run yet.</p>
             )}
           </div>
-          <Button
-            onClick={handleRun}
-            disabled={running}
-            className="shrink-0"
-          >
-            <RefreshCw className={cn("w-4 h-4 mr-2", running && "animate-spin")} />
+          <Button onClick={handleRun} disabled={running} className="shrink-0">
+            <RefreshCw className={cn("w-4 h-4 mr-2", running && "animate-spin")} aria-hidden="true" />
             {running ? "Running…" : "Run now"}
           </Button>
         </div>
 
         {results.length > 0 && (
-          <div className="mt-4 flex items-center gap-4 pt-4 border-t border-border">
+          <div className="mt-4 flex items-center gap-5 pt-4 border-t border-border">
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-destructive" />
-              <span className="font-semibold text-destructive">{errorCount}</span>
+              <span className="w-2 h-2 rounded-full bg-destructive" aria-hidden="true" />
+              <span className="font-semibold text-destructive tabular-nums">{errorCount}</span>
               <span className="text-muted-foreground">error{errorCount !== 1 ? "s" : ""}</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-warning" />
-              <span className="font-semibold text-warning">{warnCount}</span>
+              <span className="w-2 h-2 rounded-full bg-warning" aria-hidden="true" />
+              <span className="font-semibold text-warning tabular-nums">{warnCount}</span>
               <span className="text-muted-foreground">warning{warnCount !== 1 ? "s" : ""}</span>
             </div>
             <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              <span className="font-semibold text-success">{okCount}</span>
+              <span className="w-2 h-2 rounded-full bg-success" aria-hidden="true" />
+              <span className="font-semibold text-success tabular-nums">{okCount}</span>
               <span className="text-muted-foreground">ok</span>
             </div>
           </div>
@@ -1089,19 +1235,18 @@ function IntegrityTab({
       {/* Check results */}
       {results.length > 0 && (
         <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
-          {results.map((r, i) => {
+          {results.map((r) => {
             const meta = CHECK_META[r.check_name];
             const isExpanded = expandedId === r.id;
             const hasDetails = (r.sample_ids?.length ?? 0) > 0 && r.severity !== "ok";
             return (
-              <div key={r.id} className={cn("border-b border-border last:border-b-0")}>
+              <div key={r.id} className="border-b border-border last:border-b-0">
                 <button
                   className={cn(
                     "w-full text-left px-5 py-4 flex items-start gap-4 transition-colors",
                     hasDetails ? "hover:bg-secondary/40 cursor-pointer" : "cursor-default",
                     r.severity === "error" && "bg-destructive/5",
                     r.severity === "warning" && "bg-warning/5",
-                    r.severity === "ok" && ""
                   )}
                   onClick={() => hasDetails && setExpandedId(isExpanded ? null : r.id)}
                   disabled={!hasDetails}
@@ -1132,13 +1277,14 @@ function IntegrityTab({
                     </p>
                     {hasDetails && (
                       <span className="text-muted-foreground mt-1 block">
-                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 ml-auto" /> : <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
+                        {isExpanded
+                          ? <ChevronDown className="w-3.5 h-3.5 ml-auto" aria-hidden="true" />
+                          : <ChevronRight className="w-3.5 h-3.5 ml-auto" aria-hidden="true" />}
                       </span>
                     )}
                   </div>
                 </button>
 
-                {/* Expanded sample IDs */}
                 {isExpanded && hasDetails && (
                   <div className="px-5 pb-4 bg-destructive/5 border-t border-border/50">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-3 mb-2">
@@ -1160,11 +1306,12 @@ function IntegrityTab({
       )}
 
       {results.length === 0 && (
-        <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-card">
-          <ShieldCheck className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Run the integrity check to audit all financial calculations.
-          </p>
+        <div className="rounded-2xl border border-border bg-card shadow-card">
+          <EmptyState
+            icon={ShieldCheck}
+            title="No results yet"
+            sub="Run the integrity check to audit all financial calculations"
+          />
         </div>
       )}
 
@@ -1184,6 +1331,30 @@ function IntegrityTab({
 }
 
 // ── App Tab ───────────────────────────────────────────────────────────────────
+
+const REINSTALL_STEPS = [
+  {
+    platform: "Chrome on Android",
+    steps: [
+      "Open Chrome → tap the three-dot menu → \"App info\" → Uninstall.",
+      "Reopen the site in Chrome and tap \"Add to Home screen.\"",
+    ],
+  },
+  {
+    platform: "Safari on iPhone / iPad",
+    steps: [
+      "Long-press the app icon on your home screen → \"Remove App\" → \"Delete App.\"",
+      "Open Safari, visit the site, then tap Share → \"Add to Home Screen.\"",
+    ],
+  },
+  {
+    platform: "Chrome on desktop (Linux / Windows / Mac)",
+    steps: [
+      "Open the installed app → click the three-dot menu (⋮) in the top-right → \"Uninstall Bedarts…\" → confirm.",
+      "Navigate to the site in Chrome and click the install icon in the address bar.",
+    ],
+  },
+];
 
 function AppTab() {
   const [resetting, setResetting] = useState(false);
@@ -1210,24 +1381,21 @@ function AppTab() {
   return (
     <div className="space-y-4">
       {/* PWA reset */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start gap-3 mb-5">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Smartphone className="w-4.5 h-4.5 text-primary" />
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-card">
+        <div className="px-5 py-3.5 border-b border-border bg-secondary/40 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Smartphone className="w-4 h-4 text-primary" aria-hidden="true" />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">App Installation</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Manage the installed version of this app on your device</p>
-          </div>
+          <h3 className="text-sm font-semibold text-foreground">App Installation</h3>
         </div>
 
-        <div className="space-y-4">
+        <div className="p-5 space-y-4">
           {/* Reset cache */}
           <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-border bg-secondary/30">
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Reset app cache</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Clears cached files and unregisters the service worker. The page will reload with the latest version.
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Clears cached files and unregisters the service worker. The page reloads with the latest version.
                 Use this if the app looks outdated after an update.
               </p>
             </div>
@@ -1238,33 +1406,36 @@ function AppTab() {
               className="shrink-0"
             >
               {done ? (
-                <><Check className="w-3.5 h-3.5 mr-1.5" />Reloading…</>
+                <><Check className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Reloading…</>
               ) : resetting ? (
-                <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />Clearing…</>
+                <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />Clearing…</>
               ) : (
-                <><RefreshCw className="w-3.5 h-3.5 mr-1.5" />Reset</>
+                <><RefreshCw className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />Reset</>
               )}
             </Button>
           </div>
 
           {/* Reinstall instructions */}
-          <div className="p-4 rounded-xl border border-border bg-secondary/30 space-y-3">
-            <p className="text-sm font-medium text-foreground">Reinstall the app</p>
-            <p className="text-xs text-muted-foreground">To reinstall the PWA on your device, follow these steps:</p>
-            <ol className="space-y-2 text-xs text-muted-foreground list-decimal list-inside">
-              <li>
-                <span className="font-medium text-foreground">Ubuntu / Linux (Chrome):</span>{" "}
-                Open the installed app window → click the three-dot menu (⋮) in the top-right corner → "Uninstall Bedarts…" → confirm. Then open Chrome, navigate to the site, and click the install icon (monitor with arrow) in the address bar.
-              </li>
-              <li>
-                <span className="font-medium text-foreground">Chrome on Android:</span>{" "}
-                Open Chrome → tap the three-dot menu → "App info" → Uninstall. Then reopen the site and tap "Add to Home screen."
-              </li>
-              <li>
-                <span className="font-medium text-foreground">Safari on iPhone / iPad:</span>{" "}
-                Long-press the app icon on your home screen → "Remove App" → "Delete App." Then open Safari, visit the site, and tap Share → "Add to Home Screen."
-              </li>
-            </ol>
+          <div>
+            <p className="text-sm font-medium text-foreground mb-3">Reinstall the app</p>
+            <div className="space-y-2">
+              {REINSTALL_STEPS.map(({ platform, steps }) => (
+                <details key={platform} className="group rounded-xl border border-border bg-secondary/30 overflow-hidden">
+                  <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none">
+                    <span className="text-sm font-medium text-foreground">{platform}</span>
+                    <ChevronDown
+                      className="w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <ol className="px-4 pb-4 pt-3 space-y-2 list-decimal list-inside border-t border-border">
+                    {steps.map((step, i) => (
+                      <li key={i} className="text-xs text-muted-foreground leading-relaxed">{step}</li>
+                    ))}
+                  </ol>
+                </details>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1276,21 +1447,26 @@ function AppTab() {
 
 function DangerTab() {
   return (
-    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
-      <h3 className="text-sm font-semibold text-destructive mb-2">Danger Zone</h3>
-      <p className="text-xs text-muted-foreground mb-4">
-        Destructive actions. These cannot be undone. Contact your system administrator to perform any of these actions.
-      </p>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between p-3 rounded-lg bg-card border border-border">
+    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-destructive/20 flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center">
+          <Flame className="w-4 h-4 text-destructive" aria-hidden="true" />
+        </div>
+        <h3 className="text-sm font-semibold text-destructive">Danger Zone</h3>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Destructive actions that cannot be undone. Contact your system administrator before performing any of these.
+        </p>
+        <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card gap-4">
           <div>
             <p className="text-sm font-medium text-foreground">Export All Data</p>
-            <p className="text-xs text-muted-foreground">Download a full backup of sales, stock, and settings (JSON)</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Download a full backup of sales, stock, and settings (JSON)</p>
           </div>
           <a
             href="/api/export"
             download
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium border border-border bg-card px-4 py-2 text-foreground hover:bg-secondary transition-colors"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium border border-border bg-card px-4 py-2 text-foreground hover:bg-secondary transition-colors shrink-0"
           >
             Export
           </a>
