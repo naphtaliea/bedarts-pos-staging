@@ -36,6 +36,18 @@ export async function verifyCashierPin(
     };
   }
 
+  // Block re-entry once the cashier has reconciled for the day
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: existingRecon } = await supabase
+    .from("cashier_reconciliations")
+    .select("id")
+    .eq("cashier_id", cashierId)
+    .eq("shift_date", today)
+    .maybeSingle();
+  if (existingRecon) {
+    return { error: "You've already closed out for today. See you tomorrow." };
+  }
+
   // Session expires at 6AM each day — forces PIN re-entry at the start of each business day
   const now = new Date();
   const next6am = new Date(now);

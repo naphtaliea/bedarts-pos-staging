@@ -51,12 +51,8 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
   const orderCount = sales.length;
   const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
 
-  let cashSalesTotal = 0;
   const productTotals: Record<string, { name: string; qty: number }> = {};
   for (const sale of sales) {
-    for (const p of sale.payments) {
-      if (p.method === "cash") cashSalesTotal += p.amount;
-    }
     for (const item of sale.sale_items) {
       const p = item.products;
       const name = Array.isArray(p) ? (p[0]?.name ?? "Unknown") : (p?.name ?? "Unknown");
@@ -140,7 +136,7 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
               )}
             </div>
 
-            <EODSection cashSalesTotal={cashSalesTotal} />
+            <EODSection />
           </>
         )}
       </main>

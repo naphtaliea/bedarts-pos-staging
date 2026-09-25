@@ -47,14 +47,6 @@ export default async function DashboardPage() {
 
   const sales = (salesData ?? []) as unknown as SaleRow[];
 
-  // Calculate cash sales total for EOD reconciliation
-  let cashSalesTotal = 0;
-  for (const sale of sales) {
-    for (const p of (sale as any).payments ?? []) {
-      if (p.method === "cash") cashSalesTotal += p.amount;
-    }
-  }
-
   const totalRevenue = sales.reduce((s, o) => s + o.total_amount, 0);
   const orderCount = sales.length;
   const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
@@ -177,7 +169,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* End of Day reconciliation */}
-        <EODSection cashSalesTotal={cashSalesTotal} />
+        <EODSection />
       </main>
     </div>
   );

@@ -1,13 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { readCashierSession } from "@/lib/cashier-session";
 
 export interface ReconciliationData {
-  opening_float: number;
   cash_counted: number;
-  notes?: string;
 }
 
 export async function saveReconciliation(
@@ -82,7 +81,7 @@ export async function saveReconciliation(
   const { error } = await supabase.from("cashier_reconciliations").insert({
     cashier_id: cashierId,
     shift_date: today,
-    opening_float: data.opening_float,
+    opening_float: 0,
     cash_counted: data.cash_counted,
     cash_expected,
     cash_variance,
@@ -90,10 +89,15 @@ export async function saveReconciliation(
     pos_total,
     account_total: 0,
     gross_sales,
-    notes: data.notes?.trim() || null,
+    notes: null,
   });
 
   if (error) return { error: error.message };
+
+  // Close the cashier's PIN session — reconciliation ends their day.
+  // They can't sign back in via PIN today (guarded in verifyCashierPin).
+  const cookieStore = await cookies();
+  cookieStore.delete("cashier_session");
 
   revalidatePath("/cashier/dashboard");
   return {};
