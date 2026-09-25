@@ -18,8 +18,10 @@ export default async function RefundsPage() {
       `id, total_amount, discount_amount, status, created_at, void_reason,
        cashier:profiles!sales_cashier_id_fkey(full_name),
        voider:profiles!sales_voided_by_fkey(full_name),
-       sale_items(quantity, unit_price, product:products(name)),
-       payments(method, amount)`
+       sale_items(id, quantity, unit_price, total_price, cost_at_sale, discount_amount,
+         product:products(id, name, unit)),
+       payments(method, amount),
+       refunds(id, refund_amount, created_at)`
     )
     .order("created_at", { ascending: false })
     .limit(200);

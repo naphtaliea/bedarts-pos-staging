@@ -19,14 +19,13 @@ export async function voidSale(
 
   const { data: sale } = await supabase
     .from("sales")
-    .select("status, payments(method, amount)")
+    .select("status")
     .eq("id", saleId)
     .single();
 
   if (!sale) return { error: "Sale not found" };
   if (sale.status === "voided") return { error: "Sale is already voided" };
 
-  // Void the sale
   const { error: voidErr } = await supabase
     .from("sales")
     .update({ status: "voided", voided_by: user.id, void_reason: reason })
@@ -34,9 +33,6 @@ export async function voidSale(
 
   if (voidErr) return { error: voidErr.message };
 
-  // Pull sold items with their historical cost_at_sale (accurate to the batches
-  // consumed by FEFO at time of sale). Falls back to current product.cost_price
-  // only for pre-migration rows where cost_at_sale is NULL.
   const { data: saleItems } = await supabase
     .from("sale_items")
     .select("product_id, quantity, cost_at_sale")
@@ -51,7 +47,6 @@ export async function voidSale(
     (fallbackProducts ?? []).map((p) => [p.id, p.cost_price ?? 0])
   );
 
-  // Return stock — create a correction batch using cost_at_sale for accuracy
   const today = new Date().toISOString().slice(0, 10);
   for (const item of saleItems ?? []) {
     const unitCost =
@@ -74,4 +69,82 @@ export async function voidSale(
   revalidatePath("/refunds");
   revalidatePath("/inventory");
   return {};
+}
+
+export interface RefundItem {
+  sale_item_id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  cost_at_sale: number | null;
+}
+
+export async function processRefund(
+  saleId: string,
+  items: RefundItem[],
+  reason: string
+): Promise<{ error?: string; refundId?: string }> {
+  let supabase;
+  try {
+    supabase = await requireManagerOrAdmin();
+  } catch {
+    return { error: "You don't have permission to process refunds" };
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  if (!items.length) return { error: "No items selected for refund" };
+  if (reason.trim().length < 3) return { error: "Please provide a reason" };
+
+  const refundAmount = items.reduce((s, i) => s + i.subtotal, 0);
+  if (refundAmount <= 0) return { error: "Refund amount must be greater than zero" };
+
+  const { data: sale } = await supabase
+    .from("sales")
+    .select("status")
+    .eq("id", saleId)
+    .single();
+
+  if (!sale) return { error: "Sale not found" };
+  if (sale.status === "voided") return { error: "Cannot refund a voided sale" };
+
+  // Record the refund
+  const { data: refund, error: refundErr } = await supabase
+    .from("refunds")
+    .insert({
+      sale_id: saleId,
+      refunded_by: user.id,
+      reason: reason.trim(),
+      refund_amount: refundAmount,
+      refund_items: items,
+    })
+    .select("id")
+    .single();
+
+  if (refundErr) return { error: refundErr.message };
+
+  // Return stock — create correction batches for each refunded item
+  const today = new Date().toISOString().slice(0, 10);
+  for (const item of items) {
+    const fallbackCost =
+      item.cost_at_sale != null ? Number(item.cost_at_sale) : 0;
+
+    await supabase.from("stock_batches").insert({
+      product_id: item.product_id,
+      quantity_received: item.quantity,
+      quantity_remaining: item.quantity,
+      cost_price: fallbackCost,
+      received_date: today,
+      expiry_date: null,
+      notes: `Returned via refund ${refund!.id.slice(0, 8)} (sale ${saleId.slice(0, 8)})`,
+      supplier_id: null,
+    });
+  }
+
+  revalidatePath("/refunds");
+  revalidatePath("/inventory");
+  return { refundId: refund!.id };
 }
