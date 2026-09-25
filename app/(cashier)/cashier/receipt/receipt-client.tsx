@@ -215,7 +215,7 @@ export function ReceiptClient({ sale, settings, onNewOrder, onViewOrders }: Rece
                         </span>
                         <span className="tabular-nums font-bold shrink-0 text-[13px]">{item.total_price.toFixed(2)}</span>
                       </div>
-                      <div className="text-muted-foreground tabular-nums pl-2 text-[12px]">
+                      <div className="text-foreground/80 tabular-nums pl-2 text-[13px] font-semibold">
                         {item.package_label
                           ? `${item.package_label} · ${item.quantity}${isKg ? "kg" : "pcs"}`
                           : isKg

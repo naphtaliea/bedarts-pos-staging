@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 
+// Unique per-build identifier — baked into both server and client bundles via
+// generateBuildId + env. The /api/version endpoint returns the current server
+// value; the client compares it to its own baked value and prompts a reload
+// on mismatch (see components/update-banner.tsx).
+const BUILD_ID = process.env.BUILD_ID || String(Date.now());
+
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
@@ -33,6 +39,10 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  generateBuildId: async () => BUILD_ID,
+  env: {
+    NEXT_PUBLIC_BUILD_ID: BUILD_ID,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

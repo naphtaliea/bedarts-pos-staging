@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Big_Shoulders } from "next/font/google";
 import "./globals.css";
 import { StagingBanner } from "@/components/staging-banner";
+import { UpdateBanner } from "@/components/update-banner";
 
 const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
 const bigShoulders = Big_Shoulders({
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="h-full flex flex-col">
         <StagingBanner />
         <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+        <UpdateBanner />
       </body>
     </html>
   );
