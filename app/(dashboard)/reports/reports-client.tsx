@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Banknote, BarChart3, CreditCard, Download, PackageX, Smartphone, TrendingUp, Users } from "lucide-react";
-import { SnowflakePattern } from "@/components/snowflake-pattern";
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -180,12 +180,8 @@ export function ReportsClient({ fromDate, toDate, sales, adjustments, expenses =
   return (
     <div className="flex flex-col h-full">
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="relative bg-white overflow-hidden shrink-0">
-        <div className="absolute inset-0 pointer-events-none">
-          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
-        </div>
-
-        <div className="relative z-10 border-b border-border">
+      <div className="bg-white shrink-0">
+        <div className="border-b border-border">
           {/* Title + controls row */}
           <div className="px-4 lg:px-6 pt-3 lg:pt-4 pb-2 flex flex-col gap-2.5">
             {/* Top row: title + presets (lg) / title alone (mobile) */}

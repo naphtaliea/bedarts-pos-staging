@@ -85,7 +85,7 @@ export function Sidebar({ profile }: SidebarProps) {
               className={cn(
                 "flex items-center gap-3 pl-3 pr-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all min-h-[48px]",
                 active
-                  ? "bg-white/20 text-white font-semibold"
+                  ? "bg-sidebar-active text-white font-semibold"
                   : "text-sidebar-muted hover:bg-white/8 hover:text-white"
               )}
             >

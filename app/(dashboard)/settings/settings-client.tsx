@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SnowflakePattern } from "@/components/snowflake-pattern";
+
 import {
   Check, X, Plus, Trash2, UserPlus, KeyRound, Mail, RefreshCw,
   Smartphone, ShieldCheck, AlertTriangle, AlertCircle,
@@ -184,11 +184,8 @@ export function SettingsClient({
   return (
     <div className="flex flex-col h-full">
       {/* Branded banner */}
-      <div className="relative bg-white overflow-hidden shrink-0">
-        <div className="absolute inset-0 pointer-events-none">
-          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
-        </div>
-        <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4">
+      <div className="bg-white shrink-0">
+        <div className="border-b border-border px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-1">Administration</p>
             <h1 className="text-foreground leading-none">Settings</h1>

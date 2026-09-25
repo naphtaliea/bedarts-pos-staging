@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SnowflakePattern } from "@/components/snowflake-pattern";
+
 import { SupplierTable } from "@/components/suppliers/supplier-table";
 import { SupplierFormDialog } from "@/components/suppliers/supplier-form-dialog";
 import { PurchaseTable } from "@/components/suppliers/purchase-table";
@@ -501,13 +501,9 @@ export function SuppliersClient({ suppliers, purchases }: SuppliersClientProps) 
   return (
     <div className="flex flex-col h-full">
       {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="relative bg-white overflow-hidden shrink-0">
-        <div className="absolute inset-0 pointer-events-none">
-          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
-        </div>
-
+      <div className="bg-white shrink-0">
         {/* Title row */}
-        <div className="relative z-10 px-4 lg:px-6 pt-3 lg:pt-4 pb-0 flex items-center justify-between gap-4">
+        <div className="px-4 lg:px-6 pt-3 lg:pt-4 pb-0 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-lg font-bold text-foreground shrink-0">Suppliers</h1>
             {/* Stats chips */}
@@ -536,7 +532,7 @@ export function SuppliersClient({ suppliers, purchases }: SuppliersClientProps) 
         </div>
 
         {/* Tab row */}
-        <div className="relative z-10 border-b border-border px-4 lg:px-6 mt-1 flex items-end gap-0.5 overflow-x-auto no-scrollbar">
+        <div className="border-b border-border px-4 lg:px-6 mt-1 flex items-end gap-0.5 overflow-x-auto no-scrollbar">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const showBadge = tab.id === "payables" && unpaidCount > 0;

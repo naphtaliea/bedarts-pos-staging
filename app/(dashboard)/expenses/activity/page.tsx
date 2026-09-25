@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { SnowflakePattern } from "@/components/snowflake-pattern";
+
 import { formatCurrency } from "@/lib/utils";
 import type { ExpenseAuditLog, ExpenseCategory } from "@/lib/types";
 
@@ -144,11 +144,8 @@ export default async function ActivityLogPage({ searchParams }: ActivityPageProp
 
   return (
     <div className="flex flex-col h-full">
-      <div className="relative bg-white overflow-hidden shrink-0">
-        <div className="absolute inset-0 pointer-events-none">
-          <SnowflakePattern opacity={0.06} rows={2} tileSize={52} onLight />
-        </div>
-        <div className="relative z-10 border-b border-border px-4 lg:px-6 py-3 lg:py-4">
+      <div className="bg-white shrink-0">
+        <div className="border-b border-border px-4 lg:px-6 py-3 lg:py-4">
           <div className="flex items-center gap-3">
             <Link
               href="/expenses"
