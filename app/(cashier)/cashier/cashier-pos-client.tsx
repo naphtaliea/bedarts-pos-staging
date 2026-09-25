@@ -70,6 +70,24 @@ export function CashierPOSClient({
   const router = useRouter();
   const [view, setView] = useState<PosView>({ screen: "pos" });
 
+  // Local mirror of products so completed sales can decrement stock instantly
+  // (no round-trip). Re-syncs to server truth whenever the server component
+  // re-renders (e.g. after the hourly router.refresh()).
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  useEffect(() => { setProducts(initialProducts); }, [initialProducts]);
+
+  const applyStockDeductions = (soldItems: { product_id: string; quantity: number }[]) => {
+    if (soldItems.length === 0) return;
+    const sold = new Map<string, number>();
+    for (const it of soldItems) sold.set(it.product_id, (sold.get(it.product_id) ?? 0) + it.quantity);
+    setProducts((prev) => prev.map((p) => {
+      const q = sold.get(p.id);
+      if (!q) return p;
+      const nextQty = Math.max(0, (p.stock_quantity ?? 0) - q);
+      return { ...p, stock_quantity: nextQty, has_valid_stock: nextQty > 0 && p.has_valid_stock };
+    }));
+  };
+
   const {
     items,
     addItem,
@@ -184,7 +202,7 @@ export function CashierPOSClient({
     const value = parseFloat(next) || 0;
     if (mode === "Qty") {
       // Allow qty=0 so the line shows 0 before a second backspace removes it
-      const prod = initialProducts.find((p) => p.id === selectedLine?.product.id);
+      const prod = products.find((p) => p.id === selectedLine?.product.id);
       const maxQty = prod?.stock_quantity ?? Infinity;
       const capped = value > 0 ? Math.min(value, maxQty) : 0;
       if (maxQty !== Infinity && value > 0 && capped < value) {
@@ -255,7 +273,7 @@ export function CashierPOSClient({
     setPackageModalLineId(null);
   };
 
-  const filteredProducts = initialProducts.filter((p) => {
+  const filteredProducts = products.filter((p) => {
     const matchesSearch = search.trim() === "" || p.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = category === null || p.category_id === category;
     return matchesSearch && matchesCategory;
@@ -320,13 +338,20 @@ export function CashierPOSClient({
               setTimeout(() => reject(new Error("timeout")), 8000)
             );
             const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
-            if (sale) setView({ screen: "receipt", sale, settings });
+            if (sale) {
+              const items = (sale.sale_items ?? []) as { product_id: string; quantity: number }[];
+              applyStockDeductions(items.map((it) => ({ product_id: it.product_id, quantity: it.quantity })));
+              setView({ screen: "receipt", sale, settings });
+            }
           } catch {
             /* stay on pos */
           }
         }}
         onOfflineComplete={(sale) => {
           exitPayment();
+          applyStockDeductions(
+            (sale.sale_items ?? []).map((it) => ({ product_id: it.product_id, quantity: it.quantity }))
+          );
           setView({ screen: "receipt", sale, settings: initialSettings });
         }}
       />
