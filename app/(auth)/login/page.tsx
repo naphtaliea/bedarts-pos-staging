@@ -10,6 +10,8 @@ import { BrandLogo } from "@/components/brand-logo";
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, { error: "" });
   const [showPwd, setShowPwd] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Purge only PWA caches that could carry authenticated content between users.
   // NEVER touch workbox-precache-* or static-* caches — deleting them forces the SW
@@ -61,6 +63,8 @@ export default function LoginPage() {
                 placeholder="you@bedarts.com"
                 required
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full h-11 rounded-xl border border-white/20 bg-white/8 px-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all"
               />
             </div>
@@ -77,6 +81,8 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-11 rounded-xl border border-white/20 bg-white/8 pl-4 pr-11 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all"
                 />
                 <button

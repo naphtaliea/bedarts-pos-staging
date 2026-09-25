@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { signUpRequest } from "./actions";
 import { SnowflakePattern } from "@/components/snowflake-pattern";
 import { BrandLogo } from "@/components/brand-logo";
@@ -11,6 +12,11 @@ const INPUT_CLASS =
 
 export default function SignupPage() {
   const [state, formAction, pending] = useActionState(signUpRequest, { error: "" });
+  const [showPwd, setShowPwd] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
 
   return (
     <div className="min-h-dvh bg-white relative overflow-hidden flex flex-col items-center justify-center px-5 py-10">
@@ -52,6 +58,8 @@ export default function SignupPage() {
                 placeholder="Kwame Mensah"
                 required
                 autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className={INPUT_CLASS}
               />
             </div>
@@ -67,6 +75,8 @@ export default function SignupPage() {
                 placeholder="kwame@bedarts.com"
                 required
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className={INPUT_CLASS}
               />
             </div>
@@ -75,16 +85,28 @@ export default function SignupPage() {
               <label className="text-xs font-semibold text-sidebar-muted uppercase tracking-wide" htmlFor="password">
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Minimum 8 characters"
-                required
-                autoComplete="new-password"
-                minLength={8}
-                className={INPUT_CLASS}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="Minimum 8 characters"
+                  required
+                  autoComplete="new-password"
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-11 rounded-xl border border-white/20 bg-white/8 pl-4 pr-11 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  aria-label={showPwd ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -95,7 +117,8 @@ export default function SignupPage() {
                 id="role"
                 name="role"
                 required
-                defaultValue=""
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
                 className="w-full h-11 rounded-xl border border-white/20 bg-white/8 px-4 text-sm text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all appearance-none"
               >
                 <option value="" disabled className="bg-sidebar">Select your role…</option>
