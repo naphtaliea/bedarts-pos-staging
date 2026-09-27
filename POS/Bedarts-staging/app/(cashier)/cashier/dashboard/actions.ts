@@ -243,13 +243,27 @@ export async function getDashboardSales(): Promise<{
   const todayIso = today.toISOString();
 
   if (canSeeRevenue) {
-    const { data, error } = await supabase
-      .from("sales")
-      .select("id, total_amount, created_at, sale_items(product_id, quantity, products(name)), payments(method, amount)")
-      .gte("created_at", todayIso)
-      .eq("status", "completed");
+    const [{ data, error }, { data: todayRefunds }] = await Promise.all([
+      supabase
+        .from("sales")
+        .select("id, total_amount, created_at, sale_items(product_id, quantity, products(name)), payments(method, amount)")
+        .gte("created_at", todayIso)
+        .eq("status", "completed"),
+      supabase
+        .from("refunds")
+        .select("sale_id, refund_amount")
+        .gte("created_at", todayIso),
+    ]);
     if (error) return { canSeeRevenue, sales: [], error: error.message };
-    return { canSeeRevenue, sales: (data ?? []) as unknown as DashboardSalesRow[] };
+    const refundMap: Record<string, number> = {};
+    for (const r of todayRefunds ?? []) {
+      refundMap[(r as any).sale_id] = (refundMap[(r as any).sale_id] ?? 0) + Number((r as any).refund_amount);
+    }
+    const sales = (data ?? []).map((s: any) => ({
+      ...s,
+      total_amount: Math.max(0, Number(s.total_amount) - (refundMap[s.id] ?? 0)),
+    }));
+    return { canSeeRevenue, sales: sales as unknown as DashboardSalesRow[] };
   }
 
   // Non-revenue roles: order count and top products only, no financial data
