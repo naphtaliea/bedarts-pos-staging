@@ -41,7 +41,7 @@ interface CashierPOSClientProps {
 // Global overlays (not per-tab). Payment view is now tracked per-tab in pos-store.
 type PosView =
   | { screen: "pos" }
-  | { screen: "receipt"; sale: Sale; settings: StoreSettings | null }
+  | { screen: "receipt"; sale: Sale; settings: StoreSettings | null; autoprint?: boolean }
   | { screen: "orders" }
   | { screen: "dashboard" };
 
@@ -398,7 +398,7 @@ export function CashierPOSClient({
             const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
             exitPayment();
             if (sale) {
-              setView({ screen: "receipt", sale, settings });
+              setView({ screen: "receipt", sale, settings, autoprint: true });
             }
           } catch {
             exitPayment();
@@ -411,7 +411,7 @@ export function CashierPOSClient({
           applyStockDeductions(
             (sale.sale_items ?? []).map((it) => ({ product_id: it.product_id, quantity: it.quantity }))
           );
-          setView({ screen: "receipt", sale, settings: initialSettings });
+          setView({ screen: "receipt", sale, settings: initialSettings, autoprint: true });
         }}
       />
     );
@@ -422,6 +422,7 @@ export function CashierPOSClient({
       <ReceiptClient
         sale={view.sale}
         settings={view.settings ?? DEFAULT_SETTINGS}
+        autoprint={view.autoprint}
         onBack={() => setView({ screen: "orders" })}
         onNewOrder={() => {
           setSelectedLineId(null);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Receipt, LayoutDashboard, LayoutGrid, LogOut,
+  ArrowLeft, Receipt, BarChart2, Settings2, LogOut,
   X, Undo2, Plus, MoreVertical, Calculator,
 } from "lucide-react";
 import { DenomCalculator } from "@/components/pos/denom-calculator";
@@ -265,7 +265,7 @@ export function PosTopBar({
                 title="Dashboard"
                 className={clusterBtn}
               >
-                <LayoutDashboard className="w-[18px] h-[18px]" />
+                <BarChart2 className="w-[18px] h-[18px]" />
               </button>
             )}
 
@@ -276,7 +276,7 @@ export function PosTopBar({
                 title="Management dashboard"
                 className={clusterBtn}
               >
-                <LayoutGrid className="w-[18px] h-[18px]" />
+                <Settings2 className="w-[18px] h-[18px]" />
               </Link>
             )}
           </div>
@@ -450,7 +450,7 @@ export function PosTopBar({
                     onClick={() => { onDashboard(); closeMobileMenu(); }}
                     className={menuItem}
                   >
-                    <LayoutDashboard className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+                    <BarChart2 className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
                     Dashboard
                   </button>
                 )}
@@ -462,7 +462,7 @@ export function PosTopBar({
                     onClick={closeMobileMenu}
                     className={menuItem}
                   >
-                    <LayoutGrid className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+                    <Settings2 className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
                     Admin
                   </Link>
                 )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Printer, ClipboardList, CheckCircle2, ShoppingCart, PackageCheck } from "lucide-react";
 import { formatCurrency, formatReceiptDate } from "@/lib/utils";
@@ -12,6 +13,7 @@ interface ReceiptClientProps {
   onBack?: () => void;
   onNewOrder?: () => void;
   onViewOrders?: () => void;
+  autoprint?: boolean;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -34,7 +36,13 @@ function Row({ label, value, valueBold }: { label: string; value: string; valueB
   );
 }
 
-export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders }: ReceiptClientProps) {
+export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders, autoprint }: ReceiptClientProps) {
+  useEffect(() => {
+    if (!autoprint) return;
+    const t = setTimeout(() => window.print(), 300);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const saleRef = `#${sale.id.slice(0, 8).toUpperCase()}`;
   const saleDate = formatReceiptDate(sale.created_at);
   const isPickup = (sale as { pending_pickup?: boolean }).pending_pickup === true;
