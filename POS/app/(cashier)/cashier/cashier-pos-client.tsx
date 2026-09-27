@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, X } from "lucide-react";
+import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, X, Minus, Plus } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { createClient } from "@/lib/supabase/client";
 import { PosTopBar } from "@/components/pos/pos-topbar";
@@ -480,7 +480,7 @@ export function CashierPOSClient({
         <button
           onClick={() => setMobileView("products")}
           className={cn(
-            "flex-1 py-3 text-xs font-bold transition-colors",
+            "flex-1 h-11 text-xs font-bold transition-colors",
             mobileView === "products" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -489,7 +489,7 @@ export function CashierPOSClient({
         <button
           onClick={() => setMobileView("order")}
           className={cn(
-            "flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
+            "flex-1 h-11 text-xs font-bold transition-colors flex items-center justify-center gap-1.5",
             mobileView === "order" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -667,7 +667,44 @@ export function CashierPOSClient({
                       {formatCurrency(lineTotal)}
                     </span>
 
-                    {/* Remove */}
+                    {/* Mobile: inline +/- qty controls (replaces trash) */}
+                    <div className="lg:hidden flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const step = item.product.unit === "kg" ? 0.5 : 1;
+                          const next = Math.round((item.quantity - step) * 100) / 100;
+                          if (next <= 0) {
+                            const idx = items.findIndex((i) => i.lineId === item.lineId);
+                            const nextLine = (idx > 0 ? items[idx - 1] : items[idx + 1])?.lineId ?? null;
+                            removeItem(item.lineId);
+                            if (selectedLineId === item.lineId) setSelectedLineId(nextLine);
+                          } else {
+                            updateQty(item.lineId, next);
+                          }
+                        }}
+                        aria-label={`Decrease ${item.product.name} quantity`}
+                        className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
+                      >
+                        <Minus className="w-3 h-3" aria-hidden="true" />
+                      </button>
+                      <span className="text-xs font-black tabular-nums w-6 text-center text-foreground">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const step = item.product.unit === "kg" ? 0.5 : 1;
+                          updateQty(item.lineId, Math.round((item.quantity + step) * 100) / 100);
+                        }}
+                        aria-label={`Increase ${item.product.name} quantity`}
+                        className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
+                      >
+                        <Plus className="w-3 h-3" aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    {/* Desktop: remove button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -677,7 +714,7 @@ export function CashierPOSClient({
                         if (selectedLineId === item.lineId) setSelectedLineId(next);
                       }}
                       aria-label={`Remove ${item.product.name}`}
-                      className="w-11 h-11 -my-2 -mr-2 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="hidden lg:flex w-11 h-11 -my-2 -mr-2 rounded-lg items-center justify-center shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
@@ -687,8 +724,11 @@ export function CashierPOSClient({
             )}
           </div>
 
-          {/* ── NUMPAD ── */}
-          <div className="shrink-0 bg-secondary/40 border-t border-border p-2 space-y-1.5">
+          {/* ── NUMPAD — hidden on mobile when nothing selected ── */}
+          <div className={cn(
+            "shrink-0 bg-secondary/40 border-t border-border p-2 space-y-1.5",
+            !selectedLine && "hidden lg:block"
+          )}>
 
             {/* Selected line readout */}
             <div className="flex items-center justify-between gap-2 h-8">
@@ -709,6 +749,13 @@ export function CashierPOSClient({
                     <span className="font-display font-black text-xl text-foreground tabular-nums">
                       {displayValue}
                     </span>
+                    <button
+                      onClick={() => setSelectedLineId(null)}
+                      aria-label="Dismiss numpad"
+                      className="lg:hidden w-6 h-6 flex items-center justify-center rounded-full bg-border/60 text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3 h-3" aria-hidden="true" />
+                    </button>
                   </div>
                 </>
               ) : (
@@ -874,7 +921,7 @@ export function CashierPOSClient({
               <button
                 onClick={() => setCategory(null)}
                 className={cn(
-                  "shrink-0 h-10 px-4 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                  "shrink-0 h-11 px-4 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap",
                   category === null
                     ? "bg-sidebar text-white shadow-md"
                     : "bg-white text-muted-foreground shadow-sm hover:text-foreground hover:shadow-md hover:-translate-y-0.5"
@@ -891,7 +938,7 @@ export function CashierPOSClient({
                     key={cat.id}
                     onClick={() => setCategory(cat.id)}
                     className={cn(
-                      "shrink-0 h-10 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
+                      "shrink-0 h-11 px-4 rounded-full text-xs font-bold transition-all whitespace-nowrap",
                       isActive
                         ? "bg-sidebar text-white shadow-md"
                         : `${chip} shadow-sm hover:shadow-md hover:-translate-y-0.5`
@@ -916,7 +963,7 @@ export function CashierPOSClient({
               </div>
               <button
                 onClick={() => setMobileView("order")}
-                className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-white font-bold text-xs shrink-0 transition-colors hover:bg-primary/90"
+                className="flex items-center gap-1.5 h-11 px-4 rounded-xl bg-primary text-white font-bold text-xs shrink-0 transition-colors hover:bg-primary/90"
               >
                 Review order
                 <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
