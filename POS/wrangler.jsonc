@@ -8,9 +8,6 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	// Remove the 50 ms CPU cap — Next.js SSR + crypto exceeds bundled limits.
-	// Requires Workers Paid plan; billed per CPU-millisecond consumed.
-	"usage_model": "unbound",
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
