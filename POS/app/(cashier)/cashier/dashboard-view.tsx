@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, ShoppingCart, Receipt } from "lucide-react";
+import { ShoppingCart, Banknote, Smartphone, CreditCard } from "lucide-react";
 import { getDashboardSales } from "@/app/(cashier)/cashier/dashboard/actions";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { EODSection } from "@/app/(cashier)/cashier/dashboard/eod-section";
@@ -49,9 +49,7 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
     }
   }
   const cashSales = Math.max(0, grossSales - momoSales - posSales);
-  const totalRevenue = grossSales;
   const orderCount = sales.length;
-  const avgTicket = orderCount > 0 ? totalRevenue / orderCount : 0;
 
   const productTotals: Record<string, { name: string; qty: number }> = {};
   for (const sale of sales) {
@@ -67,9 +65,12 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
   const maxQty = topProducts[0]?.qty ?? 1;
 
   const STATS = [
-    ...(canSeeRevenue ? [{ label: "Revenue", value: formatCurrency(totalRevenue), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10", accent: "border-l-primary" }] : []),
-    { label: "Orders", value: String(orderCount), icon: ShoppingCart, color: "text-accent", bg: "bg-accent/10", accent: "border-l-accent" },
-    ...(canSeeRevenue ? [{ label: "Avg Ticket", value: formatCurrency(avgTicket), icon: Receipt, color: "text-success", bg: "bg-success/10", accent: "border-l-success" }] : []),
+    ...(canSeeRevenue ? [
+      { label: "Cash", value: formatCurrency(cashSales), icon: Banknote, color: "text-success", bg: "bg-success/10", accent: "border-l-success" },
+      { label: "MoMo", value: formatCurrency(momoSales), icon: Smartphone, color: "text-primary", bg: "bg-primary/10", accent: "border-l-primary" },
+      { label: "POS", value: formatCurrency(posSales), icon: CreditCard, color: "text-accent", bg: "bg-accent/10", accent: "border-l-accent" },
+    ] : []),
+    { label: "Orders", value: String(orderCount), icon: ShoppingCart, color: "text-foreground", bg: "bg-secondary", accent: "border-l-border" },
   ];
 
   return (
@@ -90,27 +91,27 @@ export function DashboardView({ cashier, onBack }: DashboardViewProps) {
       <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 max-w-5xl mx-auto w-full">
         {loading ? (
           <div className="space-y-4 animate-pulse">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-secondary" />)}
+            <div className={canSeeRevenue ? "grid grid-cols-2 sm:grid-cols-4 gap-3" : "grid grid-cols-1 gap-4"}>
+              {(canSeeRevenue ? [1, 2, 3, 4] : [1]).map((i) => <div key={i} className="h-20 rounded-xl bg-secondary" />)}
             </div>
             <div className="h-64 rounded-xl bg-secondary" />
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className={canSeeRevenue ? "grid grid-cols-2 sm:grid-cols-4 gap-3" : "grid grid-cols-1 gap-4"}>
               {STATS.map((stat) => {
                 const Icon = stat.icon;
                 return (
                   <div
                     key={stat.label}
-                    className={`rounded-xl border border-border border-l-[3px] ${stat.accent} bg-card p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow`}
+                    className={`rounded-xl border border-border border-l-[3px] ${stat.accent} bg-card p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition-shadow`}
                   >
-                    <div className={`shrink-0 w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                      <Icon className={`w-5 h-5 ${stat.color}`} />
+                    <div className={`shrink-0 w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                      <Icon className={`w-4 h-4 ${stat.color}`} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-bold">{stat.label}</p>
-                      <p className="font-display text-2xl font-black text-foreground tabular-nums mt-0.5 leading-tight">{stat.value}</p>
+                      <p className="font-display text-xl font-black text-foreground tabular-nums mt-0.5 leading-tight">{stat.value}</p>
                     </div>
                   </div>
                 );
