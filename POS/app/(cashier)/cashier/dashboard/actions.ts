@@ -80,16 +80,40 @@ export async function saveReconciliation(
     refundMap[(r as any).sale_id] = (refundMap[(r as any).sale_id] ?? 0) + Number((r as any).refund_amount);
   }
 
-  // gross_sales uses total_amount net of refunds. MoMo and POS are exact so
-  // their rows are summed directly. Cash is derived as the remainder.
+  // First pass: gross totals and per-sale payment classification.
   let gross_sales = 0, momo_total = 0, pos_total = 0;
+  // Tracks how much of each sale was paid via non-cash methods (for refund attribution).
+  const saleMomo: Record<string, number> = {};
+  const salePos: Record<string, number> = {};
   for (const sale of sales ?? []) {
-    gross_sales += Math.max(0, Number((sale as any).total_amount ?? 0) - (refundMap[(sale as any).id] ?? 0));
+    gross_sales += Number((sale as any).total_amount ?? 0);
     for (const p of (sale as any).payments ?? []) {
-      if (p.method === "momo") momo_total += Number(p.amount);
-      else if (p.method === "pos_machine") pos_total += Number(p.amount);
+      if (p.method === "momo") {
+        momo_total += Number(p.amount);
+        saleMomo[(sale as any).id] = (saleMomo[(sale as any).id] ?? 0) + Number(p.amount);
+      } else if (p.method === "pos_machine") {
+        pos_total += Number(p.amount);
+        salePos[(sale as any).id] = (salePos[(sale as any).id] ?? 0) + Number(p.amount);
+      }
     }
   }
+
+  // Attribute each refund to the original payment method.
+  // MoMo-paid sales → refund deducts from momo_total (MoMo reversal).
+  // POS-paid sales  → refund deducts from pos_total.
+  // Cash-paid sales → refund reduces gross revenue (less cash came in).
+  let momo_refunded = 0, pos_refunded = 0, cash_refunded = 0;
+  for (const r of todayRefunds ?? []) {
+    const sid = (r as any).sale_id;
+    const amt = Number((r as any).refund_amount);
+    if (saleMomo[sid]) momo_refunded += amt;
+    else if (salePos[sid]) pos_refunded += amt;
+    else cash_refunded += amt;
+  }
+  momo_total = Math.max(0, momo_total - momo_refunded);
+  pos_total  = Math.max(0, pos_total  - pos_refunded);
+  gross_sales -= (momo_refunded + pos_refunded + cash_refunded); // net revenue for record
+
   const momo_change = Math.max(0, data.momo_change ?? 0);
   const cash_expected = Math.max(0, gross_sales - momo_total - pos_total - momo_change);
 
@@ -259,10 +283,28 @@ export async function getDashboardSales(): Promise<{
     for (const r of todayRefunds ?? []) {
       refundMap[(r as any).sale_id] = (refundMap[(r as any).sale_id] ?? 0) + Number((r as any).refund_amount);
     }
-    const sales = (data ?? []).map((s: any) => ({
-      ...s,
-      total_amount: Math.max(0, Number(s.total_amount) - (refundMap[s.id] ?? 0)),
-    }));
+    // For each refunded sale, reduce the momo/pos payment amount by the refund so that
+    // the client's cash computation (total_amount - momo - pos) stays correct.
+    const sales = (data ?? []).map((s: any) => {
+      const refundAmt = refundMap[s.id] ?? 0;
+      if (refundAmt === 0) return { ...s, total_amount: Number(s.total_amount) };
+      // Determine how much of this sale was non-cash
+      const saleMomo = (s.payments ?? []).reduce((sum: number, p: any) => p.method === "momo" ? sum + Number(p.amount) : sum, 0);
+      const salePos  = (s.payments ?? []).reduce((sum: number, p: any) => p.method === "pos_machine" ? sum + Number(p.amount) : sum, 0);
+      const isMomo = saleMomo > 0;
+      const isPos  = salePos > 0 && !isMomo;
+      return {
+        ...s,
+        total_amount: Math.max(0, Number(s.total_amount) - refundAmt),
+        payments: (s.payments ?? []).map((p: any) => {
+          if (p.method === "momo" && isMomo)
+            return { ...p, amount: Math.max(0, Number(p.amount) - refundAmt) };
+          if (p.method === "pos_machine" && isPos)
+            return { ...p, amount: Math.max(0, Number(p.amount) - refundAmt) };
+          return p;
+        }),
+      };
+    });
     return { canSeeRevenue, sales: sales as unknown as DashboardSalesRow[] };
   }
 

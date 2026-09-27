@@ -71,20 +71,30 @@ export default async function ReportsPage({
     total_amount: Math.max(0, Number(s.total_amount) - (refundMap[s.id] ?? 0)),
   }));
 
-  // Compute payment breakdown server-side so the correct figures reach the
-  // client regardless of which JS bundle version the browser has cached.
-  // Cash is derived from total_amount after deducting non-cash payments —
-  // raw cash records are over-tendered (change given back) and cannot be summed directly.
+  // Compute payment breakdown server-side. Refunds on MoMo/POS-paid sales are deducted
+  // from those digital buckets; refunds on cash sales are already captured via the net
+  // total_amount. Cash is derived as total_amount_net minus net non-cash payments.
   const paymentMap: Record<string, { total: number; count: number }> = {};
   for (const sale of salesWithNetAmount) {
     if (sale.status !== "completed") continue;
+    const refundAmt = refundMap[sale.id] ?? 0;
     let saleNonCash = 0;
+    let saleMomoGross = 0;
+    for (const p of (sale as any).payments ?? []) {
+      if (p.method === "momo") saleMomoGross += Number(p.amount);
+    }
+    // Attribute refund to momo/pos if original payment was digital
+    const momoDeduct = saleMomoGross > 0 ? Math.min(refundAmt, saleMomoGross) : 0;
     for (const p of sale.payments ?? []) {
       if (p.method === "cash") continue;
+      const netAmt = p.method === "momo"
+        ? Math.max(0, Number(p.amount) - momoDeduct)
+        : Number(p.amount);
+      if (netAmt <= 0) continue;
       if (!paymentMap[p.method]) paymentMap[p.method] = { total: 0, count: 0 };
-      paymentMap[p.method].total = Math.round((paymentMap[p.method].total + Number(p.amount)) * 100) / 100;
+      paymentMap[p.method].total = Math.round((paymentMap[p.method].total + netAmt) * 100) / 100;
       paymentMap[p.method].count++;
-      saleNonCash += Number(p.amount);
+      saleNonCash += netAmt;
     }
     const saleCash = Math.max(0, Number(sale.total_amount) - saleNonCash);
     if (saleCash > 0) {
