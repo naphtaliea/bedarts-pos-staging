@@ -139,7 +139,11 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             ) : (
               <div className="space-y-1.5">
                 {submissions.map((s) => {
-                  const variance = s.cash_counted - s.cash_expected;
+                  // Recompute expected against the current live totals so the variance
+                  // reflects today's true numbers, not whatever was stored when the
+                  // cashier submitted (which may be stale if fixes have shipped since).
+                  const expected = Math.max(0, cashSales - s.momo_change);
+                  const variance = s.cash_counted - expected;
                   return (
                     <div
                       key={s.cashier_id}
@@ -161,7 +165,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                             "text-[11px] tabular-nums font-semibold mt-0.5",
                             variance >= 0 ? "text-success" : "text-destructive"
                           )}>
-                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)} vs expected {formatCurrency(s.cash_expected)}
+                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)} vs expected {formatCurrency(expected)}
                           </p>
                         </div>
                       </div>
