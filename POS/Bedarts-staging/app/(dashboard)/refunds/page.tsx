@@ -28,5 +28,14 @@ export default async function RefundsPage() {
 
   if (salesError) console.error("[refunds] query error:", salesError);
 
-  return <RefundsClient sales={(sales ?? []) as any[]} />;
+  return (
+    <>
+      {salesError && (
+        <div className="m-4 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive font-mono">
+          <strong>Supabase query error</strong> — {salesError.message} (code: {salesError.code})
+        </div>
+      )}
+      <RefundsClient sales={(sales ?? []) as any[]} />
+    </>
+  );
 }
