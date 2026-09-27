@@ -388,19 +388,20 @@ export function CashierPOSClient({
         avatarUrl={cashier.avatar_url}
         onBack={() => exitPayment()}
         onComplete={async (saleId) => {
-          exitPayment();
+          // Keep PaymentClient mounted (showing "Processing…") while we fetch the
+          // receipt data. Only exit payment + flip to receipt once we have the sale,
+          // so there is no flash of the products screen between confirmation and receipt.
           try {
             const timeout = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("timeout")), 8000)
             );
             const { sale, settings } = await Promise.race([getSaleForReceipt(saleId), timeout]);
+            exitPayment();
             if (sale) {
-              // Stock is updated for all clients via Supabase Realtime (stock_batches
-              // subscription above). No local deduction needed here.
               setView({ screen: "receipt", sale, settings });
             }
           } catch {
-            /* stay on pos */
+            exitPayment();
           }
         }}
         onOfflineComplete={(sale) => {

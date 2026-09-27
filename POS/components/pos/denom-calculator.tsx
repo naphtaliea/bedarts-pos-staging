@@ -6,8 +6,24 @@ import { cn } from "@/lib/utils";
 
 const DENOMS = [200, 100, 50, 20, 10, 5, 1] as const;
 
-export function DenomCalculator({ triggerClassName }: { triggerClassName?: string }) {
-  const [open, setOpen] = useState(false);
+export function DenomCalculator({
+  triggerClassName,
+  open: controlledOpen,
+  onOpenChange,
+  hideButton,
+}: {
+  triggerClassName?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideButton?: boolean;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen! : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (isControlled) onOpenChange?.(v);
+    else setInternalOpen(v);
+  };
   const [counts, setCounts] = useState<Record<number, string>>({});
 
   function setCount(denom: number, value: string) {
@@ -27,17 +43,19 @@ export function DenomCalculator({ triggerClassName }: { triggerClassName?: strin
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Till counter"
-        title="Till counter"
-        className={
-          triggerClassName ??
-          "flex items-center justify-center w-11 border-r border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-        }
-      >
-        <Calculator className="w-[18px] h-[18px]" />
-      </button>
+      {!hideButton && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Till counter"
+          title="Till counter"
+          className={
+            triggerClassName ??
+            "flex items-center justify-center w-11 border-r border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+          }
+        >
+          <Calculator className="w-[18px] h-[18px]" />
+        </button>
+      )}
 
       {open && (
         <div
