@@ -14,10 +14,12 @@ interface ReconciliationFormProps {
 
 export function ReconciliationForm({ onClose, onSuccess }: ReconciliationFormProps) {
   const [cashCounted, setCashCounted] = useState("");
+  const [momoChange, setMomoChange] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cashCountedNum = parseFloat(cashCounted) || 0;
+  const momoChangeNum = parseFloat(momoChange) || 0;
   const canSubmit = cashCounted !== "" && cashCountedNum >= 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -37,7 +39,7 @@ export function ReconciliationForm({ onClose, onSuccess }: ReconciliationFormPro
     setSaving(true);
     let res: { error?: string };
     try {
-      res = await saveReconciliation({ cash_counted: cashCountedNum, expenses: [] });
+      res = await saveReconciliation({ cash_counted: cashCountedNum, momo_change: momoChangeNum, expenses: [] });
     } catch {
       setSaving(false);
       setError("Network error — check your connection and try again.");
@@ -99,6 +101,22 @@ export function ReconciliationForm({ onClose, onSuccess }: ReconciliationFormPro
               autoFocus
               className="text-lg font-semibold h-12"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] block">
+              MoMo change paid in cash (GHS)
+            </label>
+            <Input
+              type="number"
+              min={0}
+              step={0.01}
+              placeholder="0.00"
+              value={momoChange}
+              onChange={(e) => setMomoChange(e.target.value)}
+              className="text-lg font-semibold h-12"
+            />
+            <p className="text-[10px] text-muted-foreground">Cash you gave back for MoMo overpayments</p>
           </div>
 
           {error && (

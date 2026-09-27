@@ -148,6 +148,11 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                         <div>
                           <p className="text-sm font-bold text-foreground">{s.cashier_name}</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">Submitted {formatTime(s.submitted_at)}</p>
+                          {s.momo_change > 0 && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              MoMo change: <span className="tabular-nums font-semibold text-foreground">−{formatCurrency(s.momo_change)}</span>
+                            </p>
+                          )}
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-base font-bold tabular-nums text-foreground">{formatCurrency(s.cash_counted)}</p>

@@ -8,6 +8,7 @@ import { readCashierSession } from "@/lib/cashier-session";
 
 export interface ReconciliationData {
   cash_counted: number;
+  momo_change: number;
   expenses: { description: string; amount: number }[];
 }
 
@@ -78,7 +79,8 @@ export async function saveReconciliation(
       else if (p.method === "pos_machine") pos_total += Number(p.amount);
     }
   }
-  const cash_expected = Math.max(0, gross_sales - momo_total - pos_total);
+  const momo_change = Math.max(0, data.momo_change ?? 0);
+  const cash_expected = Math.max(0, gross_sales - momo_total - pos_total - momo_change);
 
   const expenses_total = data.expenses.reduce((s, e) => s + e.amount, 0);
   const cash_variance = data.cash_counted - cash_expected;
@@ -95,6 +97,7 @@ export async function saveReconciliation(
     pos_total,
     account_total: 0,
     gross_sales,
+    momo_change,
     notes: null,
     expenses: data.expenses,
     expenses_total,
@@ -144,6 +147,7 @@ export interface CashierSubmission {
   cashier_name: string;
   cash_counted: number;
   cash_expected: number;
+  momo_change: number;
   submitted_at: string;
 }
 
@@ -166,7 +170,7 @@ export async function getTodayCashierSubmissions(): Promise<{
 
   const { data: recs, error } = await admin
     .from("cashier_reconciliations")
-    .select("cashier_id, cash_counted, cash_expected, created_at")
+    .select("cashier_id, cash_counted, cash_expected, momo_change, created_at")
     .eq("shift_date", today)
     .order("created_at", { ascending: true });
 
@@ -187,6 +191,7 @@ export async function getTodayCashierSubmissions(): Promise<{
       cashier_name: nameMap[r.cashier_id] ?? "Unknown",
       cash_counted: Number(r.cash_counted),
       cash_expected: Number(r.cash_expected),
+      momo_change: Number(r.momo_change ?? 0),
       submitted_at: r.created_at,
     })),
   };
