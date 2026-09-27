@@ -1,0 +1,51 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "pos",
+	"account_id": "c2b75b61233b1a1a81438b0b7e7235de",
+	"compatibility_date": "2026-09-11",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	// Remove the 50 ms CPU cap — Next.js SSR + crypto exceeds bundled limits.
+	// Requires Workers Paid plan; billed per CPU-millisecond consumed.
+	"usage_model": "unbound",
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"kv_namespaces": [
+		{
+			"binding": "NEXT_INC_CACHE_KV",
+			"id": "94076702f6d94fab95f60b04d3053193"
+		}
+	],
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "pos"
+		}
+	],
+	"images": {
+		// Enable image optimization
+		// see https://opennext.js.org/cloudflare/howtos/image
+		"binding": "IMAGES"
+	},
+	"env": {
+		"staging": {
+			"name": "pos-staging",
+			"services": [
+				{
+					"binding": "WORKER_SELF_REFERENCE",
+					"service": "pos-staging"
+				}
+			],
+			"images": {
+				"binding": "IMAGES"
+			}
+		}
+	}
+}
