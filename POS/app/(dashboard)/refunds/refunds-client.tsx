@@ -248,14 +248,14 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
 
       <div className="flex flex-col h-full bg-card">
         {/* Panel header */}
-        <div className="shrink-0 px-5 pt-5 pb-4 border-b border-border">
-          <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="shrink-0 px-5 pt-4 pb-3 border-b border-border">
+          <div className="flex items-start justify-between gap-3 mb-1.5">
             <div className="min-w-0 flex-1">
-              <p className="text-3xl font-bold text-foreground tabular-nums leading-none">
+              <p className="text-2xl font-bold text-foreground tabular-nums leading-none">
                 {formatCurrency(sale.total_amount)}
               </p>
               {alreadyRefunded > 0 && (
-                <p className="text-xs text-destructive tabular-nums mt-1.5 font-semibold">
+                <p className="text-xs text-destructive tabular-nums mt-1 font-semibold">
                   −{formatCurrency(alreadyRefunded)} already refunded
                 </p>
               )}
@@ -269,7 +269,7 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             <span className="font-mono font-bold text-[11px] bg-secondary px-1.5 py-0.5 rounded">
               #{sale.id.slice(0, 8).toUpperCase()}
             </span>
@@ -278,11 +278,11 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
           </div>
 
           {sale.payments.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {sale.payments.map((p, i) => {
                 const Icon = METHOD_ICONS[p.method] ?? Banknote;
                 return (
-                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
+                  <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                     <Icon className="w-3 h-3" aria-hidden />
                     {METHOD_LABELS[p.method] ?? p.method} {formatCurrency(p.amount)}
                   </span>
