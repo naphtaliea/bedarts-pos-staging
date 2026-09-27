@@ -2,15 +2,31 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Trash2, Search, ArrowRight, Delete, ShoppingCart, Scale, Check, X } from "lucide-react";
 import { useCartStore } from "@/lib/pos-store";
 import { createClient } from "@/lib/supabase/client";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import { PaymentClient } from "./payment/payment-client";
 import { ReceiptClient } from "./receipt/receipt-client";
-import { OrdersView } from "./orders-view";
-import { DashboardView } from "./dashboard-view";
 import { getSaleForReceipt, pingServer } from "@/app/(dashboard)/pos/actions";
+
+function ViewLoader() {
+  return (
+    <div className="flex h-dvh items-center justify-center bg-background">
+      <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" aria-label="Loading" />
+    </div>
+  );
+}
+
+const OrdersView = dynamic(
+  () => import("./orders-view").then((m) => ({ default: m.OrdersView })),
+  { loading: () => <ViewLoader /> }
+);
+const DashboardView = dynamic(
+  () => import("./dashboard-view").then((m) => ({ default: m.DashboardView })),
+  { loading: () => <ViewLoader /> }
+);
 import { cn, formatCurrency } from "@/lib/utils";
 import type { Profile, Category, Product, ProductPackage, Sale, StoreSettings } from "@/lib/types";
 
