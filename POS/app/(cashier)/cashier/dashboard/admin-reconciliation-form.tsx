@@ -35,7 +35,6 @@ function formatTime(iso: string) {
 }
 
 export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSales, momoSales, posSales, todayExpenses }: Props) {
-  const [cashCounted, setCashCounted] = useState("");
   const [lines, setLines] = useState<ExpenseLine[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,19 +46,17 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   useEffect(() => {
     getTodayCashierSubmissions().then((res) => {
       setSubmissions(res.submissions);
-      // Pre-fill admin's cash count with cashier's if exactly one submission
-      if (res.submissions.length === 1 && !cashCounted) {
-        setCashCounted(String(res.submissions[0].cash_counted));
-      }
       setLoadingSubmissions(false);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const expensesTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
   const netRevenue = grossSales - expensesTotal - todayExpenses;
-  const cashCountedNum = parseFloat(cashCounted) || 0;
-  const cashVariance = cashCountedNum - cashSales;
+
+  // Use the cashier's submitted cash_counted for the admin reconciliation record
+  const cashCountedForRecord = submissions.length > 0
+    ? submissions[submissions.length - 1].cash_counted
+    : 0;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -85,7 +82,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
     setSaving(true);
     const validLines = lines.filter(l => l.description.trim() && parseFloat(l.amount) > 0);
     const res = await saveReconciliation({
-      cash_counted: cashCountedNum,
+      cash_counted: cashCountedForRecord,
       expenses: validLines.map(l => ({ description: l.description.trim(), amount: parseFloat(l.amount) })),
     }).catch(() => ({ error: "Network error — try again." }));
     setSaving(false);
@@ -108,7 +105,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             </div>
             <div>
               <h2 className="text-sm font-bold text-foreground">End of Day</h2>
-              <p className="text-[11px] text-muted-foreground">Review, confirm, and close</p>
+              <p className="text-[11px] text-muted-foreground">Review cashier count, add expenses, confirm</p>
             </div>
           </div>
           <button
@@ -121,7 +118,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
         </div>
 
         <form id="admin-recon-form" onSubmit={handleSubmit}>
-          {/* Cashier submissions */}
+          {/* Cashier cash count — read-only */}
           <div className="px-5 py-4 border-b border-border space-y-2.5">
             <div className="flex items-center gap-1.5">
               <UserCheck className="w-3.5 h-3.5 text-muted-foreground" aria-hidden />
@@ -134,30 +131,37 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                 Loading submissions…
               </div>
             ) : submissions.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic">No cashier submissions for today yet.</p>
+              <div className="rounded-xl bg-warning/8 border border-warning/25 px-3 py-3">
+                <p className="text-xs text-warning font-semibold">No cashier submission yet</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">The cashier must count cash and submit before you confirm.</p>
+              </div>
             ) : (
               <div className="space-y-1.5">
-                {submissions.map((s) => (
-                  <div
-                    key={s.cashier_id}
-                    className="flex items-center justify-between rounded-xl bg-success/8 border border-success/20 px-3 py-2.5"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{s.cashier_name}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Submitted {formatTime(s.submitted_at)}</p>
+                {submissions.map((s) => {
+                  const variance = s.cash_counted - s.cash_expected;
+                  return (
+                    <div
+                      key={s.cashier_id}
+                      className="rounded-xl bg-success/8 border border-success/20 px-3 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{s.cashier_name}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">Submitted {formatTime(s.submitted_at)}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-bold tabular-nums text-foreground">{formatCurrency(s.cash_counted)}</p>
+                          <p className={cn(
+                            "text-[11px] tabular-nums font-semibold mt-0.5",
+                            variance >= 0 ? "text-success" : "text-destructive"
+                          )}>
+                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)} vs expected {formatCurrency(s.cash_expected)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(s.cash_counted)}</p>
-                      <p className={cn(
-                        "text-[11px] tabular-nums font-medium mt-0.5",
-                        s.cash_counted - s.cash_expected >= 0 ? "text-success" : "text-destructive"
-                      )}>
-                        {s.cash_counted - s.cash_expected >= 0 ? "+" : ""}
-                        {formatCurrency(s.cash_counted - s.cash_expected)} vs expected
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -183,29 +187,6 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                 <p className="font-bold tabular-nums text-primary mt-0.5">{formatCurrency(grossSales)}</p>
               </div>
             </div>
-          </div>
-
-          {/* Admin's cash count */}
-          <div className="px-5 py-4 border-b border-border space-y-1.5">
-            <label htmlFor="admin-cash" className={LABEL}>
-              Cash counted (GHS) <span className="text-destructive">*</span>
-            </label>
-            <Input
-              id="admin-cash"
-              type="number"
-              min={0}
-              step={0.01}
-              placeholder="0.00"
-              value={cashCounted}
-              onChange={e => setCashCounted(e.target.value)}
-              autoFocus={submissions.length === 0}
-              className="h-11 text-base font-semibold"
-            />
-            {cashCounted && (
-              <p className={cn("text-xs font-medium", cashVariance >= 0 ? "text-success" : "text-destructive")}>
-                {cashVariance >= 0 ? "+" : ""}{formatCurrency(cashVariance)} vs expected {formatCurrency(cashSales)}
-              </p>
-            )}
           </div>
 
           {/* Additional expenses */}
@@ -292,7 +273,12 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
           <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button type="submit" form="admin-recon-form" disabled={saving} className="gap-2">
+          <Button
+            type="submit"
+            form="admin-recon-form"
+            disabled={saving || submissions.length === 0}
+            className="gap-2"
+          >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {saving ? "Saving…" : "Confirm & Close Day"}
           </Button>
