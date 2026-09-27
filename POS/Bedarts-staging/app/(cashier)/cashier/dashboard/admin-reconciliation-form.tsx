@@ -178,7 +178,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground">Cash expected</p>
-                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(cashSales)}</p>
+                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(Math.max(0, cashSales - momoChangeForRecord))}</p>
               </div>
               <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground">MoMo</p>
