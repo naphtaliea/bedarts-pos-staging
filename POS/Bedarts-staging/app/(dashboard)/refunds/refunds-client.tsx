@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReceiptText, CheckCircle2, AlertTriangle, ChevronRight,
-  Minus, Plus, X, RotateCcw, Search, Loader2, PackageX,
+  Minus, Plus, X, Search, Loader2, PackageX,
   History, Banknote, Smartphone, CreditCard,
 } from "lucide-react";
-
 import { cn, formatCurrency } from "@/lib/utils";
 import { voidSale, processRefund } from "./actions";
 import type { RefundItem } from "./actions";
@@ -38,14 +37,9 @@ interface Sale {
   refunds: { id: string; refund_amount: number; created_at: string }[];
 }
 
-// ─── Constants ─────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: "Cash",
-  momo: "MoMo",
-  pos_machine: "POS",
-};
-
+const METHOD_LABELS: Record<string, string> = { cash: "Cash", momo: "MoMo", pos_machine: "POS" };
 const METHOD_ICONS: Record<string, React.ElementType> = {
   cash: Banknote,
   momo: Smartphone,
@@ -57,28 +51,19 @@ const METHOD_ICONS: Record<string, React.ElementType> = {
 function formatDateTime(d: string) {
   return new Date(d).toLocaleString("en-GH", { dateStyle: "medium", timeStyle: "short" });
 }
-
 function formatShortDate(d: string) {
   return new Date(d).toLocaleString("en-GH", { dateStyle: "short", timeStyle: "short" });
 }
-
 function totalRefunded(sale: Sale) {
   return sale.refunds.reduce((s, r) => s + r.refund_amount, 0);
 }
-
 function hasPartialRefund(sale: Sale) {
   return sale.refunds.length > 0 && sale.status !== "voided";
 }
 
 // ─── Item row ─────────────────────────────────────────────────────────────────
 
-interface ItemRowProps {
-  item: SaleItem;
-  qty: number;
-  onChange: (qty: number) => void;
-}
-
-function ItemRow({ item, qty, onChange }: ItemRowProps) {
+function ItemRow({ item, qty, onChange }: { item: SaleItem; qty: number; onChange: (q: number) => void }) {
   const isKg = item.product.unit === "kg";
   const step = isKg ? 0.5 : 1;
   const max = item.quantity;
@@ -86,91 +71,68 @@ function ItemRow({ item, qty, onChange }: ItemRowProps) {
   const isActive = qty > 0;
 
   return (
-    <div className={cn(
-      "px-4 py-3 transition-colors border-l-2",
-      isActive ? "bg-primary/[0.03] border-l-primary" : "border-l-transparent"
-    )}>
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <p className={cn("text-sm font-semibold leading-snug", isActive ? "text-foreground" : "text-foreground/70")}>
-            {item.product.name}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isKg
-              ? `${item.quantity.toFixed(2)} kg · ${formatCurrency(item.unit_price)}/kg`
-              : `${item.quantity} pcs · ${formatCurrency(item.unit_price)} each`}
-          </p>
-        </div>
+    <div className={cn("flex items-center gap-3 px-4 py-3 transition-colors", isActive && "bg-primary/[0.04]")}>
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-sm font-semibold leading-snug", isActive ? "text-foreground" : "text-foreground/60")}>
+          {item.product.name}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {isKg
+            ? `${item.quantity.toFixed(2)} kg · ${formatCurrency(item.unit_price)}/kg`
+            : `${item.quantity} pcs · ${formatCurrency(item.unit_price)} each`}
+        </p>
+      </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Stepper — 44px touch targets */}
-          <div className="flex items-center border border-border rounded-xl overflow-hidden">
-            <button
-              onClick={() => onChange(Math.max(0, parseFloat((qty - step).toFixed(2))))}
-              disabled={qty <= 0}
-              aria-label="Decrease quantity"
-              className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <span className={cn(
-              "w-12 text-center text-sm font-bold tabular-nums px-1",
-              isActive ? "text-primary" : "text-muted-foreground"
-            )}>
-              {isKg ? qty.toFixed(1) : qty}
-            </span>
-            <button
-              onClick={() => onChange(Math.min(max, parseFloat((qty + step).toFixed(2))))}
-              disabled={qty >= max}
-              aria-label="Increase quantity"
-              className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <span className={cn(
-            "w-20 text-right text-sm tabular-nums font-semibold",
-            isActive ? "text-foreground" : "text-muted-foreground/40"
-          )}>
-            {formatCurrency(subtotal)}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center rounded-xl border border-border overflow-hidden">
+          <button
+            onClick={() => onChange(Math.max(0, parseFloat((qty - step).toFixed(2))))}
+            disabled={qty <= 0}
+            aria-label="Decrease quantity"
+            className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:bg-secondary disabled:opacity-30 transition-colors"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <span className={cn("w-10 text-center text-sm font-bold tabular-nums", isActive ? "text-primary" : "text-muted-foreground")}>
+            {isKg ? qty.toFixed(1) : qty}
           </span>
+          <button
+            onClick={() => onChange(Math.min(max, parseFloat((qty + step).toFixed(2))))}
+            disabled={qty >= max}
+            aria-label="Increase quantity"
+            className="h-11 w-11 flex items-center justify-center text-muted-foreground hover:bg-secondary disabled:opacity-30 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
         </div>
+        <span className={cn("w-20 text-right text-sm font-semibold tabular-nums", isActive ? "text-foreground" : "text-muted-foreground/25")}>
+          {formatCurrency(subtotal)}
+        </span>
       </div>
     </div>
   );
 }
 
-// ─── Void confirmation modal ──────────────────────────────────────────────────
+// ─── Void modal ───────────────────────────────────────────────────────────────
 
-interface VoidModalProps {
-  sale: Sale;
-  onCancel: () => void;
-  onConfirm: (reason: string) => void;
-  loading: boolean;
-  error: string | null;
-}
-
-function VoidModal({ sale, onCancel, onConfirm, loading, error }: VoidModalProps) {
+function VoidModal({ sale, onCancel, onConfirm, loading, error }: {
+  sale: Sale; onCancel: () => void; onConfirm: (r: string) => void; loading: boolean; error: string | null;
+}) {
   const [reason, setReason] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, []);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { setTimeout(() => ref.current?.focus(), 50); }, []);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
+      <div className="w-full max-w-sm bg-card rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-start gap-3 px-5 py-4 bg-destructive/5 border-b border-destructive/15">
           <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0 mt-0.5">
-            <PackageX className="w-4.5 h-4.5 text-destructive" aria-hidden="true" />
+            <PackageX className="w-4 h-4 text-destructive" aria-hidden />
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">Void entire sale?</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {formatCurrency(sale.total_amount)} · #{sale.id.slice(0, 8).toUpperCase()} · All stock will be returned.
+              {formatCurrency(sale.total_amount)} · #{sale.id.slice(0, 8).toUpperCase()} · All stock returned.
             </p>
           </div>
         </div>
@@ -181,18 +143,15 @@ function VoidModal({ sale, onCancel, onConfirm, loading, error }: VoidModalProps
               Reason <span className="text-destructive">*</span>
             </label>
             <textarea
-              ref={inputRef}
+              ref={ref}
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Wrong sale, customer refused goods…"
-              className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-destructive/40 focus:border-destructive/40"
+              className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-destructive/40 focus:border-destructive/40 transition-all"
             />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">
-              {reason.trim().length} / 5 min
-            </p>
+            <p className="text-[10px] text-muted-foreground mt-1 text-right">{reason.trim().length} / 5 min</p>
           </div>
-
           {error && (
             <div role="alert" className="flex items-start gap-2 rounded-xl bg-destructive/8 px-3 py-2">
               <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
@@ -205,7 +164,7 @@ function VoidModal({ sale, onCancel, onConfirm, loading, error }: VoidModalProps
           <button
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 h-11 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40"
+            className="flex-1 h-11 rounded-xl border border-border text-sm font-semibold hover:bg-secondary transition-colors disabled:opacity-40"
           >
             Cancel
           </button>
@@ -214,7 +173,7 @@ function VoidModal({ sale, onCancel, onConfirm, loading, error }: VoidModalProps
             disabled={loading || reason.trim().length < 5}
             className="flex-1 h-11 rounded-xl bg-destructive text-white text-sm font-bold hover:bg-destructive/90 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {loading ? "Voiding…" : "Void sale"}
           </button>
         </div>
@@ -225,15 +184,8 @@ function VoidModal({ sale, onCancel, onConfirm, loading, error }: VoidModalProps
 
 // ─── Refund panel ─────────────────────────────────────────────────────────────
 
-interface RefundPanelProps {
-  sale: Sale;
-  onClose: () => void;
-  onDone: (msg: string) => void;
-}
-
-function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
+function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => void; onDone: (msg: string) => void }) {
   const alreadyRefunded = totalRefunded(sale);
-
   const [quantities, setQuantities] = useState<Record<string, number>>(
     Object.fromEntries(sale.sale_items.map((i) => [i.id, 0]))
   );
@@ -244,26 +196,17 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
   const [voidLoading, setVoidLoading] = useState(false);
   const [voidError, setVoidError] = useState<string | null>(null);
 
-  const refundTotal = sale.sale_items.reduce(
-    (s, item) => s + (quantities[item.id] ?? 0) * item.unit_price,
-    0
-  );
-
+  const refundTotal = sale.sale_items.reduce((s, i) => s + (quantities[i.id] ?? 0) * i.unit_price, 0);
   const someSelected = refundTotal > 0;
   const canSubmit = someSelected && reason.trim().length >= 3 && !loading;
 
-  function selectAll() {
-    setQuantities(Object.fromEntries(sale.sale_items.map((i) => [i.id, i.quantity])));
-  }
-  function clearAll() {
-    setQuantities(Object.fromEntries(sale.sale_items.map((i) => [i.id, 0])));
-  }
+  function selectAll() { setQuantities(Object.fromEntries(sale.sale_items.map((i) => [i.id, i.quantity]))); }
+  function clearAll() { setQuantities(Object.fromEntries(sale.sale_items.map((i) => [i.id, 0]))); }
 
   async function handleRefund() {
     if (!canSubmit) return;
     setLoading(true);
     setError(null);
-
     const items: RefundItem[] = sale.sale_items
       .filter((i) => (quantities[i.id] ?? 0) > 0)
       .map((i) => ({
@@ -275,7 +218,6 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
         subtotal: quantities[i.id]! * i.unit_price,
         cost_at_sale: i.cost_at_sale,
       }));
-
     const res = await processRefund(sale.id, items, reason);
     setLoading(false);
     if (res.error) { setError(res.error); return; }
@@ -306,48 +248,42 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
 
       <div className="flex flex-col h-full bg-card">
         {/* Panel header */}
-        <div className="shrink-0 px-4 py-3.5 border-b border-border bg-white">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                  #{sale.id.slice(0, 8).toUpperCase()}
-                </span>
-                {sale.cashier?.full_name && (
-                  <span className="text-xs text-muted-foreground truncate">{sale.cashier.full_name}</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{formatDateTime(sale.created_at)}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="text-right">
-                <p className="text-lg font-bold text-foreground tabular-nums leading-none">
-                  {formatCurrency(sale.total_amount)}
+        <div className="shrink-0 px-5 pt-5 pb-4 border-b border-border">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-3xl font-bold text-foreground tabular-nums leading-none">
+                {formatCurrency(sale.total_amount)}
+              </p>
+              {alreadyRefunded > 0 && (
+                <p className="text-xs text-destructive tabular-nums mt-1.5 font-semibold">
+                  −{formatCurrency(alreadyRefunded)} already refunded
                 </p>
-                {alreadyRefunded > 0 && (
-                  <p className="text-[11px] text-destructive tabular-nums mt-0.5">
-                    −{formatCurrency(alreadyRefunded)} refunded
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                aria-label="Close panel"
-                className="h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              )}
             </div>
+            <button
+              onClick={onClose}
+              aria-label="Close panel"
+              className="h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0 mt-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Payment methods */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span className="font-mono font-bold text-[11px] bg-secondary px-1.5 py-0.5 rounded">
+              #{sale.id.slice(0, 8).toUpperCase()}
+            </span>
+            {sale.cashier?.full_name && <span>{sale.cashier.full_name}</span>}
+            <span>{formatDateTime(sale.created_at)}</span>
+          </div>
+
           {sale.payments.length > 0 && (
-            <div className="flex gap-1.5 mt-2.5">
+            <div className="flex flex-wrap gap-1.5 mt-3">
               {sale.payments.map((p, i) => {
                 const Icon = METHOD_ICONS[p.method] ?? Banknote;
                 return (
-                  <span key={i} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                    <Icon className="w-3 h-3" aria-hidden="true" />
+                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground bg-secondary px-2.5 py-1 rounded-full">
+                    <Icon className="w-3 h-3" aria-hidden />
                     {METHOD_LABELS[p.method] ?? p.method} {formatCurrency(p.amount)}
                   </span>
                 );
@@ -356,46 +292,30 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
           )}
         </div>
 
-        {/* Refund history */}
+        {/* Previous refunds */}
         {sale.refunds.length > 0 && (
-          <div className="shrink-0 border-b border-border bg-amber-50/60 px-4 py-3">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <History className="w-3.5 h-3.5 text-warning" aria-hidden="true" />
-              <p className="text-[10px] font-black text-warning uppercase tracking-[0.12em]">
-                Previous refunds
-              </p>
+          <div className="shrink-0 border-b border-border bg-warning/[0.05] px-5 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <History className="w-3.5 h-3.5 text-warning" aria-hidden />
+              <p className="text-[10px] font-black text-warning uppercase tracking-[0.12em]">Previous refunds</p>
             </div>
             <div className="space-y-1">
               {sale.refunds.map((r) => (
-                <div key={r.id} className="flex items-center justify-between text-xs">
+                <div key={r.id} className="flex justify-between text-xs">
                   <span className="text-muted-foreground">{formatShortDate(r.created_at)}</span>
-                  <span className="font-semibold text-warning tabular-nums">
-                    −{formatCurrency(r.refund_amount)}
-                  </span>
+                  <span className="font-semibold text-warning tabular-nums">−{formatCurrency(r.refund_amount)}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Select all / clear row */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border bg-secondary/30">
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.12em]">
-            Items to refund
-          </p>
+        {/* Items header */}
+        <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border bg-secondary/30">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.12em]">Items to refund</p>
           <div className="flex items-center gap-3">
-            <button
-              onClick={selectAll}
-              className="text-xs text-primary hover:underline font-semibold"
-            >
-              All
-            </button>
-            <button
-              onClick={clearAll}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              None
-            </button>
+            <button onClick={selectAll} className="text-xs text-primary hover:text-primary/70 font-semibold transition-colors">All</button>
+            <button onClick={clearAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">None</button>
           </div>
         </div>
 
@@ -412,43 +332,35 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-border px-4 pt-3 pb-4 space-y-3 bg-white">
-          {/* Refund total */}
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs font-black text-muted-foreground uppercase tracking-[0.12em]">
-              Refund total
-            </span>
-            <span className={cn(
-              "text-2xl font-bold tabular-nums transition-colors",
-              someSelected ? "text-foreground" : "text-muted-foreground/30"
-            )}>
+        <div className="shrink-0 border-t border-border px-5 pt-4 pb-5 space-y-3 bg-card">
+          {/* Refund total summary */}
+          <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Refund total</span>
+            <span className={cn("text-xl font-bold tabular-nums transition-colors", someSelected ? "text-foreground" : "text-muted-foreground/25")}>
               {formatCurrency(refundTotal)}
             </span>
           </div>
 
           {/* Reason */}
           <div>
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.12em] block mb-1.5">
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] block mb-1.5">
               Reason <span className="text-destructive">*</span>
             </label>
             <textarea
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Customer return, wrong item delivered…"
-              className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+              placeholder="e.g. Customer return, wrong item…"
+              className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             />
-            <p className={cn(
-              "text-[10px] mt-1 text-right tabular-nums transition-colors",
-              reason.trim().length >= 3 ? "text-success" : "text-muted-foreground"
-            )}>
-              {reason.trim().length} characters{reason.trim().length < 3 ? ` (${3 - reason.trim().length} more needed)` : " ✓"}
+            <p className={cn("text-[10px] mt-1 text-right tabular-nums transition-colors", reason.trim().length >= 3 ? "text-success" : "text-muted-foreground")}>
+              {reason.trim().length >= 3 ? "✓ Good" : `${3 - reason.trim().length} more ${3 - reason.trim().length === 1 ? "char" : "chars"} needed`}
             </p>
           </div>
 
           {error && (
             <div role="alert" className="flex items-start gap-2 rounded-xl bg-destructive/8 px-3 py-2.5">
-              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
+              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
               <p className="text-xs text-destructive">{error}</p>
             </div>
           )}
@@ -459,21 +371,21 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
             className="w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading
-              ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Processing…</>
-              : `Process refund${someSelected ? ` · ${formatCurrency(refundTotal)}` : ""}`
+              ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden /> Processing…</>
+              : someSelected
+              ? `Process refund · ${formatCurrency(refundTotal)}`
+              : "Select items to refund"
             }
           </button>
 
-          {/* Void danger zone */}
-          <div className="pt-1 border-t border-border">
-            <button
-              onClick={() => { setShowVoidModal(true); setVoidError(null); }}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-destructive/25 text-destructive/70 hover:border-destructive/50 hover:bg-destructive/5 hover:text-destructive text-xs font-semibold transition-all"
-            >
-              <PackageX className="w-3.5 h-3.5" aria-hidden="true" />
-              Void entire sale instead
-            </button>
-          </div>
+          {/* Void — demoted to a text action, not a full button */}
+          <button
+            onClick={() => { setShowVoidModal(true); setVoidError(null); }}
+            className="w-full flex items-center justify-center gap-1.5 h-10 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <PackageX className="w-3.5 h-3.5" aria-hidden />
+            Void entire sale instead
+          </button>
         </div>
       </div>
     </>
@@ -482,101 +394,105 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
 
 // ─── Sale card ────────────────────────────────────────────────────────────────
 
-interface SaleCardProps {
-  sale: Sale;
-  isSelected: boolean;
-  onSelect: () => void;
-}
-
-function SaleCard({ sale, isSelected, onSelect }: SaleCardProps) {
+function SaleCard({ sale, isSelected, onSelect }: { sale: Sale; isSelected: boolean; onSelect: () => void }) {
   const refunded = totalRefunded(sale);
-  const hasRefunds = hasPartialRefund(sale);
+  const isPartiallyRefunded = hasPartialRefund(sale);
   const isVoided = sale.status === "voided";
+  const canRefund = !isVoided;
+
+  // Left border color encodes status at a glance — the signature element
+  const leftBorder = isSelected
+    ? "border-l-primary"
+    : isVoided
+    ? "border-l-destructive/30"
+    : isPartiallyRefunded
+    ? "border-l-amber-400"
+    : "border-l-emerald-400";
 
   return (
     <div
+      onClick={canRefund ? onSelect : undefined}
+      role={canRefund ? "button" : undefined}
+      tabIndex={canRefund ? 0 : undefined}
+      onKeyDown={canRefund ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(); } } : undefined}
+      aria-pressed={canRefund ? isSelected : undefined}
       className={cn(
-        "rounded-2xl border bg-card overflow-hidden transition-all",
+        "rounded-xl border bg-card border-l-[3px] overflow-hidden transition-all",
+        leftBorder,
         isSelected
-          ? "border-primary/50 shadow-md ring-1 ring-primary/20"
+          ? "border-border/60 ring-1 ring-primary/20 shadow-sm"
           : isVoided
-          ? "border-border bg-secondary/30 opacity-70"
-          : hasRefunds
-          ? "border-warning/30 hover:border-warning/50 hover:shadow-sm"
-          : "border-border hover:border-border/60 hover:shadow-sm"
+          ? "border-border opacity-60"
+          : "border-border",
+        canRefund && !isSelected && "hover:shadow-sm hover:border-border/70 cursor-pointer active:scale-[0.995]",
+        isSelected && "cursor-pointer"
       )}
     >
       <div className="px-4 py-3.5">
-        {/* Top row: ID + status badge + amount */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        {/* Top row: status + ID (left) | amount + chevron (right) */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-mono font-bold text-muted-foreground">
+              {isVoided ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive uppercase tracking-wide">Voided</span>
+              ) : isPartiallyRefunded ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 uppercase tracking-wide">Refunded</span>
+              ) : (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 uppercase tracking-wide">Completed</span>
+              )}
+              <span className="text-[10px] font-mono text-muted-foreground/50">
                 #{sale.id.slice(0, 8).toUpperCase()}
               </span>
-              {isVoided ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-destructive/10 text-destructive uppercase tracking-wide">
-                  Voided
-                </span>
-              ) : hasRefunds ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-warning/10 text-warning uppercase tracking-wide">
-                  Refunded
-                </span>
-              ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-success/10 text-success uppercase tracking-wide">
-                  Completed
-                </span>
-              )}
             </div>
 
-            {/* Cashier + date */}
-            <p className="text-xs text-muted-foreground mt-1">
-              {sale.cashier?.full_name && <span className="font-medium text-foreground/70">{sale.cashier.full_name}</span>}
-              {sale.cashier?.full_name && " · "}
+            <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+              {sale.cashier?.full_name && (
+                <span className="font-medium text-foreground/70">{sale.cashier.full_name}</span>
+              )}
+              {sale.cashier?.full_name ? " · " : ""}
               {formatDateTime(sale.created_at)}
             </p>
           </div>
 
-          {/* Amount */}
-          <div className="shrink-0 text-right">
-            <p className={cn(
-              "text-base font-bold tabular-nums",
-              isVoided ? "line-through text-muted-foreground" : "text-foreground"
-            )}>
-              {formatCurrency(sale.total_amount)}
-            </p>
-            {hasRefunds && (
-              <p className="text-[11px] text-warning tabular-nums font-semibold">
-                −{formatCurrency(refunded)}
+          {/* Amount block */}
+          <div className="shrink-0 flex items-center gap-1.5">
+            <div className="text-right">
+              <p className={cn("text-base font-bold tabular-nums leading-tight", isVoided ? "line-through text-muted-foreground" : "text-foreground")}>
+                {formatCurrency(sale.total_amount)}
               </p>
+              {isPartiallyRefunded && (
+                <p className="text-[11px] text-amber-500 tabular-nums mt-0.5 font-semibold">−{formatCurrency(refunded)}</p>
+              )}
+            </div>
+            {canRefund && (
+              <ChevronRight className={cn("w-4 h-4 shrink-0 transition-colors", isSelected ? "text-primary" : "text-muted-foreground/30")} />
             )}
           </div>
         </div>
 
-        {/* Items summary */}
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
-          {(sale.sale_items ?? []).slice(0, 3).map((item, i) => (
-            <span key={i} className="text-[12px] text-muted-foreground">
-              {item.product?.unit === "kg"
-                ? `${item.quantity}kg`
-                : `${item.quantity}×`} {item.product?.name ?? "?"}
-            </span>
-          ))}
-          {sale.sale_items.length > 3 && (
-            <span className="text-[12px] text-muted-foreground/60">
-              +{sale.sale_items.length - 3} more
-            </span>
-          )}
-        </div>
+        {/* Items preview */}
+        {sale.sale_items.length > 0 && (
+          <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+            {sale.sale_items.slice(0, 3).map((item, i) => (
+              <span key={i}>
+                {i > 0 && <span className="mx-1.5 opacity-30">·</span>}
+                {item.product?.unit === "kg" ? `${item.quantity}kg` : `${item.quantity}×`} {item.product?.name}
+              </span>
+            ))}
+            {sale.sale_items.length > 3 && (
+              <span className="opacity-40"> +{sale.sale_items.length - 3} more</span>
+            )}
+          </p>
+        )}
 
-        {/* Payment badges */}
+        {/* Payment chips */}
         {sale.payments.length > 0 && (
-          <div className="flex gap-1.5 mt-2">
+          <div className="flex flex-wrap gap-1.5 mt-2">
             {sale.payments.map((p, i) => {
               const Icon = METHOD_ICONS[p.method] ?? Banknote;
               return (
-                <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/80 bg-secondary px-2 py-0.5 rounded-full">
-                  <Icon className="w-2.5 h-2.5" aria-hidden="true" />
+                <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/70 bg-secondary px-2 py-0.5 rounded-full">
+                  <Icon className="w-2.5 h-2.5" aria-hidden />
                   {METHOD_LABELS[p.method] ?? p.method}
                 </span>
               );
@@ -586,44 +502,18 @@ function SaleCard({ sale, isSelected, onSelect }: SaleCardProps) {
 
         {/* Void reason */}
         {isVoided && sale.void_reason && (
-          <p className="text-[11px] text-destructive/70 mt-2 leading-snug">
-            <span className="font-semibold">{sale.voider?.full_name ?? "Manager"}:</span>{" "}
-            {sale.void_reason}
+          <p className="text-[11px] text-destructive/60 mt-2 leading-snug">
+            <span className="font-semibold">{sale.voider?.full_name ?? "Manager"}:</span> {sale.void_reason}
           </p>
-        )}
-
-        {/* Refund action */}
-        {!isVoided && (
-          <div className="mt-3">
-            <button
-              onClick={onSelect}
-              className={cn(
-                "flex items-center justify-center gap-1.5 w-full h-11 rounded-xl text-sm font-semibold transition-all",
-                isSelected
-                  ? "bg-primary text-white"
-                  : "bg-secondary text-foreground hover:bg-primary/8 hover:text-primary border border-border hover:border-primary/30"
-              )}
-            >
-              {isSelected ? (
-                <><X className="w-3.5 h-3.5" /> Close panel</>
-              ) : (
-                <><RotateCcw className="w-3.5 h-3.5" /> Refund</>
-              )}
-            </button>
-          </div>
         )}
       </div>
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-interface RefundsClientProps {
-  sales: any[];
-}
-
-export function RefundsClient({ sales }: RefundsClientProps) {
+export function RefundsClient({ sales }: { sales: any[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<"all" | "completed" | "voided">("completed");
   const [search, setSearch] = useState("");
@@ -635,33 +525,24 @@ export function RefundsClient({ sales }: RefundsClientProps) {
 
   const typedSales = sales as Sale[];
 
-  // Counts for filter tabs
   const counts = {
     all: typedSales.length,
     completed: typedSales.filter((s) => s.status === "completed").length,
     voided: typedSales.filter((s) => s.status === "voided").length,
   };
 
-  // Total refunded amount across all sales
   const totalRefundedAmount = typedSales.reduce((s, sale) => s + totalRefunded(sale), 0);
-
   const searchTrimmed = search.trim().toLowerCase();
 
   const filtered = typedSales.filter((s) => {
-    // Status filter
     if (filter === "completed" && s.status !== "completed") return false;
     if (filter === "voided" && s.status !== "voided") return false;
-
-    // Search filter
     if (searchTrimmed) {
       const inId = s.id.toLowerCase().includes(searchTrimmed);
       const inCashier = s.cashier?.full_name?.toLowerCase().includes(searchTrimmed);
-      const inItems = s.sale_items.some((i: SaleItem) =>
-        i.product.name.toLowerCase().includes(searchTrimmed)
-      );
+      const inItems = s.sale_items.some((i: SaleItem) => i.product.name.toLowerCase().includes(searchTrimmed));
       if (!inId && !inCashier && !inItems) return false;
     }
-
     return true;
   });
 
@@ -687,64 +568,60 @@ export function RefundsClient({ sales }: RefundsClientProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-white shrink-0 border-b border-border">
-        <div className="px-4 lg:px-6 py-4">
-          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-            <div>
-              <h1 className="text-base font-bold text-foreground">Refunds & Voids</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {counts.all} sales loaded
-                {totalRefundedAmount > 0 && ` · ${formatCurrency(totalRefundedAmount)} refunded total`}
-              </p>
-            </div>
-
-            {/* Filter tabs */}
-            <div className="flex gap-1">
-              {FILTERS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                    filter === key
-                      ? "bg-primary text-white"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
-                >
-                  {label}
-                  <span className={cn(
-                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                    filter === key
-                      ? "bg-white/20 text-white"
-                      : "bg-secondary text-muted-foreground"
-                  )}>
-                    {counts[key]}
-                  </span>
-                </button>
-              ))}
-            </div>
+      {/* Page header */}
+      <div className="bg-card shrink-0 border-b border-border">
+        <div className="px-4 lg:px-6 pt-4 pb-3 space-y-3">
+          {/* Title + summary */}
+          <div className="flex items-baseline justify-between gap-4">
+            <h1 className="text-base font-bold text-foreground">Refunds & Voids</h1>
+            <p className="text-xs text-muted-foreground tabular-nums shrink-0">
+              {counts.all} sales{totalRefundedAmount > 0 ? ` · ${formatCurrency(totalRefundedAmount)} refunded` : ""}
+            </p>
           </div>
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by sale ID, cashier name, or item…"
-              className="w-full h-10 rounded-xl border border-border bg-secondary/40 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
+              className="w-full h-10 rounded-xl border border-border bg-secondary/40 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
                 aria-label="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
+          </div>
+
+          {/* Filter tabs — their own row so they never compete with search */}
+          <div className="flex gap-1 overflow-x-auto pb-0.5">
+            {FILTERS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0",
+                  filter === key
+                    ? "bg-primary text-white"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                {label}
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center",
+                  filter === key ? "bg-white/20 text-white" : "bg-secondary text-muted-foreground"
+                )}>
+                  {counts[key]}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -753,48 +630,52 @@ export function RefundsClient({ sales }: RefundsClientProps) {
       <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
         {/* Sale list */}
         <div className={cn(
-          "overflow-y-auto p-4 lg:p-6 space-y-3",
+          "overflow-y-auto p-4 lg:p-6 space-y-2",
           selectedSale
             ? "flex-1 lg:w-[55%] lg:flex-none lg:border-r lg:border-border pb-[60vh] lg:pb-6"
             : "flex-1"
         )}>
-          {filtered.length === 0 && (
+          {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center mb-4">
-                <ReceiptText className="w-6 h-6 text-muted-foreground/50" aria-hidden="true" />
+              <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mb-4">
+                <ReceiptText className="w-6 h-6 text-muted-foreground/40" aria-hidden />
               </div>
               <p className="text-sm font-semibold text-foreground">
-                {searchTrimmed ? "No matching sales" : filter === "completed" ? "No completed sales" : filter === "voided" ? "No voided sales" : "No sales found"}
+                {searchTrimmed
+                  ? "No matching sales"
+                  : filter === "voided"
+                  ? "No voided sales"
+                  : filter === "completed"
+                  ? "No completed sales"
+                  : "No sales"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {searchTrimmed ? `Nothing matched "${search}"` : "This filter has no results"}
+                {searchTrimmed ? `Nothing matched "${search}"` : "Try a different filter"}
               </p>
               {searchTrimmed && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="mt-3 text-xs text-primary hover:underline font-medium"
-                >
+                <button onClick={() => setSearch("")} className="mt-3 text-xs text-primary hover:underline font-medium">
                   Clear search
                 </button>
               )}
             </div>
+          ) : (
+            <>
+              {filtered.length > 0 && (
+                <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-[0.12em] pb-1">
+                  {filtered.length} {filtered.length === 1 ? "sale" : "sales"}
+                  {searchTrimmed ? ` for "${search}"` : ""}
+                </p>
+              )}
+              {filtered.map((sale) => (
+                <SaleCard
+                  key={sale.id}
+                  sale={sale}
+                  isSelected={selectedId === sale.id}
+                  onSelect={() => handleSelect(sale)}
+                />
+              ))}
+            </>
           )}
-
-          {filtered.length > 0 && (
-            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-[0.12em] font-bold pb-1">
-              {filtered.length} {filtered.length === 1 ? "sale" : "sales"}
-              {searchTrimmed ? ` for "${search}"` : ""}
-            </p>
-          )}
-
-          {filtered.map((sale) => (
-            <SaleCard
-              key={sale.id}
-              sale={sale}
-              isSelected={selectedId === sale.id}
-              onSelect={() => handleSelect(sale)}
-            />
-          ))}
         </div>
 
         {/* Refund panel */}
@@ -805,14 +686,14 @@ export function RefundsClient({ sales }: RefundsClientProps) {
               <RefundPanel
                 sale={selectedSale}
                 onClose={() => setSelectedId(null)}
-                onDone={(msg) => showToast(msg)}
+                onDone={showToast}
               />
             </div>
 
             {/* Mobile: bottom sheet */}
             <div className="lg:hidden fixed inset-0 z-40 flex flex-col justify-end">
               <div
-                className="absolute inset-0 bg-black/40"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={() => setSelectedId(null)}
               />
               <div className="relative z-50 bg-card rounded-t-2xl shadow-2xl flex flex-col max-h-[88dvh]">
@@ -822,7 +703,7 @@ export function RefundsClient({ sales }: RefundsClientProps) {
                 <RefundPanel
                   sale={selectedSale}
                   onClose={() => setSelectedId(null)}
-                  onDone={(msg) => showToast(msg)}
+                  onDone={showToast}
                 />
               </div>
             </div>
@@ -836,13 +717,11 @@ export function RefundsClient({ sales }: RefundsClientProps) {
           role="status"
           aria-live="polite"
           className={cn(
-            "fixed bottom-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold shadow-xl animate-page-enter",
-            toast.type === "success"
-              ? "bg-success text-white"
-              : "bg-warning text-white"
+            "fixed bottom-5 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 rounded-2xl px-5 py-3 text-sm font-semibold shadow-xl animate-page-enter whitespace-nowrap",
+            toast.type === "success" ? "bg-success text-white" : "bg-warning text-white"
           )}
         >
-          <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden />
           {toast.msg}
         </div>
       )}
