@@ -53,10 +53,10 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   const expensesTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
   const netRevenue = grossSales - expensesTotal - todayExpenses;
 
-  // Use the cashier's submitted cash_counted for the admin reconciliation record
-  const cashCountedForRecord = submissions.length > 0
-    ? submissions[submissions.length - 1].cash_counted
-    : 0;
+  // Use the cashier's submitted values for the admin reconciliation record
+  const lastSubmission = submissions.length > 0 ? submissions[submissions.length - 1] : null;
+  const cashCountedForRecord = lastSubmission?.cash_counted ?? 0;
+  const momoChangeForRecord = lastSubmission?.momo_change ?? 0;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -83,6 +83,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
     const validLines = lines.filter(l => l.description.trim() && parseFloat(l.amount) > 0);
     const res = await saveReconciliation({
       cash_counted: cashCountedForRecord,
+      momo_change: momoChangeForRecord,
       expenses: validLines.map(l => ({ description: l.description.trim(), amount: parseFloat(l.amount) })),
     }).catch(() => ({ error: "Network error — try again." }));
     setSaving(false);
