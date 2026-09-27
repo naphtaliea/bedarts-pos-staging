@@ -235,7 +235,7 @@ function RefundPanel({ sale, onClose, onDone }: RefundPanelProps) {
   const alreadyRefunded = totalRefunded(sale);
 
   const [quantities, setQuantities] = useState<Record<string, number>>(
-    Object.fromEntries(sale.sale_items.map((i) => [i.id, i.quantity]))
+    Object.fromEntries(sale.sale_items.map((i) => [i.id, 0]))
   );
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
