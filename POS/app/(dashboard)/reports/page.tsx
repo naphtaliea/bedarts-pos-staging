@@ -79,16 +79,20 @@ export default async function ReportsPage({
     if (sale.status !== "completed") continue;
     const refundAmt = refundMap[sale.id] ?? 0;
     let saleNonCash = 0;
-    let saleMomoGross = 0;
+    let saleMomoGross = 0, salePosGross = 0;
     for (const p of (sale as any).payments ?? []) {
       if (p.method === "momo") saleMomoGross += Number(p.amount);
+      else if (p.method === "pos_machine") salePosGross += Number(p.amount);
     }
-    // Attribute refund to momo/pos if original payment was digital
+    // Attribute refund to the dominant digital method (MoMo → POS → cash)
     const momoDeduct = saleMomoGross > 0 ? Math.min(refundAmt, saleMomoGross) : 0;
+    const posDeduct  = salePosGross > 0 && saleMomoGross === 0 ? Math.min(refundAmt, salePosGross) : 0;
     for (const p of sale.payments ?? []) {
       if (p.method === "cash") continue;
       const netAmt = p.method === "momo"
         ? Math.max(0, Number(p.amount) - momoDeduct)
+        : p.method === "pos_machine"
+        ? Math.max(0, Number(p.amount) - posDeduct)
         : Number(p.amount);
       if (netAmt <= 0) continue;
       if (!paymentMap[p.method]) paymentMap[p.method] = { total: 0, count: 0 };

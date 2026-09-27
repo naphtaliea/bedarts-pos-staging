@@ -57,6 +57,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   const lastSubmission = submissions.length > 0 ? submissions[submissions.length - 1] : null;
   const cashCountedForRecord = lastSubmission?.cash_counted ?? 0;
   const momoChangeForRecord = lastSubmission?.momo_change ?? 0;
+  const posChangeForRecord = lastSubmission?.pos_change ?? 0;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -84,6 +85,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
     const res = await saveReconciliation({
       cash_counted: cashCountedForRecord,
       momo_change: momoChangeForRecord,
+      pos_change: posChangeForRecord,
       expenses: validLines.map(l => ({ description: l.description.trim(), amount: parseFloat(l.amount) })),
     }).catch(() => ({ error: "Network error — try again." }));
     setSaving(false);
@@ -142,7 +144,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                   // Recompute expected against the current live totals so the variance
                   // reflects today's true numbers, not whatever was stored when the
                   // cashier submitted (which may be stale if fixes have shipped since).
-                  const expected = Math.max(0, cashSales - s.momo_change);
+                  const expected = Math.max(0, cashSales - s.momo_change - s.pos_change);
                   const variance = s.cash_counted - expected;
                   return (
                     <div
@@ -156,6 +158,11 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                           {s.momo_change > 0 && (
                             <p className="text-[11px] text-muted-foreground mt-0.5">
                               MoMo change: <span className="tabular-nums font-semibold text-foreground">−{formatCurrency(s.momo_change)}</span>
+                            </p>
+                          )}
+                          {s.pos_change > 0 && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              POS change: <span className="tabular-nums font-semibold text-foreground">−{formatCurrency(s.pos_change)}</span>
                             </p>
                           )}
                         </div>
@@ -182,7 +189,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground">Cash expected</p>
-                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(Math.max(0, cashSales - momoChangeForRecord))}</p>
+                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(Math.max(0, cashSales - momoChangeForRecord - posChangeForRecord))}</p>
               </div>
               <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
                 <p className="text-[11px] text-muted-foreground">MoMo</p>
