@@ -332,30 +332,19 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-border px-5 pt-4 pb-5 space-y-3 bg-card">
-          {/* Refund total summary */}
-          <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Refund total</span>
-            <span className={cn("text-xl font-bold tabular-nums transition-colors", someSelected ? "text-foreground" : "text-muted-foreground/25")}>
-              {formatCurrency(refundTotal)}
-            </span>
-          </div>
-
+        <div className="shrink-0 border-t border-border px-5 pt-3 pb-4 space-y-2 bg-card">
           {/* Reason */}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] block mb-1.5">
               Reason <span className="text-destructive">*</span>
             </label>
             <textarea
-              rows={2}
+              rows={1}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Customer return, wrong item…"
               className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
             />
-            <p className={cn("text-[10px] mt-1 text-right tabular-nums transition-colors", reason.trim().length >= 3 ? "text-success" : "text-muted-foreground")}>
-              {reason.trim().length >= 3 ? "✓ Good" : `${3 - reason.trim().length} more ${3 - reason.trim().length === 1 ? "char" : "chars"} needed`}
-            </p>
           </div>
 
           {error && (
@@ -368,7 +357,7 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
           <button
             onClick={handleRefund}
             disabled={!canSubmit}
-            className="w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full h-11 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading
               ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden /> Processing…</>
