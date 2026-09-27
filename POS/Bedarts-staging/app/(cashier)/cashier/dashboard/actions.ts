@@ -59,21 +59,32 @@ export async function saveReconciliation(
 
   if (existing) return { error: "A reconciliation has already been submitted for today." };
 
-  const { data: sales, error: salesErr } = await supabase
-    .from("sales")
-    .select("total_amount, payments(method, amount)")
-    .eq("status", "completed")
-    .gte("created_at", todayStart)
-    .lte("created_at", todayEnd);
+  const [{ data: sales, error: salesErr }, { data: todayRefunds }] = await Promise.all([
+    supabase
+      .from("sales")
+      .select("id, total_amount, payments(method, amount)")
+      .eq("status", "completed")
+      .gte("created_at", todayStart)
+      .lte("created_at", todayEnd),
+    supabase
+      .from("refunds")
+      .select("sale_id, refund_amount")
+      .gte("created_at", todayStart)
+      .lte("created_at", todayEnd),
+  ]);
 
   if (salesErr) return { error: salesErr.message };
 
-  // gross_sales uses total_amount (authoritative), not the sum of payment rows.
-  // MoMo and POS payments are exact so their rows are summed directly.
-  // Cash expected is derived as the remainder so over-tendered historical records don't inflate it.
+  const refundMap: Record<string, number> = {};
+  for (const r of todayRefunds ?? []) {
+    refundMap[(r as any).sale_id] = (refundMap[(r as any).sale_id] ?? 0) + Number((r as any).refund_amount);
+  }
+
+  // gross_sales uses total_amount net of refunds. MoMo and POS are exact so
+  // their rows are summed directly. Cash is derived as the remainder.
   let gross_sales = 0, momo_total = 0, pos_total = 0;
   for (const sale of sales ?? []) {
-    gross_sales += Number((sale as any).total_amount ?? 0);
+    gross_sales += Math.max(0, Number((sale as any).total_amount ?? 0) - (refundMap[(sale as any).id] ?? 0));
     for (const p of (sale as any).payments ?? []) {
       if (p.method === "momo") momo_total += Number(p.amount);
       else if (p.method === "pos_machine") pos_total += Number(p.amount);
