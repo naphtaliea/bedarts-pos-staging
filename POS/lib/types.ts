@@ -71,7 +71,7 @@ export interface Supplier {
 
 export interface Sale {
   id: string;
-  sale_number: number | null;
+  sale_number?: number | null;
   cashier_id: string;
   cashier?: Profile;
   subtotal: number;
