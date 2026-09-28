@@ -99,17 +99,37 @@ export async function saveReconciliation(
     }
   }
 
-  // Attribute each refund to the original payment method.
-  // MoMo-paid sales → refund deducts from momo_total (MoMo reversal).
-  // POS-paid sales  → refund deducts from pos_total.
-  // Cash-paid sales → refund reduces gross revenue (less cash came in).
+  // For cross-day refunds (refund today for a sale outside today's window) we need
+  // the original sale's payment method to attribute correctly. Fetch those separately.
+  const todaySaleIds = new Set((sales ?? []).map((s: any) => s.id));
+  const missingSaleIds = [...new Set(Object.keys(refundMap))].filter(id => !todaySaleIds.has(id));
+  if (missingSaleIds.length > 0) {
+    const { data: extraPayments } = await supabase
+      .from("payments")
+      .select("sale_id, method, amount")
+      .in("sale_id", missingSaleIds);
+    for (const p of extraPayments ?? []) {
+      if ((p as any).method === "momo") saleMomo[(p as any).sale_id] = (saleMomo[(p as any).sale_id] ?? 0) + Number((p as any).amount);
+      else if ((p as any).method === "pos_machine") salePos[(p as any).sale_id] = (salePos[(p as any).sale_id] ?? 0) + Number((p as any).amount);
+    }
+  }
+
+  // Attribute each refund to the original payment method using waterfall:
+  // fill momo first (up to what was paid via momo), then pos, then remainder as cash.
+  // This handles split-payment sales correctly and never over-attributes to a bucket.
   let momo_refunded = 0, pos_refunded = 0, cash_refunded = 0;
   for (const r of todayRefunds ?? []) {
     const sid = (r as any).sale_id;
-    const amt = Number((r as any).refund_amount);
-    if (saleMomo[sid]) momo_refunded += amt;
-    else if (salePos[sid]) pos_refunded += amt;
-    else cash_refunded += amt;
+    let remaining = Number((r as any).refund_amount);
+    const momoAvail = saleMomo[sid] ?? 0;
+    const posAvail  = salePos[sid]  ?? 0;
+    const momoTake = Math.min(remaining, momoAvail);
+    momo_refunded += momoTake;
+    remaining -= momoTake;
+    const posTake = Math.min(remaining, posAvail);
+    pos_refunded += posTake;
+    remaining -= posTake;
+    cash_refunded += remaining;
   }
   momo_total = Math.max(0, momo_total - momo_refunded);
   pos_total  = Math.max(0, pos_total  - pos_refunded);
@@ -288,24 +308,33 @@ export async function getDashboardSales(): Promise<{
     for (const r of todayRefunds ?? []) {
       refundMap[(r as any).sale_id] = (refundMap[(r as any).sale_id] ?? 0) + Number((r as any).refund_amount);
     }
-    // For each refunded sale, reduce the momo/pos payment amount by the refund so that
-    // the client's cash computation (total_amount - momo - pos) stays correct.
+    // Waterfall refund attribution — momo up to momo total, then pos up to pos total,
+    // remainder implicit as cash (via total_amount reduction). `remaining` counters
+    // ensure we never over-deduct when a sale has multiple payment rows of one method.
     const sales = (data ?? []).map((s: any) => {
       const refundAmt = refundMap[s.id] ?? 0;
       if (refundAmt === 0) return { ...s, total_amount: Number(s.total_amount) };
-      // Determine how much of this sale was non-cash
       const saleMomo = (s.payments ?? []).reduce((sum: number, p: any) => p.method === "momo" ? sum + Number(p.amount) : sum, 0);
       const salePos  = (s.payments ?? []).reduce((sum: number, p: any) => p.method === "pos_machine" ? sum + Number(p.amount) : sum, 0);
-      const isMomo = saleMomo > 0;
-      const isPos  = salePos > 0 && !isMomo;
+      let remaining = refundAmt;
+      const momoDeductTotal = Math.min(remaining, saleMomo); remaining -= momoDeductTotal;
+      const posDeductTotal  = Math.min(remaining, salePos);  remaining -= posDeductTotal;
+      let momoRem = momoDeductTotal;
+      let posRem  = posDeductTotal;
       return {
         ...s,
         total_amount: Math.max(0, Number(s.total_amount) - refundAmt),
         payments: (s.payments ?? []).map((p: any) => {
-          if (p.method === "momo" && isMomo)
-            return { ...p, amount: Math.max(0, Number(p.amount) - refundAmt) };
-          if (p.method === "pos_machine" && isPos)
-            return { ...p, amount: Math.max(0, Number(p.amount) - refundAmt) };
+          if (p.method === "momo" && momoRem > 0) {
+            const take = Math.min(momoRem, Number(p.amount));
+            momoRem -= take;
+            return { ...p, amount: Math.max(0, Number(p.amount) - take) };
+          }
+          if (p.method === "pos_machine" && posRem > 0) {
+            const take = Math.min(posRem, Number(p.amount));
+            posRem -= take;
+            return { ...p, amount: Math.max(0, Number(p.amount) - take) };
+          }
           return p;
         }),
       };

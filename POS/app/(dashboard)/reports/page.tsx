@@ -71,29 +71,35 @@ export default async function ReportsPage({
     total_amount: Math.max(0, Number(s.total_amount) - (refundMap[s.id] ?? 0)),
   }));
 
-  // Compute payment breakdown server-side. Refunds on MoMo/POS-paid sales are deducted
-  // from those digital buckets; refunds on cash sales are already captured via the net
-  // total_amount. Cash is derived as total_amount_net minus net non-cash payments.
+  // Compute payment breakdown server-side using waterfall refund attribution:
+  // momo up to momo total, then pos up to pos total, remainder implicit as cash.
+  // `remaining` counters ensure no over-deduction across multiple payment rows.
   const paymentMap: Record<string, { total: number; count: number }> = {};
   for (const sale of salesWithNetAmount) {
     if (sale.status !== "completed") continue;
-    const refundAmt = refundMap[sale.id] ?? 0;
+    let refundAmt = refundMap[sale.id] ?? 0;
     let saleNonCash = 0;
     let saleMomoGross = 0, salePosGross = 0;
     for (const p of (sale as any).payments ?? []) {
       if (p.method === "momo") saleMomoGross += Number(p.amount);
       else if (p.method === "pos_machine") salePosGross += Number(p.amount);
     }
-    // Attribute refund to the dominant digital method (MoMo → POS → cash)
-    const momoDeduct = saleMomoGross > 0 ? Math.min(refundAmt, saleMomoGross) : 0;
-    const posDeduct  = salePosGross > 0 && saleMomoGross === 0 ? Math.min(refundAmt, salePosGross) : 0;
+    const momoDeductTotal = Math.min(refundAmt, saleMomoGross); refundAmt -= momoDeductTotal;
+    const posDeductTotal  = Math.min(refundAmt, salePosGross);
+    let momoRem = momoDeductTotal;
+    let posRem  = posDeductTotal;
     for (const p of sale.payments ?? []) {
       if (p.method === "cash") continue;
-      const netAmt = p.method === "momo"
-        ? Math.max(0, Number(p.amount) - momoDeduct)
-        : p.method === "pos_machine"
-        ? Math.max(0, Number(p.amount) - posDeduct)
-        : Number(p.amount);
+      let netAmt = Number(p.amount);
+      if (p.method === "momo" && momoRem > 0) {
+        const take = Math.min(momoRem, netAmt);
+        netAmt = Math.max(0, netAmt - take);
+        momoRem -= take;
+      } else if (p.method === "pos_machine" && posRem > 0) {
+        const take = Math.min(posRem, netAmt);
+        netAmt = Math.max(0, netAmt - take);
+        posRem -= take;
+      }
       if (netAmt <= 0) continue;
       if (!paymentMap[p.method]) paymentMap[p.method] = { total: 0, count: 0 };
       paymentMap[p.method].total = Math.round((paymentMap[p.method].total + netAmt) * 100) / 100;

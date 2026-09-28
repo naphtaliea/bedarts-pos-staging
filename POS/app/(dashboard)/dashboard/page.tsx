@@ -107,20 +107,19 @@ export default async function DashboardPage() {
   const todayGrossProfit = round2(todayRevenue - todayCogs);
 
   // Payment method breakdown — single pass over all 7-day sales; today is a subset.
-  // Refunds for MoMo/POS-paid sales are deducted from the respective digital bucket
-  // (not from cash), since those refunds were reversals to that method.
+  // Waterfall refund attribution: momo up to what was paid via momo, then pos up to
+  // what was paid via pos, then remainder implicit as cash (via saleNet reducing revenue).
   let _todayMomo = 0, _todayPos = 0, _sevenDayMomo = 0, _sevenDayPos = 0;
   for (const s of allSales) {
     const isT = s.created_at.startsWith(todayStr);
-    const refundAmt = refundMap[s.id] ?? 0;
+    let refundAmt = refundMap[s.id] ?? 0;
     let saleMomo = 0, salePos = 0;
     for (const p of (s.payments ?? []) as { method: string; amount: number }[]) {
       if (p.method === "momo") { saleMomo += Number(p.amount); }
       else if (p.method === "pos_machine") { salePos += Number(p.amount); }
     }
-    // Attribute refund to the dominant non-cash method; cash-paid sales are handled via saleNet()
-    const momoDeduct = saleMomo > 0 ? Math.min(refundAmt, saleMomo) : 0;
-    const posDeduct  = salePos  > 0 && saleMomo === 0 ? Math.min(refundAmt, salePos) : 0;
+    const momoDeduct = Math.min(refundAmt, saleMomo); refundAmt -= momoDeduct;
+    const posDeduct  = Math.min(refundAmt, salePos);
     _sevenDayMomo += saleMomo - momoDeduct;
     _sevenDayPos  += salePos  - posDeduct;
     if (isT) { _todayMomo += saleMomo - momoDeduct; _todayPos += salePos - posDeduct; }
