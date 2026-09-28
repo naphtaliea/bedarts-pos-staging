@@ -10,11 +10,14 @@ import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, PaymentEntry, Sale } from "@/lib/types";
 
+// Only "Stock received but not yet entered in system" tracks a deficit that
+// gets auto-deducted from the next stock arrival. "Miscount" assumes physical
+// stock is actually available (system count wrong). "Other" is a free-text
+// escape hatch — cashier must describe why. See stock_deficits table.
+const TRACKED_REASON = "Stock received but not yet entered in system";
 const OVERRIDE_REASONS = [
-  "Stock received but not yet entered in system",
-  "Counting error — item is physically available",
-  "Supplier delivered directly to customer",
-  "Item moved from another batch/location",
+  TRACKED_REASON,
+  "Miscount",
   "Other",
 ] as const;
 
@@ -74,6 +77,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
   const [offlineSaved, setOfflineSaved] = useState(false);
   const [overrideModal, setOverrideModal] = useState<{ items: string[] } | null>(null);
   const [overrideReason, setOverrideReason] = useState<string>(OVERRIDE_REASONS[0]);
+  const [otherReasonText, setOtherReasonText] = useState("");
   const pendingPayloadRef = useRef<Parameters<typeof submitSale>[0] | null>(null);
   const leavingForReceipt = useRef(false);
 
@@ -128,6 +132,7 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
       pendingPayloadRef.current = payload;
       setIsProcessing(false);
       setOverrideReason(OVERRIDE_REASONS[0]);
+      setOtherReasonText("");
       setOverrideModal({ items: result.stockInsufficient });
       return;
     }
@@ -224,11 +229,22 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
 
   const handleOverrideConfirm = async () => {
     if (!pendingPayloadRef.current) return;
+    // For "Other" the cashier must describe the reason — enforce it here so the
+    // stored value is meaningful for later audit.
+    let reasonToSend = overrideReason;
+    if (overrideReason === "Other") {
+      const trimmed = otherReasonText.trim();
+      if (!trimmed) {
+        setError("Please describe the reason for this override.");
+        return;
+      }
+      reasonToSend = `Other: ${trimmed}`;
+    }
     setOverrideModal(null);
     setIsProcessing(true);
     setError(null);
     try {
-      await doSubmit({ ...pendingPayloadRef.current, stockOverrideReason: overrideReason });
+      await doSubmit({ ...pendingPayloadRef.current, stockOverrideReason: reasonToSend });
     } catch (e) {
       setIsProcessing(false);
       setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
@@ -286,8 +302,24 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
                   ))}
                 </select>
               </div>
+              {overrideReason === "Other" && (
+                <div>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] block mb-1.5">
+                    Describe reason <span className="text-destructive">*</span>
+                  </label>
+                  <textarea
+                    value={otherReasonText}
+                    onChange={(e) => setOtherReasonText(e.target.value)}
+                    rows={2}
+                    placeholder="Explain why the sale is going through despite zero stock…"
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                </div>
+              )}
               <p className="text-[11px] text-muted-foreground">
-                This override will be logged for manager review. The customer receipt is unaffected.
+                {overrideReason === TRACKED_REASON
+                  ? "This shortfall will be recorded and auto-deducted from the next stock delivery for these products."
+                  : "This override will be logged for manager review. Stock is not adjusted."}
               </p>
             </div>
             <div className="flex gap-2 px-5 pb-5">
