@@ -12,7 +12,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatSaleRef } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +33,7 @@ interface SaleItemLite {
 
 interface PickupSale {
   id: string;
+  sale_number: number | null;
   total_amount: number;
   created_at: string;
   pickup_note: string | null;
@@ -76,8 +77,8 @@ function fmtDate(d: string) {
   });
 }
 
-function receiptRef(id: string) {
-  return `#${id.slice(0, 8).toUpperCase()}`;
+function receiptRef(sale: { sale_number: number | null; id: string }) {
+  return formatSaleRef(sale.sale_number, sale.id);
 }
 
 export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProps) {
@@ -239,7 +240,7 @@ export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProp
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-mono font-bold text-foreground">
-                        {receiptRef(sale.id)}
+                        {receiptRef(sale)}
                       </p>
                       <p className="text-[11px] text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="inline-flex items-center gap-1">
@@ -385,7 +386,7 @@ export function PickupsClient({ pending, delivered, canEdit }: PickupsClientProp
             </div>
 
             <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2.5 mb-4 text-sm">
-              <p className="font-mono font-bold">{receiptRef(confirmDeliver.id)}</p>
+              <p className="font-mono font-bold">{receiptRef(confirmDeliver)}</p>
               <p className="text-xs text-muted-foreground">
                 {formatCurrency(confirmDeliver.total_amount)} · {fmtDate(confirmDeliver.created_at)}
               </p>

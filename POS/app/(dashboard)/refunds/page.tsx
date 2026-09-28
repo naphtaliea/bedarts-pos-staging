@@ -15,7 +15,7 @@ export default async function RefundsPage() {
   const { data: sales, error: salesError } = await supabase
     .from("sales")
     .select(
-      `id, total_amount, discount_amount, status, created_at, void_reason,
+      `id, sale_number, total_amount, discount_amount, status, created_at, void_reason,
        cashier:profiles!cashier_id(full_name),
        voider:profiles!voided_by(full_name),
        sale_items(id, quantity, unit_price, total_price, cost_at_sale, discount_amount,

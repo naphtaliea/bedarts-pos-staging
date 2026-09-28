@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Printer, RefreshCw, WifiOff, DatabaseZap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { PosTopBar } from "@/components/pos/pos-topbar";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatSaleRef } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Profile, PaymentMethod } from "@/lib/types";
 
@@ -24,6 +24,7 @@ const METHOD_BADGE: Record<PaymentMethod | "split" | "pending_sync", string> = {
 
 type OrderRow = {
   id: string;
+  sale_number?: number | null;
   created_at: string;
   total_amount: number;
   status: string;
@@ -106,7 +107,7 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
 
       const { data } = await supabase
         .from("sales")
-        .select("id, created_at, total_amount, status, payments(method, amount), sale_items(quantity)")
+        .select("id, sale_number, created_at, total_amount, status, payments(method, amount), sale_items(quantity)")
         .gte("created_at", dayStart.toISOString())
         .lte("created_at", dayEnd.toISOString())
         .eq("status", "completed")
@@ -259,7 +260,7 @@ export function OrdersView({ cashier, onBack, onViewReceipt }: OrdersViewProps) 
                       : isSplit
                         ? "split"
                         : (primaryPayment?.method ?? "cash");
-                    const receiptRef = `#${order.id.slice(0, 8).toUpperCase()}`;
+                    const receiptRef = formatSaleRef(order.sale_number ?? null, order.id);
                     return (
                       <tr
                         key={order.id}

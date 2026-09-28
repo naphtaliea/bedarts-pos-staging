@@ -7,7 +7,7 @@ import {
   Minus, Plus, X, Search, Loader2, PackageX,
   History, Banknote, Smartphone, CreditCard,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatSaleRef } from "@/lib/utils";
 import { voidSale, processRefund } from "./actions";
 import type { RefundItem } from "./actions";
 
@@ -25,6 +25,7 @@ interface SaleItem {
 
 interface Sale {
   id: string;
+  sale_number: number | null;
   total_amount: number;
   discount_amount: number;
   status: "completed" | "voided";
@@ -132,7 +133,7 @@ function VoidModal({ sale, onCancel, onConfirm, loading, error }: {
           <div>
             <p className="text-sm font-bold text-foreground">Void entire sale?</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {formatCurrency(sale.total_amount)} · #{sale.id.slice(0, 8).toUpperCase()} · All stock returned.
+              {formatCurrency(sale.total_amount)} · {formatSaleRef(sale.sale_number, sale.id)} · All stock returned.
             </p>
           </div>
         </div>
@@ -271,7 +272,7 @@ function RefundPanel({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
             <span className="font-mono font-bold text-[11px] bg-secondary px-1.5 py-0.5 rounded">
-              #{sale.id.slice(0, 8).toUpperCase()}
+              {formatSaleRef(sale.sale_number, sale.id)}
             </span>
             {sale.cashier?.full_name && <span>{sale.cashier.full_name}</span>}
             <span>{formatDateTime(sale.created_at)}</span>
@@ -430,7 +431,7 @@ function SaleCard({ sale, isSelected, onSelect }: { sale: Sale; isSelected: bool
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 uppercase tracking-wide">Completed</span>
               )}
               <span className="text-[10px] font-mono text-muted-foreground/50">
-                #{sale.id.slice(0, 8).toUpperCase()}
+                {formatSaleRef(sale.sale_number, sale.id)}
               </span>
             </div>
 

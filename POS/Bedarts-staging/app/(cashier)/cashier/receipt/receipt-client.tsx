@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { Printer, ClipboardList, CheckCircle2, ShoppingCart, PackageCheck } from "lucide-react";
-import { formatCurrency, formatReceiptDate } from "@/lib/utils";
+import { formatCurrency, formatReceiptDate, formatSaleRef } from "@/lib/utils";
 import { PosTopBar } from "@/components/pos/pos-topbar";
 import type { Sale, StoreSettings } from "@/lib/types";
 
@@ -43,7 +43,7 @@ export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const saleRef = `#${sale.id.slice(0, 8).toUpperCase()}`;
+  const saleRef = formatSaleRef((sale as { sale_number?: number | null }).sale_number ?? null, sale.id);
   const saleDate = formatReceiptDate(sale.created_at);
   const isPickup = (sale as { pending_pickup?: boolean }).pending_pickup === true;
   const pickupNote = (sale as { pickup_note?: string | null }).pickup_note ?? null;

@@ -24,7 +24,7 @@ export default async function PickupsPage() {
     supabase
       .from("sales")
       .select(
-        `id, total_amount, created_at, pickup_note, pending_pickup, picked_up_at, stock_deducted,
+        `id, sale_number, total_amount, created_at, pickup_note, pending_pickup, picked_up_at, stock_deducted,
          cashier:profiles!sales_cashier_id_fkey(full_name),
          sale_items(id, quantity, package_label, unit_price, total_price,
            product:products(id, name, unit)),
