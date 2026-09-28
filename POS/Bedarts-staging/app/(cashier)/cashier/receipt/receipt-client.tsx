@@ -49,9 +49,15 @@ export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders
   const pickupNote = (sale as { pickup_note?: string | null }).pickup_note ?? null;
 
   const payments = sale.payments ?? [];
-  const hasCash = payments.some((p) => p.method === "cash");
-  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
-  const change = hasCash ? Math.max(0, totalPaid - sale.total_amount) : 0;
+  // Display-only. Change = sum of (tendered − amount) for cash rows where tendered > amount.
+  // Uses only payments.tendered (nullable), never touches sale.total_amount or amount, so
+  // reconciliation/reports figures are unaffected.
+  const change = payments.reduce((s, p) => {
+    if (p.method !== "cash") return s;
+    const t = p.tendered ?? null;
+    if (t == null || t <= p.amount) return s;
+    return s + (Number(t) - Number(p.amount));
+  }, 0);
 
   return (
     <div className="flex flex-col h-dvh bg-white select-none overflow-hidden animate-page-enter">
@@ -139,12 +145,19 @@ export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders
                 {formatCurrency(sale.total_amount)}
               </span>
             </div>
-            {payments.map((p) => (
-              <div key={p.id} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{METHOD_LABELS[p.method] ?? p.method}</span>
-                <span className="tabular-nums font-medium text-foreground">{formatCurrency(p.amount)}</span>
-              </div>
-            ))}
+            {payments.map((p) => {
+              // Cash rows show the tendered amount if the customer over-paid; otherwise the net.
+              // This is purely visual — sale.total_amount and p.amount are unchanged.
+              const display = p.method === "cash" && p.tendered != null && p.tendered > p.amount
+                ? Number(p.tendered)
+                : Number(p.amount);
+              return (
+                <div key={p.id} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{METHOD_LABELS[p.method] ?? p.method}</span>
+                  <span className="tabular-nums font-medium text-foreground">{formatCurrency(display)}</span>
+                </div>
+              );
+            })}
             {change > 0 && (
               <div className="flex justify-between text-sm pt-1 border-t border-border">
                 <span className="text-muted-foreground">Change</span>
@@ -317,9 +330,14 @@ export function ReceiptClient({ sale, settings, onBack, onNewOrder, onViewOrders
               {/* Payments */}
               <div className="px-6 py-2 space-y-1 text-[12px]">
                 <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-1">Payment</p>
-                {payments.map((p) => (
-                  <Row key={p.id} label={METHOD_LABELS[p.method] ?? p.method} value={p.amount.toFixed(2)} />
-                ))}
+                {payments.map((p) => {
+                  const display = p.method === "cash" && p.tendered != null && p.tendered > p.amount
+                    ? Number(p.tendered)
+                    : Number(p.amount);
+                  return (
+                    <Row key={p.id} label={METHOD_LABELS[p.method] ?? p.method} value={display.toFixed(2)} />
+                  );
+                })}
                 {change > 0 && (
                   <div className="flex justify-between gap-4 pt-1">
                     <span className="font-bold text-foreground">Change</span>

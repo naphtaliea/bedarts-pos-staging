@@ -80,6 +80,7 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
   const p_payments = payments.map((p) => ({
     method: p.method,
     amount: p.amount,
+    tendered: p.tendered ?? null,
     reference: p.reference?.trim() || "",
   }));
 

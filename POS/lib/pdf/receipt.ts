@@ -232,13 +232,22 @@ export async function generateReceipt(data: ReceiptData): Promise<Uint8Array> {
   gap(13);
 
   for (const p of payments) {
-    row(METHOD_LABELS[p.method] ?? p.method, num(p.amount), regular, regular, 9);
+    // Show tendered on cash rows if over-paid; net otherwise. Doesn't touch p.amount.
+    const display = p.method === "cash" && (p as { tendered?: number | null }).tendered != null
+                    && Number((p as { tendered?: number | null }).tendered) > p.amount
+      ? Number((p as { tendered?: number | null }).tendered)
+      : Number(p.amount);
+    row(METHOD_LABELS[p.method] ?? p.method, num(display), regular, regular, 9);
     gap(12);
   }
 
-  const hasCash   = payments.some((p) => p.method === "cash");
-  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
-  const change    = hasCash ? Math.max(0, totalPaid - sale.total_amount) : 0;
+  // Display-only. Sums tendered − amount per cash row; never touches sale.total_amount.
+  const change = payments.reduce((s, p) => {
+    if (p.method !== "cash") return s;
+    const t = (p as { tendered?: number | null }).tendered ?? null;
+    if (t == null || t <= p.amount) return s;
+    return s + (Number(t) - Number(p.amount));
+  }, 0);
 
   if (change > 0) {
     gap(4);

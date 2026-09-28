@@ -41,9 +41,14 @@ function buildHtml(opts: PrintReceiptOptions, logoDataUrl: string): string {
   const saleRef  = formatSaleRef((sale as { sale_number?: number | null }).sale_number ?? null, sale.id);
   const saleDate = formatReceiptDate(sale.created_at);
 
-  const hasCash   = payments.some((p) => p.method === "cash");
-  const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
-  const change    = hasCash ? Math.max(0, totalPaid - sale.total_amount) : 0;
+  // Display-only. Change comes from payments.tendered − payments.amount for cash rows;
+  // sale.total_amount and p.amount are never modified, so this cannot affect reports.
+  const change = payments.reduce((s, p) => {
+    if (p.method !== "cash") return s;
+    const t = p.tendered ?? null;
+    if (t == null || t <= p.amount) return s;
+    return s + (Number(t) - Number(p.amount));
+  }, 0);
 
   // ── Store info ──────────────────────────────────────────────────────────────
   const storeLines: string[] = [];
@@ -95,9 +100,12 @@ function buildHtml(opts: PrintReceiptOptions, logoDataUrl: string): string {
     : "";
 
   // ── Payments ─────────────────────────────────────────────────────────────────
-  const paymentRows = payments.map((p) =>
-    row(METHOD_LABELS[p.method] ?? p.method, num(p.amount))
-  ).join("");
+  const paymentRows = payments.map((p) => {
+    const display = p.method === "cash" && p.tendered != null && p.tendered > p.amount
+      ? Number(p.tendered)
+      : Number(p.amount);
+    return row(METHOD_LABELS[p.method] ?? p.method, num(display));
+  }).join("");
   const changeHtml = change > 0
     ? `<div class="row change-row"><span>Change</span><span class="change-val">${ghc(change)}</span></div>`
     : "";

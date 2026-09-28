@@ -102,7 +102,8 @@ export interface Payment {
   id: string;
   sale_id: string;
   method: PaymentMethod;
-  amount: number;
+  amount: number;           // net amount kept by the drawer (used by reconciliation)
+  tendered?: number | null; // over-tender amount for cash; display-only, never used in totals
   reference: string | null;
   created_at: string;
 }
@@ -163,6 +164,10 @@ export interface PaymentEntry {
   method: PaymentMethod;
   amount: number;
   reference: string;
+  // For over-tendered cash payments: how much the customer handed over.
+  // amount stays as what the drawer kept (net of change) so reconciliation
+  // math is unchanged. Undefined/equal-to-amount means no change was given.
+  tendered?: number;
 }
 
 export interface StoreSettings {

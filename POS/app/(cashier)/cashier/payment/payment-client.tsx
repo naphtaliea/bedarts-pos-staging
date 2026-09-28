@@ -147,12 +147,15 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
     setIsProcessing(true);
     setError(null);
 
-    // For cash, record only what the store keeps (net of change), not the tendered amount.
-    // entryAmount may exceed the outstanding balance when the customer over-tenders.
+    // For cash, record only what the store keeps (net of change) as `amount` so
+    // reconciliation stays correct. Capture the tendered value separately so the
+    // receipt can show cash given + change.
     const netAmount = method === "cash" ? Math.min(entryAmount, remaining) : entryAmount;
+    const lastEntry: PaymentEntry = { method, amount: netAmount, reference: "" };
+    if (method === "cash" && entryAmount > netAmount) lastEntry.tendered = entryAmount;
     const payments: PaymentEntry[] = [
       ...splits.map(p => ({ method: p.method, amount: p.amount, reference: "" })),
-      { method, amount: netAmount, reference: "" },
+      lastEntry,
     ].filter(p => p.amount > 0);
 
     const payload = {
