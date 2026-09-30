@@ -9,9 +9,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   CartesianGrid,
 } from "recharts";
 import {
@@ -22,6 +19,7 @@ import {
   Clock,
   Package,
   Receipt,
+  Snowflake,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -58,7 +56,7 @@ interface DashboardClientProps {
     unit: string;
   }[];
   revenueByDay: { day: string; label: string; revenue: number; count: number }[];
-  categoryMix: { name: string; revenue: number }[];
+  thawTargets: { name: string; unit: string; suggested: number; max: number; activeDays: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
   topProducts: { name: string; revenue: number; units: number }[];
   outstandingPayablesTotal: number;
@@ -133,7 +131,7 @@ export function DashboardClient({
   activeProductCount,
   lowStockItems,
   revenueByDay,
-  categoryMix,
+  thawTargets,
   peakHours,
   topProducts,
   outstandingPayablesTotal,
@@ -273,7 +271,7 @@ export function DashboardClient({
           sevenDayExpenses={sevenDayExpenses}
         />
 
-        {/* ── Revenue trend + Category mix (always 7-day) ──────── */}
+        {/* ── Revenue trend + Daily thaw guide (always 7-day) ──── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Revenue trend */}
           <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
@@ -329,69 +327,46 @@ export function DashboardClient({
             </ResponsiveContainer>
           </section>
 
-          {/* Category mix donut */}
+          {/* Daily thaw guide */}
           <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
-            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-              Category mix
-            </p>
-            <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4 font-display-heading">
-              Last 7 days
-            </h3>
+            <div className="flex items-start gap-2 mb-3">
+              <Snowflake className="w-4 h-4 text-accent shrink-0 mt-0.5" strokeWidth={STROKE_STANDARD} />
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                  Daily thaw guide
+                </p>
+                <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading leading-tight">
+                  Bring out today
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                  Suggested from the last 7 days. Top up mid-day if needed — better than defrosting too much.
+                </p>
+              </div>
+            </div>
 
-            {categoryMix.length === 0 ? (
-              <EmptyBlock height={280} icon={BarChart3} title="No sales yet" hint="Categories appear as sales come in" />
+            {thawTargets.length === 0 ? (
+              <EmptyBlock height={220} icon={Snowflake} title="No sales yet" hint="Suggestions appear as sales come in" />
             ) : (
-              <>
-                <ResponsiveContainer width="100%" height={160}>
-                  <PieChart>
-                    <Pie
-                      data={categoryMix}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={48}
-                      outerRadius={72}
-                      dataKey="revenue"
-                      paddingAngle={2}
-                      strokeWidth={0}
-                    >
-                      {categoryMix.map((_, i) => (
-                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const item = payload[0];
-                        return (
-                          <ChartTooltip
-                            label={String(item.name ?? item.payload?.name ?? "")}
-                            value={formatCurrency(Number(item.value))}
-                          />
-                        );
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <ul className="space-y-1.5 mt-3">
-                  {categoryMix.slice(0, 5).map((c, i) => {
-                    const pct = sevenDayRevenue > 0 ? (c.revenue / sevenDayRevenue) * 100 : 0;
-                    return (
-                      <li key={c.name} className="flex items-center gap-2 text-xs">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                        />
-                        <span className="text-slate-700 truncate flex-1" title={c.name}>
-                          {c.name}
+              <ul className="divide-y divide-slate-100 -mx-1">
+                {thawTargets.map((t) => (
+                  <li key={t.name} className="flex items-baseline justify-between gap-3 py-2.5 px-1">
+                    <span className="text-sm text-slate-800 truncate min-w-0" title={t.name}>
+                      {t.name}
+                    </span>
+                    <div className="flex items-baseline gap-2 shrink-0 tabular-nums">
+                      <span className="text-sm sm:text-base font-semibold text-slate-900">
+                        {t.suggested}
+                        <span className="text-[11px] text-slate-500 font-medium ml-0.5">
+                          {t.unit === "kg" ? "kg" : "pcs"}
                         </span>
-                        <span className="text-slate-900 tabular-nums font-semibold shrink-0">
-                          {pct.toFixed(0)}%
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
+                      </span>
+                      <span className="text-[10px] text-slate-400 w-14 text-right">
+                        peak {t.max}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </div>

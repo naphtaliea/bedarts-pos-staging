@@ -34,7 +34,7 @@ export default async function DashboardPage() {
         `id, total_amount, discount_amount, created_at,
          cashier:profiles!sales_cashier_id_fkey(full_name),
          payments(method, amount),
-         sale_items(total_price, quantity, cost_at_sale, product:products(name, cost_price, category:categories(name)))`
+         sale_items(total_price, quantity, cost_at_sale, product:products(name, unit, cost_price))`
       )
       .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`)
       .eq("status", "completed")
@@ -178,17 +178,47 @@ export default async function DashboardPage() {
     };
   });
 
-  // Category mix (7-day)
-  const categoryMap: Record<string, number> = {};
+  // Daily thaw guide (7-day)
+  // For each product, collect per-day quantities sold, then suggest a bring-out
+  // amount = 75th percentile rounded up (0.5 kg for weight, 1 for pieces).
+  // p75 covers ~3 of every 4 days without over-thawing on a quiet day.
+  const perProductPerDay: Record<string, { unit: string; days: Record<string, number> }> = {};
   for (const sale of allSales) {
+    const day = sale.created_at.slice(0, 10);
     for (const item of sale.sale_items ?? []) {
-      const cat = item.product?.category?.name ?? "Uncategorised";
-      categoryMap[cat] = (categoryMap[cat] ?? 0) + (item.total_price ?? 0);
+      const name = item.product?.name;
+      if (!name) continue;
+      const unit = item.product?.unit ?? "kg";
+      if (!perProductPerDay[name]) perProductPerDay[name] = { unit, days: {} };
+      perProductPerDay[name].days[day] =
+        (perProductPerDay[name].days[day] ?? 0) + Number(item.quantity ?? 0);
     }
   }
-  const categoryMix = Object.entries(categoryMap)
-    .map(([name, revenue]) => ({ name, revenue }))
-    .sort((a, b) => b.revenue - a.revenue);
+  const p75 = (arr: number[]): number => {
+    if (arr.length === 0) return 0;
+    if (arr.length === 1) return arr[0];
+    const sorted = [...arr].sort((a, b) => a - b);
+    const idx = 0.75 * (sorted.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  };
+  const roundUp = (n: number, unit: string) =>
+    unit === "kg" ? Math.ceil(n * 2) / 2 : Math.ceil(n);
+  const thawTargets = Object.entries(perProductPerDay)
+    .map(([name, { unit, days }]) => {
+      const qtys = Object.values(days);
+      const raw = p75(qtys);
+      return {
+        name,
+        unit,
+        suggested: roundUp(raw, unit),
+        max: Math.max(...qtys),
+        activeDays: qtys.length,
+      };
+    })
+    .filter((t) => t.suggested > 0)
+    .sort((a, b) => b.suggested - a.suggested);
 
   // Top 5 products (7-day)
   const productMap: Record<string, { revenue: number; units: number }> = {};
@@ -266,7 +296,7 @@ export default async function DashboardPage() {
       activeProductCount={activeProductCount}
       lowStockItems={lowStockItems}
       revenueByDay={revenueByDay}
-      categoryMix={categoryMix}
+      thawTargets={thawTargets}
       peakHours={peakHours}
       topProducts={topProducts}
       outstandingPayablesTotal={outstandingPayablesTotal}
