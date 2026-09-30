@@ -26,6 +26,13 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+  const sevenDayCutoff = `${sevenDaysAgoStr}T00:00:00.000Z`;
+  // Thaw guide uses a 14-day window (two of each weekday → smoother than 7d).
+  // Every other widget on this page stays on the 7-day window; we filter the
+  // fetched rows down after loading.
+  const fourteenDaysAgo = new Date(today);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
+  const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split("T")[0];
 
   const [salesRes, productsRes, expensesRes, payablesRes, refundsRes] = await Promise.all([
     supabase
@@ -36,7 +43,7 @@ export default async function DashboardPage() {
          payments(method, amount),
          sale_items(total_price, quantity, cost_at_sale, product:products(name, unit, cost_price))`
       )
-      .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`)
+      .gte("created_at", `${fourteenDaysAgoStr}T00:00:00.000Z`)
       .eq("status", "completed")
       .order("created_at", { ascending: false }),
 
@@ -65,7 +72,10 @@ export default async function DashboardPage() {
 
   // ── Aggregations ──────────────────────────────────────────────────────────
 
-  const allSales = (salesRes.data ?? []) as any[];
+  // `salesRes` now returns 14 days of rows; every existing widget wants 7 days.
+  // Slice once here so downstream code is untouched.
+  const allFourteenDaySales = (salesRes.data ?? []) as any[];
+  const allSales = allFourteenDaySales.filter((s) => s.created_at >= sevenDayCutoff);
   const allProducts = (productsRes.data ?? []) as any[];
   const allExpenses = (expensesRes.data ?? []) as any[];
   const allUnpaidPurchases = (payablesRes.data ?? []) as any[];
@@ -178,12 +188,14 @@ export default async function DashboardPage() {
     };
   });
 
-  // Daily thaw guide (7-day)
+  // Daily thaw guide (14-day)
   // For each product, collect per-day quantities sold, then suggest a bring-out
   // amount = 75th percentile rounded up (0.5 kg for weight, 1 for pieces).
   // p75 covers ~3 of every 4 days without over-thawing on a quiet day.
+  // 14-day window: gets two of each weekday so a weekend rush or a single
+  // slow day doesn't skew the target as much as it did on a 7-day window.
   const perProductPerDay: Record<string, { unit: string; days: Record<string, number> }> = {};
-  for (const sale of allSales) {
+  for (const sale of allFourteenDaySales) {
     const day = sale.created_at.slice(0, 10);
     for (const item of sale.sale_items ?? []) {
       const name = item.product?.name;

@@ -861,7 +861,7 @@ function ThawGuide({
               Bring out today
             </h3>
             <p className="text-[11px] text-slate-500 mt-1 leading-snug hidden sm:block">
-              Suggested from the last 7 days. Top up mid-day — better than defrosting too much.
+              Suggested from the last 14 days. Top up mid-day — better than defrosting too much.
             </p>
           </div>
         </div>
