@@ -32,6 +32,10 @@ export default async function CashierLayout({
   if (profile.role === "accountant") {
     redirect("/dashboard");
   }
+  // Butchers only see their own thaw view.
+  if (profile.role === "butcher") {
+    redirect("/butcher");
+  }
 
   return (
     <>

@@ -37,6 +37,10 @@ export default async function DashboardLayout({
     redirect("/cashier");
   }
 
+  if (profile.role === "butcher") {
+    redirect("/butcher");
+  }
+
   // Count pending pre-paid pickups so the sidebar can show an alert badge
   const { count: pendingPickups } = await supabase
     .from("sales")

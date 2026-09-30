@@ -73,7 +73,7 @@ export async function updateStoreSettings(data: {
 
 export async function updateUserRole(
   userId: string,
-  role: "admin" | "manager" | "cashier" | "accountant"
+  role: "admin" | "manager" | "cashier" | "accountant" | "butcher"
 ): Promise<{ error?: string }> {
   await requireAdmin();
   const admin = createAdminClient();
@@ -203,7 +203,7 @@ export async function createTerminal(
 export async function inviteUser(
   email: string,
   fullName: string,
-  role: "admin" | "manager" | "cashier" | "accountant"
+  role: "admin" | "manager" | "cashier" | "accountant" | "butcher"
 ): Promise<{ error?: string }> {
   await requireAdmin();
   const admin = createAdminClient();

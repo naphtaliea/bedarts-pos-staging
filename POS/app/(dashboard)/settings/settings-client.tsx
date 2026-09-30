@@ -496,8 +496,8 @@ function TaxTab({
 
 // ── Users Tab ─────────────────────────────────────────────────────────────────
 
-const ROLE_OPTIONS = ["admin", "manager", "accountant", "cashier"] as const;
-const INVITE_ROLE_OPTIONS = ["admin", "manager", "accountant"] as const;
+const ROLE_OPTIONS = ["admin", "manager", "accountant", "cashier", "butcher"] as const;
+const INVITE_ROLE_OPTIONS = ["admin", "manager", "accountant", "butcher"] as const;
 
 function UsersTab({
   users,
@@ -514,7 +514,7 @@ function UsersTab({
   const [pinSaving, setPinSaving] = useState(false);
 
   const [inviteModal, setInviteModal] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role: "manager" as "admin" | "manager" | "accountant" });
+  const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role: "manager" as "admin" | "manager" | "accountant" | "butcher" });
   const [inviting, setInviting] = useState(false);
 
   const [cashierModal, setCashierModal] = useState(false);
@@ -525,7 +525,7 @@ function UsersTab({
   const [terminalForm, setTerminalForm] = useState({ full_name: "", email: "", password: "" });
   const [addingTerminal, setAddingTerminal] = useState(false);
 
-  async function handleRoleChange(userId: string, role: "admin" | "manager" | "cashier" | "accountant") {
+  async function handleRoleChange(userId: string, role: "admin" | "manager" | "cashier" | "accountant" | "butcher") {
     const res = await updateUserRole(userId, role);
     res.error ? show("error", res.error) : show("success", "Role updated");
     router.refresh();
@@ -742,7 +742,7 @@ function UsersTab({
                 <p className="text-sm font-medium text-foreground truncate">{u.full_name}</p>
                 <select
                   value={u.role}
-                  onChange={(e) => handleRoleChange(u.id, e.target.value as "admin" | "manager" | "cashier" | "accountant")}
+                  onChange={(e) => handleRoleChange(u.id, e.target.value as "admin" | "manager" | "cashier" | "accountant" | "butcher")}
                   className="text-xs border border-border rounded-md px-1.5 py-0.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   {ROLE_OPTIONS.map((r) => (
@@ -909,7 +909,7 @@ function UsersTab({
             <Field label="Role">
               <select
                 value={inviteForm.role}
-                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "admin" | "manager" | "accountant" })}
+                onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "admin" | "manager" | "accountant" | "butcher" })}
                 className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {INVITE_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}

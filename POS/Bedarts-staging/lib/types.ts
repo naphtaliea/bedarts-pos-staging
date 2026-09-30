@@ -1,4 +1,4 @@
-export type Role = "admin" | "manager" | "cashier" | "accountant" | "terminal";
+export type Role = "admin" | "manager" | "cashier" | "accountant" | "terminal" | "butcher";
 export type PaymentMethod = "cash" | "momo" | "pos_machine";
 export type SaleStatus = "completed" | "voided";
 export type AdjustmentReason = "write_off" | "correction" | "return" | "waste" | "theft" | "damaged" | "found";

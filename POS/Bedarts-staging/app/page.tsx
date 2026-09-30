@@ -13,6 +13,7 @@ export default async function Home() {
       .single();
     if (profile?.role === "terminal") redirect("/cashier/pin");
     if (profile?.role === "cashier") redirect("/cashier/pin");
+    if (profile?.role === "butcher") redirect("/butcher");
     redirect("/dashboard");
   }
 

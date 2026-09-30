@@ -26,24 +26,17 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
-  const sevenDayCutoff = `${sevenDaysAgoStr}T00:00:00.000Z`;
-  // Thaw guide uses a 14-day window (two of each weekday → smoother than 7d).
-  // Every other widget on this page stays on the 7-day window; we filter the
-  // fetched rows down after loading.
-  const fourteenDaysAgo = new Date(today);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
-  const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split("T")[0];
 
-  const [salesRes, productsRes, expensesRes, payablesRes, refundsRes] = await Promise.all([
+  const [salesRes, productsRes, expensesRes, payablesRes, refundsRes, thawRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
         `id, total_amount, discount_amount, created_at,
          cashier:profiles!sales_cashier_id_fkey(full_name),
          payments(method, amount),
-         sale_items(total_price, quantity, cost_at_sale, product:products(name, unit, cost_price))`
+         sale_items(total_price, quantity, cost_at_sale, product:products(name, cost_price))`
       )
-      .gte("created_at", `${fourteenDaysAgoStr}T00:00:00.000Z`)
+      .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`)
       .eq("status", "completed")
       .order("created_at", { ascending: false }),
 
@@ -68,14 +61,15 @@ export default async function DashboardPage() {
       .from("refunds")
       .select("sale_id, refund_amount")
       .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`),
+
+    // Thaw guide targets — server-side p75 over the last 14 days. Same RPC
+    // the /butcher page uses, so the algorithm lives in one place.
+    supabase.rpc("get_thaw_targets_v1"),
   ]);
 
   // ── Aggregations ──────────────────────────────────────────────────────────
 
-  // `salesRes` now returns 14 days of rows; every existing widget wants 7 days.
-  // Slice once here so downstream code is untouched.
-  const allFourteenDaySales = (salesRes.data ?? []) as any[];
-  const allSales = allFourteenDaySales.filter((s) => s.created_at >= sevenDayCutoff);
+  const allSales = (salesRes.data ?? []) as any[];
   const allProducts = (productsRes.data ?? []) as any[];
   const allExpenses = (expensesRes.data ?? []) as any[];
   const allUnpaidPurchases = (payablesRes.data ?? []) as any[];
@@ -188,61 +182,23 @@ export default async function DashboardPage() {
     };
   });
 
-  // Daily thaw guide (14-day)
-  // For each product, collect per-day quantities sold, then suggest a bring-out
-  // amount = 75th percentile rounded up (0.5 kg for weight, 1 for pieces).
-  // p75 covers ~3 of every 4 days without over-thawing on a quiet day.
-  // 14-day window: gets two of each weekday so a weekend rush or a single
-  // slow day doesn't skew the target as much as it did on a 7-day window.
-  const perProductPerDay: Record<string, { unit: string; days: Record<string, number> }> = {};
-  for (const sale of allFourteenDaySales) {
-    const day = sale.created_at.slice(0, 10);
-    for (const item of sale.sale_items ?? []) {
-      const name = item.product?.name;
-      if (!name) continue;
-      const unit = item.product?.unit ?? "kg";
-      if (!perProductPerDay[name]) perProductPerDay[name] = { unit, days: {} };
-      perProductPerDay[name].days[day] =
-        (perProductPerDay[name].days[day] ?? 0) + Number(item.quantity ?? 0);
-    }
-  }
-  const p75 = (arr: number[]): number => {
-    if (arr.length === 0) return 0;
-    if (arr.length === 1) return arr[0];
-    const sorted = [...arr].sort((a, b) => a - b);
-    const idx = 0.75 * (sorted.length - 1);
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-  };
-  const roundUp = (n: number, unit: string) =>
-    unit === "kg" ? Math.ceil(n * 2) / 2 : Math.ceil(n);
-  // Today's cumulative sold per product — powers the live number next to the
-  // suggestion (updates on every pull-to-refresh once a sale lands).
-  const todaySoldByProduct: Record<string, number> = {};
-  for (const sale of todaySales) {
-    for (const item of sale.sale_items ?? []) {
-      const name = item.product?.name;
-      if (!name) continue;
-      todaySoldByProduct[name] =
-        (todaySoldByProduct[name] ?? 0) + Number(item.quantity ?? 0);
-    }
-  }
-
-  const thawTargets = Object.entries(perProductPerDay)
-    .map(([name, { unit, days }]) => {
-      const qtys = Object.values(days);
-      const raw = p75(qtys);
-      return {
-        name,
-        unit,
-        suggested: roundUp(raw, unit),
-        todaySold: Math.round((todaySoldByProduct[name] ?? 0) * 100) / 100,
-        activeDays: qtys.length,
-      };
-    })
-    .filter((t) => t.suggested > 0)
-    .sort((a, b) => b.suggested - a.suggested);
+  // Daily thaw guide — computed server-side by `get_thaw_targets_v1()` so the
+  // exact same rows are shown to both admins here and butchers on /butcher.
+  // See supabase/migrations/20260930010000_butcher_role_and_thaw_rpc.sql for
+  // the algorithm (p75 over 14 days, rounded up, grouped by Africa/Accra day).
+  const thawTargets = ((thawRes.data ?? []) as Array<{
+    name: string;
+    unit: string;
+    suggested: number | string;
+    today_sold: number | string;
+    active_days: number;
+  }>).map((row) => ({
+    name: row.name,
+    unit: row.unit,
+    suggested: Number(row.suggested),
+    todaySold: Number(row.today_sold),
+    activeDays: row.active_days,
+  }));
 
   // Top 5 products (7-day)
   const productMap: Record<string, { revenue: number; units: number }> = {};
