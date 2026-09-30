@@ -18,7 +18,7 @@ import type {
 } from "@/lib/types";
 import {
   updateStoreSettings, updateUserRole, setUserPin, clearUserPin,
-  toggleUserActive, inviteUser, addCashier, createTerminal,
+  toggleUserActive, inviteUser, createButcher, addCashier, createTerminal,
   uploadCashierAvatar, approveUser, rejectUser, runIntegrityChecks,
 } from "./actions";
 import { createCategory, deleteCategory } from "@/app/(dashboard)/inventory/actions";
@@ -514,7 +514,7 @@ function UsersTab({
   const [pinSaving, setPinSaving] = useState(false);
 
   const [inviteModal, setInviteModal] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role: "manager" as "admin" | "manager" | "accountant" | "butcher" });
+  const [inviteForm, setInviteForm] = useState({ email: "", full_name: "", role: "manager" as "admin" | "manager" | "accountant" | "butcher", password: "" });
   const [inviting, setInviting] = useState(false);
 
   const [cashierModal, setCashierModal] = useState(false);
@@ -571,13 +571,25 @@ function UsersTab({
 
   async function handleInvite() {
     if (!inviteForm.email || !inviteForm.full_name) { show("error", "Email and name are required"); return; }
+    const isButcher = inviteForm.role === "butcher";
+    if (isButcher && inviteForm.password.length < 8) {
+      show("error", "Password must be at least 8 characters");
+      return;
+    }
     setInviting(true);
-    const res = await inviteUser(inviteForm.email, inviteForm.full_name, inviteForm.role);
+    const res = isButcher
+      ? await createButcher(inviteForm.email.trim(), inviteForm.full_name.trim(), inviteForm.password)
+      : await inviteUser(inviteForm.email, inviteForm.full_name, inviteForm.role);
     setInviting(false);
     if (res.error) { show("error", res.error); return; }
-    show("success", `Invitation sent to ${inviteForm.email}`);
+    show(
+      "success",
+      isButcher
+        ? `Butcher "${inviteForm.full_name.trim()}" created — share the login: ${inviteForm.email.trim()}`
+        : `Invitation sent to ${inviteForm.email}`
+    );
     setInviteModal(false);
-    setInviteForm({ email: "", full_name: "", role: "manager" });
+    setInviteForm({ email: "", full_name: "", role: "manager", password: "" });
     router.refresh();
   }
 
@@ -897,14 +909,25 @@ function UsersTab({
         <Backdrop onClose={() => setInviteModal(false)}>
           <div className="bg-card rounded-2xl p-6 shadow-2xl w-full max-w-md space-y-4">
             <div>
-              <h4 className="text-sm font-semibold text-foreground">Invite Staff Member</h4>
-              <p className="text-xs text-muted-foreground mt-1">They'll receive an email to set their password and log in.</p>
+              <h4 className="text-sm font-semibold text-foreground">
+                {inviteForm.role === "butcher" ? "Add Butcher" : "Invite Staff Member"}
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                {inviteForm.role === "butcher"
+                  ? "Butchers don't need email. Pick a login and password, then share both with them."
+                  : "They'll receive an email to set their password and log in."}
+              </p>
             </div>
             <Field label="Full Name">
               <Input value={inviteForm.full_name} onChange={(e) => setInviteForm({ ...inviteForm, full_name: e.target.value })} placeholder="Kwame Mensah" />
             </Field>
-            <Field label="Email">
-              <Input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="kwame@bedarts.com" />
+            <Field label={inviteForm.role === "butcher" ? "Login (any email-shaped identifier)" : "Email"}>
+              <Input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                placeholder={inviteForm.role === "butcher" ? "kwame@bedarts.internal" : "kwame@bedarts.com"}
+              />
             </Field>
             <Field label="Role">
               <select
@@ -915,11 +938,24 @@ function UsersTab({
                 {INVITE_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
               </select>
             </Field>
+            {inviteForm.role === "butcher" && (
+              <Field label="Password (min 8 chars)">
+                <Input
+                  type="text"
+                  value={inviteForm.password}
+                  onChange={(e) => setInviteForm({ ...inviteForm, password: e.target.value })}
+                  placeholder="e.g. Bedarts2026!"
+                  autoComplete="off"
+                />
+              </Field>
+            )}
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setInviteModal(false)} className="flex-1">Cancel</Button>
               <Button onClick={handleInvite} disabled={inviting} className="flex-1 gap-2">
                 <Mail className="w-4 h-4" aria-hidden="true" />
-                {inviting ? "Sending…" : "Send Invite"}
+                {inviting
+                  ? inviteForm.role === "butcher" ? "Creating…" : "Sending…"
+                  : inviteForm.role === "butcher" ? "Create Butcher" : "Send Invite"}
               </Button>
             </div>
           </div>

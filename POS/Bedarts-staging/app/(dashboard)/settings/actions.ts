@@ -200,6 +200,46 @@ export async function createTerminal(
   return {};
 }
 
+// Butchers are shop-floor staff, usually without personal email. Admin sets
+// the credentials up-front and hands them over — same shape as createTerminal.
+export async function createButcher(
+  email: string,
+  fullName: string,
+  password: string
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  if (password.length < 8) return { error: "Password must be at least 8 characters" };
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, role: "butcher" },
+  });
+
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("already registered") || msg.includes("already exists")) {
+      return { error: "This email is already registered." };
+    }
+    return { error: error.message };
+  }
+
+  if (data.user) {
+    const { error: profileError } = await admin.from("profiles").upsert({
+      id: data.user.id,
+      full_name: fullName,
+      role: "butcher",
+      is_active: true,
+    });
+    if (profileError) return { error: profileError.message };
+  }
+
+  revalidatePath("/settings");
+  return {};
+}
+
 export async function inviteUser(
   email: string,
   fullName: string,
