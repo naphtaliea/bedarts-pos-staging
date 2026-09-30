@@ -25,6 +25,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ interface DashboardClientProps {
     unit: string;
   }[];
   revenueByDay: { day: string; label: string; revenue: number; count: number }[];
-  thawTargets: { name: string; unit: string; suggested: number; max: number; activeDays: number }[];
+  thawTargets: { name: string; unit: string; suggested: number; todaySold: number; activeDays: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
   topProducts: { name: string; revenue: number; units: number }[];
   outstandingPayablesTotal: number;
@@ -157,6 +158,7 @@ export function DashboardClient({
   const avgTicket = isToday ? avgTicketToday : avgTicket7d;
 
   return (
+    <PullToRefresh>
     <div className="min-h-full bg-slate-50">
       {/* ── Page header (scrolls with content) ────────────────────
          Sticky was fighting the mobile-navbar padding — see git history.
@@ -304,8 +306,13 @@ export function DashboardClient({
                         {t.unit === "kg" ? "kg" : "pcs"}
                       </span>
                     </span>
-                    <span className="text-[10px] text-slate-400 w-14 text-right">
-                      peak {t.max}
+                    <span
+                      className={cn(
+                        "text-[10px] w-16 text-right",
+                        t.todaySold > 0 ? "text-emerald-600 font-semibold" : "text-slate-400"
+                      )}
+                    >
+                      sold {t.todaySold}
                     </span>
                   </div>
                 </li>
@@ -518,6 +525,7 @@ export function DashboardClient({
         </section>
       </div>
     </div>
+    </PullToRefresh>
   );
 }
 

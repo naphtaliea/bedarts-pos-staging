@@ -205,6 +205,18 @@ export default async function DashboardPage() {
   };
   const roundUp = (n: number, unit: string) =>
     unit === "kg" ? Math.ceil(n * 2) / 2 : Math.ceil(n);
+  // Today's cumulative sold per product — powers the live number next to the
+  // suggestion (updates on every pull-to-refresh once a sale lands).
+  const todaySoldByProduct: Record<string, number> = {};
+  for (const sale of todaySales) {
+    for (const item of sale.sale_items ?? []) {
+      const name = item.product?.name;
+      if (!name) continue;
+      todaySoldByProduct[name] =
+        (todaySoldByProduct[name] ?? 0) + Number(item.quantity ?? 0);
+    }
+  }
+
   const thawTargets = Object.entries(perProductPerDay)
     .map(([name, { unit, days }]) => {
       const qtys = Object.values(days);
@@ -213,7 +225,7 @@ export default async function DashboardPage() {
         name,
         unit,
         suggested: roundUp(raw, unit),
-        max: Math.max(...qtys),
+        todaySold: Math.round((todaySoldByProduct[name] ?? 0) * 100) / 100,
         activeDays: qtys.length,
       };
     })
