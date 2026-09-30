@@ -90,6 +90,14 @@ function ThawCard({ target: t }: { target: ThawTarget }) {
         : ratio >= 1
           ? "hit"
           : "progress";
+  // How far past target we've already sold. 0.5-kg precision for weight,
+  // integer for pieces — matches the target rounding so the two numbers line up.
+  const overageRaw = Math.max(0, t.todaySold - t.suggested);
+  const overage =
+    t.unit === "kg"
+      ? Math.round(overageRaw * 10) / 10
+      : Math.round(overageRaw);
+  const showOver = overage > 0;
 
   const barBg =
     state === "hit"
@@ -150,6 +158,16 @@ function ThawCard({ target: t }: { target: ThawTarget }) {
         >
           {t.todaySold}
           <span className="text-slate-400 font-normal"> {unit} sold</span>
+          {showOver && (
+            <span
+              className={cn(
+                "ml-1.5 font-semibold",
+                state === "over" ? "text-amber-600" : "text-emerald-600"
+              )}
+            >
+              +{overage} over
+            </span>
+          )}
         </span>
         <span className="text-slate-500">
           {t.suggested} {unit} <span className="text-slate-400">target</span>
