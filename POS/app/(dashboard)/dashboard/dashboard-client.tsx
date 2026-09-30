@@ -271,105 +271,102 @@ export function DashboardClient({
           sevenDayExpenses={sevenDayExpenses}
         />
 
-        {/* ── Revenue trend + Daily thaw guide (always 7-day) ──── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Revenue trend */}
-          <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
-              <div>
-                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-                  Revenue trend
-                </p>
-                <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading">
-                  Last 7 days
-                </h3>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-slate-900 tabular-nums text-lg sm:text-xl font-display-black">
-                  {formatCurrency(sevenDayRevenue)}
-                </p>
-                <p className="text-[10px] text-slate-500">total</p>
-              </div>
+        {/* ── Daily thaw guide (below P&L) ──────────────────────── */}
+        <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+          <div className="flex items-start gap-2 mb-3">
+            <Snowflake className="w-4 h-4 text-accent shrink-0 mt-0.5" strokeWidth={STROKE_STANDARD} />
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                Daily thaw guide
+              </p>
+              <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading leading-tight">
+                Bring out today
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                Suggested from the last 7 days. Top up mid-day if needed — better than defrosting too much.
+              </p>
             </div>
-            {/* Responsive chart margin — 0 left on mobile so labels don't clip */}
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={0}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#94A3B8" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
-                  width={40}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(15,23,42,0.04)" }}
-                  content={({ active, payload, label }) => {
-                    if (!active || !payload?.length) return null;
-                    return (
-                      <ChartTooltip
-                        label={String(label)}
-                        value={formatCurrency(Number(payload[0].value))}
-                        sub={`${payload[0].payload.count} sales`}
-                      />
-                    );
-                  }}
-                />
-                <Bar dataKey="revenue" fill="#1B50C0" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </section>
+          </div>
 
-          {/* Daily thaw guide */}
-          <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
-            <div className="flex items-start gap-2 mb-3">
-              <Snowflake className="w-4 h-4 text-accent shrink-0 mt-0.5" strokeWidth={STROKE_STANDARD} />
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-                  Daily thaw guide
-                </p>
-                <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading leading-tight">
-                  Bring out today
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                  Suggested from the last 7 days. Top up mid-day if needed — better than defrosting too much.
-                </p>
-              </div>
-            </div>
-
-            {thawTargets.length === 0 ? (
-              <EmptyBlock height={220} icon={Snowflake} title="No sales yet" hint="Suggestions appear as sales come in" />
-            ) : (
-              <ul className="divide-y divide-slate-100 -mx-1">
-                {thawTargets.map((t) => (
-                  <li key={t.name} className="flex items-baseline justify-between gap-3 py-2.5 px-1">
-                    <span className="text-sm text-slate-800 truncate min-w-0" title={t.name}>
-                      {t.name}
+          {thawTargets.length === 0 ? (
+            <EmptyBlock height={220} icon={Snowflake} title="No sales yet" hint="Suggestions appear as sales come in" />
+          ) : (
+            <ul className="-mx-1 sm:columns-2 lg:columns-3 sm:gap-x-6 lg:gap-x-8">
+              {thawTargets.map((t) => (
+                <li key={t.name} className="flex items-baseline justify-between gap-3 py-2.5 px-1 border-b border-slate-100 break-inside-avoid">
+                  <span className="text-sm text-slate-800 truncate min-w-0" title={t.name}>
+                    {t.name}
+                  </span>
+                  <div className="flex items-baseline gap-2 shrink-0 tabular-nums">
+                    <span className="text-sm sm:text-base font-semibold text-slate-900">
+                      {t.suggested}
+                      <span className="text-[11px] text-slate-500 font-medium ml-0.5">
+                        {t.unit === "kg" ? "kg" : "pcs"}
+                      </span>
                     </span>
-                    <div className="flex items-baseline gap-2 shrink-0 tabular-nums">
-                      <span className="text-sm sm:text-base font-semibold text-slate-900">
-                        {t.suggested}
-                        <span className="text-[11px] text-slate-500 font-medium ml-0.5">
-                          {t.unit === "kg" ? "kg" : "pcs"}
-                        </span>
-                      </span>
-                      <span className="text-[10px] text-slate-400 w-14 text-right">
-                        peak {t.max}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+                    <span className="text-[10px] text-slate-400 w-14 text-right">
+                      peak {t.max}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* ── Revenue trend (7-day, full-width) ────────────────── */}
+        <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
+            <div>
+              <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                Revenue trend
+              </p>
+              <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 font-display-heading">
+                Last 7 days
+              </h3>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-slate-900 tabular-nums text-lg sm:text-xl font-display-black">
+                {formatCurrency(sevenDayRevenue)}
+              </p>
+              <p className="text-[10px] text-slate-500">total</p>
+            </div>
+          </div>
+          {/* Responsive chart margin — 0 left on mobile so labels don't clip */}
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: 0 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#64748B" }}
+                axisLine={false}
+                tickLine={false}
+                interval={0}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#94A3B8" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+                width={40}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <ChartTooltip
+                      label={String(label)}
+                      value={formatCurrency(Number(payload[0].value))}
+                      sub={`${payload[0].payload.count} sales`}
+                    />
+                  );
+                }}
+              />
+              <Bar dataKey="revenue" fill="#1B50C0" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
 
         {/* ── Peak hours + Top products ──────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
