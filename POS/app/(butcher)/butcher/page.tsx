@@ -17,13 +17,13 @@ export default async function ButcherPage() {
     unit: string;
     suggested: number | string;
     today_sold: number | string;
-    active_days: number;
+    remaining: number | string;
   }>).map((row) => ({
     name: row.name,
     unit: row.unit,
     suggested: Number(row.suggested),
     todaySold: Number(row.today_sold),
-    activeDays: row.active_days,
+    remaining: Number(row.remaining),
   }));
 
   return <ButcherClient thawTargets={thawTargets} />;
