@@ -17,6 +17,12 @@ export interface ThawTarget {
   remaining: number;   // max(0, suggested - todaySold)
 }
 
+// After this hour (Africa/Accra), a product that hasn't sold today flips from
+// the morning "Bring out X" call-to-action to a muted "No sales yet" warning.
+// Catches the real failure mode: a high-mover sitting idle because the butcher
+// forgot it, or it's on the counter defrosting with no takers.
+const STALE_AFTER_HOUR_ACCRA = 9;
+
 export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
   const soldOutCount = thawTargets.filter(
     (t) => t.remaining === 0 && t.suggested > 0
@@ -25,6 +31,9 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
   const allFresh = thawTargets.length > 0 && freshCount === thawTargets.length;
 
   const renderedAt = new Date().toISOString();
+  // Ghana is UTC+0 year-round, so UTC hour == Africa/Accra hour.
+  const hourAccra = new Date().getUTCHours();
+  const pastStaleThreshold = hourAccra >= STALE_AFTER_HOUR_ACCRA;
 
   return (
     <section className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
@@ -49,14 +58,18 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
                 soldOutCount > 0
                   ? "text-destructive"
                   : allFresh
-                    ? "text-accent"
+                    ? pastStaleThreshold
+                      ? "text-amber-600"
+                      : "text-accent"
                     : "text-slate-500"
               )}
             >
               {soldOutCount > 0
                 ? `${soldOutCount} ${soldOutCount === 1 ? "needs" : "need"} more from the freezer`
                 : allFresh
-                  ? "Morning setup — start bringing products out."
+                  ? pastStaleThreshold
+                    ? "No sales yet today — check if products need to come out."
+                    : "Morning setup — start bringing products out."
                   : "All on track — keep selling."}
             </p>
             <p className="text-[11px] text-slate-400 tabular-nums shrink-0">
@@ -71,7 +84,7 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
       ) : (
         <ul className="divide-y divide-slate-100">
           {thawTargets.map((t) => (
-            <ThawRow key={t.name} target={t} />
+            <ThawRow key={t.name} target={t} pastStaleThreshold={pastStaleThreshold} />
           ))}
         </ul>
       )}
@@ -95,9 +108,18 @@ function ThawEmpty() {
   );
 }
 
-function ThawRow({ target: t }: { target: ThawTarget }) {
+function ThawRow({
+  target: t,
+  pastStaleThreshold,
+}: {
+  target: ThawTarget;
+  pastStaleThreshold: boolean;
+}) {
   const unit = t.unit === "kg" ? "kg" : "pcs";
   const fresh = t.todaySold === 0;
+  // Stale = still fresh but we're past the morning threshold. Signal: either
+  // the butcher hasn't brought it out, or it's on the counter not moving.
+  const stale = fresh && pastStaleThreshold;
   const soldOut = t.remaining === 0 && t.suggested > 0;
   const overSold = t.todaySold > t.suggested;
   // Overage rounded to the same precision as the target (0.5 for kg, 1 for pcs).
@@ -114,12 +136,15 @@ function ThawRow({ target: t }: { target: ThawTarget }) {
     t.suggested > 0 ? Math.min(1, t.todaySold / t.suggested) : 0;
 
   // The hero line is contextual to where in the day this product is:
-  // - fresh:    "Bring out 30 kg"        (morning action)
-  // - partial:  "17 kg left"             (count-down)
-  // - sold out: "Sold out — bring more"  (urgent)
-  // - over:     "Sold +5 kg over plan"   (reserves drawn down)
+  // - fresh morning: "Bring out 30 kg"        (call-to-action, blue)
+  // - fresh stale:   "No sales yet"           (soft warning, amber)
+  // - partial:       "17 kg left"             (counting down, slate)
+  // - sold out:      "Sold out — bring more"  (urgent, red)
+  // - over:          "Sold +5 kg over plan"   (reserves drawn, red)
   const heroText = fresh
-    ? `Bring out ${t.suggested} ${unit}`
+    ? stale
+      ? "No sales yet"
+      : `Bring out ${t.suggested} ${unit}`
     : soldOut
       ? overSold
         ? `Sold +${over} ${unit} over plan`
@@ -137,17 +162,19 @@ function ThawRow({ target: t }: { target: ThawTarget }) {
         {t.name}
       </p>
 
-      {/* Hero: what the butcher came here to see. Red for sold-out urgency,
-         accent (brand blue) for the morning "bring out" call-to-action,
+      {/* Hero: red for sold-out urgency, amber for "no sales yet" stale rows
+         after 9am Accra, accent (brand blue) for the morning bring-out CTA,
          slate once the row is counting down a partially-sold product. */}
       <p
         className={cn(
           "mt-0.5 text-2xl sm:text-3xl font-display-black tabular-nums leading-[1.1]",
           soldOut
             ? "text-destructive"
-            : fresh
-              ? "text-accent"
-              : "text-slate-900",
+            : stale
+              ? "text-amber-600"
+              : fresh
+                ? "text-accent"
+                : "text-slate-900",
           lowStock && "motion-safe:animate-pulse"
         )}
       >
