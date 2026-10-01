@@ -21,6 +21,8 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
   const soldOutCount = thawTargets.filter(
     (t) => t.remaining === 0 && t.suggested > 0
   ).length;
+  const freshCount = thawTargets.filter((t) => t.todaySold === 0).length;
+  const allFresh = thawTargets.length > 0 && freshCount === thawTargets.length;
 
   const renderedAt = new Date().toISOString();
 
@@ -44,12 +46,18 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
             <p
               className={cn(
                 "text-sm sm:text-base font-semibold leading-tight",
-                soldOutCount > 0 ? "text-destructive" : "text-slate-500"
+                soldOutCount > 0
+                  ? "text-destructive"
+                  : allFresh
+                    ? "text-accent"
+                    : "text-slate-500"
               )}
             >
               {soldOutCount > 0
                 ? `${soldOutCount} ${soldOutCount === 1 ? "needs" : "need"} more from the freezer`
-                : "All on track — keep selling."}
+                : allFresh
+                  ? "Morning setup — start bringing products out."
+                  : "All on track — keep selling."}
             </p>
             <p className="text-[11px] text-slate-400 tabular-nums shrink-0">
               <RelativeTime iso={renderedAt} />
@@ -89,27 +97,34 @@ function ThawEmpty() {
 
 function ThawRow({ target: t }: { target: ThawTarget }) {
   const unit = t.unit === "kg" ? "kg" : "pcs";
+  const fresh = t.todaySold === 0;
   const soldOut = t.remaining === 0 && t.suggested > 0;
   const overSold = t.todaySold > t.suggested;
   // Overage rounded to the same precision as the target (0.5 for kg, 1 for pcs).
   const overRaw = Math.max(0, t.todaySold - t.suggested);
   const over =
     t.unit === "kg" ? Math.round(overRaw * 10) / 10 : Math.round(overRaw);
-  // Low-stock = still has some but close to running out. Threshold:
-  // 2 pcs for piece-counted items, 2 kg for weight.
-  const lowStock = t.remaining > 0 && t.remaining <= 2;
+  // Low-stock = part-way sold, close to running out. Threshold: 2 pcs for
+  // piece-counted items, 2 kg for weight. Does NOT apply to fresh rows.
+  const lowStock = !fresh && t.remaining > 0 && t.remaining <= 2;
 
-  // Progress bar visualises sold-vs-brought-out so an empty bar = fresh
-  // counter, full bar = sold out. Clamped at 100%.
+  // Progress bar fills with sold %. Empty on fresh rows (nothing sold yet),
+  // red once sold out.
   const soldPct =
     t.suggested > 0 ? Math.min(1, t.todaySold / t.suggested) : 0;
 
-  // The hero line: the one thing the butcher reads first.
-  const heroText = soldOut
-    ? overSold
-      ? `Sold +${over} ${unit} over plan`
-      : "Sold out — bring more"
-    : `${t.remaining} ${unit} left`;
+  // The hero line is contextual to where in the day this product is:
+  // - fresh:    "Bring out 30 kg"        (morning action)
+  // - partial:  "17 kg left"             (count-down)
+  // - sold out: "Sold out — bring more"  (urgent)
+  // - over:     "Sold +5 kg over plan"   (reserves drawn down)
+  const heroText = fresh
+    ? `Bring out ${t.suggested} ${unit}`
+    : soldOut
+      ? overSold
+        ? `Sold +${over} ${unit} over plan`
+        : "Sold out — bring more"
+      : `${t.remaining} ${unit} left`;
 
   return (
     <li className="px-4 sm:px-5 py-3.5">
@@ -121,11 +136,17 @@ function ThawRow({ target: t }: { target: ThawTarget }) {
         {t.name}
       </p>
 
-      {/* Hero: what the butcher came here to see. */}
+      {/* Hero: what the butcher came here to see. Red for sold-out urgency,
+         accent (brand blue) for the morning "bring out" call-to-action,
+         slate once the row is counting down a partially-sold product. */}
       <p
         className={cn(
           "mt-0.5 text-2xl sm:text-3xl font-display-black tabular-nums leading-[1.1]",
-          soldOut ? "text-destructive" : "text-slate-900",
+          soldOut
+            ? "text-destructive"
+            : fresh
+              ? "text-accent"
+              : "text-slate-900",
           lowStock && "motion-safe:animate-pulse"
         )}
       >
