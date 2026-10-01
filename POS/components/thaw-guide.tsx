@@ -128,9 +128,10 @@ function ThawRow({ target: t }: { target: ThawTarget }) {
 
   return (
     <li className="px-4 sm:px-5 py-3.5">
-      {/* Eyebrow: product name, small and muted so the hero below pops. */}
+      {/* Product name — stays secondary to the hero number below, but needs
+         to be scannable at a glance so the butcher can find a specific row. */}
       <p
-        className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 truncate"
+        className="text-sm sm:text-base font-black uppercase tracking-[0.08em] text-slate-900 truncate"
         title={t.name}
       >
         {t.name}
