@@ -505,7 +505,7 @@ function SaleCard({ sale, isSelected, onSelect }: { sale: Sale; isSelected: bool
 
 export function RefundsClient({ sales }: { sales: any[] }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<"all" | "completed" | "voided">("completed");
+  const [filter, setFilter] = useState<"all" | "completed" | "refunded" | "voided">("completed");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "warning" } | null>(null);
@@ -518,20 +518,27 @@ export function RefundsClient({ sales }: { sales: any[] }) {
   const counts = {
     all: typedSales.length,
     completed: typedSales.filter((s) => s.status === "completed").length,
+    refunded: typedSales.filter((s) => s.refunds.length > 0).length,
     voided: typedSales.filter((s) => s.status === "voided").length,
   };
 
   const totalRefundedAmount = typedSales.reduce((s, sale) => s + totalRefunded(sale), 0);
   const searchTrimmed = search.trim().toLowerCase();
+  // Digit-only form of the query, so '053', '#00914-053-0155', and '9140530155'
+  // all match the same padded 12-digit sale_number.
+  const searchDigits = search.replace(/\D/g, "");
 
   const filtered = typedSales.filter((s) => {
     if (filter === "completed" && s.status !== "completed") return false;
+    if (filter === "refunded" && s.refunds.length === 0) return false;
     if (filter === "voided" && s.status !== "voided") return false;
     if (searchTrimmed) {
+      const paddedRef = s.sale_number != null ? String(s.sale_number).padStart(12, "0") : "";
+      const inSaleNumber = searchDigits.length > 0 && paddedRef.includes(searchDigits);
       const inId = s.id.toLowerCase().includes(searchTrimmed);
       const inCashier = s.cashier?.full_name?.toLowerCase().includes(searchTrimmed);
       const inItems = s.sale_items.some((i: SaleItem) => i.product.name.toLowerCase().includes(searchTrimmed));
-      if (!inId && !inCashier && !inItems) return false;
+      if (!inSaleNumber && !inId && !inCashier && !inItems) return false;
     }
     return true;
   });
@@ -550,9 +557,10 @@ export function RefundsClient({ sales }: { sales: any[] }) {
     router.refresh();
   }
 
-  const FILTERS: { key: "all" | "completed" | "voided"; label: string }[] = [
+  const FILTERS: { key: "all" | "completed" | "refunded" | "voided"; label: string }[] = [
     { key: "all", label: "All" },
     { key: "completed", label: "Completed" },
+    { key: "refunded", label: "Refunded" },
     { key: "voided", label: "Voided" },
   ];
 
@@ -576,7 +584,7 @@ export function RefundsClient({ sales }: { sales: any[] }) {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by sale ID, cashier name, or item…"
+              placeholder="Search by receipt #, cashier name, or item…"
               className="w-full h-10 rounded-xl border border-border bg-secondary/40 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
             />
             {search && (
@@ -635,6 +643,8 @@ export function RefundsClient({ sales }: { sales: any[] }) {
                   ? "No matching sales"
                   : filter === "voided"
                   ? "No voided sales"
+                  : filter === "refunded"
+                  ? "No refunds yet"
                   : filter === "completed"
                   ? "No completed sales"
                   : "No sales"}
