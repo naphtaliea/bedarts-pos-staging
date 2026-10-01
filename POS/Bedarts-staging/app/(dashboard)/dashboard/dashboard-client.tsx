@@ -58,7 +58,7 @@ interface DashboardClientProps {
     unit: string;
   }[];
   revenueByDay: { day: string; label: string; revenue: number; count: number }[];
-  thawTargets: { name: string; unit: string; suggested: number; todaySold: number; remaining: number }[];
+  thawTargets: { name: string; unit: string; suggested: number; todaySold: number; remaining: number; stockTotal: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
   topProducts: { name: string; revenue: number; units: number }[];
   outstandingPayablesTotal: number;

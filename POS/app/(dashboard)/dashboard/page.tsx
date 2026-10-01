@@ -192,12 +192,14 @@ export default async function DashboardPage() {
     suggested: number | string;
     today_sold: number | string;
     remaining: number | string;
+    stock_total: number | string;
   }>).map((row) => ({
     name: row.name,
     unit: row.unit,
     suggested: Number(row.suggested),
     todaySold: Number(row.today_sold),
     remaining: Number(row.remaining),
+    stockTotal: Number(row.stock_total),
   }));
 
   // Top 5 products (7-day)

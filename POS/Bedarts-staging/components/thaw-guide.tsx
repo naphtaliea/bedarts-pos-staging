@@ -15,6 +15,7 @@ export interface ThawTarget {
   suggested: number;   // amount to bring out for the day
   todaySold: number;   // cumulative sold today
   remaining: number;   // max(0, suggested - todaySold)
+  stockTotal: number;  // total unexpired stock across all batches (freezer + counter)
 }
 
 // After this hour (Africa/Accra), a product that hasn't sold today flips from
@@ -24,8 +25,13 @@ export interface ThawTarget {
 const STALE_AFTER_HOUR_ACCRA = 9;
 
 export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
-  const soldOutCount = thawTargets.filter(
-    (t) => t.remaining === 0 && t.suggested > 0
+  // Out of stock = freezer + counter are both empty. Needs reorder, not refill.
+  const outOfStockCount = thawTargets.filter(
+    (t) => t.stockTotal === 0 && t.suggested > 0
+  ).length;
+  // Needs refill = today's bring-out plan is done but freezer still has reserves.
+  const needsRefillCount = thawTargets.filter(
+    (t) => t.remaining === 0 && t.suggested > 0 && t.stockTotal > 0
   ).length;
   const freshCount = thawTargets.filter((t) => t.todaySold === 0).length;
   const allFresh = thawTargets.length > 0 && freshCount === thawTargets.length;
@@ -55,7 +61,7 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
             <p
               className={cn(
                 "text-sm sm:text-base font-semibold leading-tight",
-                soldOutCount > 0
+                outOfStockCount > 0 || needsRefillCount > 0
                   ? "text-destructive"
                   : allFresh
                     ? pastStaleThreshold
@@ -64,13 +70,17 @@ export function ThawGuide({ thawTargets }: { thawTargets: ThawTarget[] }) {
                     : "text-slate-500"
               )}
             >
-              {soldOutCount > 0
-                ? `${soldOutCount} ${soldOutCount === 1 ? "needs" : "need"} more from the freezer`
-                : allFresh
-                  ? pastStaleThreshold
-                    ? "No sales yet today — check if products need to come out."
-                    : "Morning setup — start bringing products out."
-                  : "All on track — keep selling."}
+              {outOfStockCount > 0 && needsRefillCount > 0
+                ? `${outOfStockCount} out of stock · ${needsRefillCount} need more`
+                : outOfStockCount > 0
+                  ? `${outOfStockCount} out of stock — reorder soon`
+                  : needsRefillCount > 0
+                    ? `${needsRefillCount} ${needsRefillCount === 1 ? "needs" : "need"} more from the freezer`
+                    : allFresh
+                      ? pastStaleThreshold
+                        ? "No sales yet today — check if products need to come out."
+                        : "Morning setup — start bringing products out."
+                      : "All on track — keep selling."}
             </p>
             <p className="text-[11px] text-slate-400 tabular-nums shrink-0">
               <RelativeTime iso={renderedAt} />
@@ -122,6 +132,9 @@ function ThawRow({
   const stale = fresh && pastStaleThreshold;
   const soldOut = t.remaining === 0 && t.suggested > 0;
   const overSold = t.todaySold > t.suggested;
+  // Highest-priority state: literally nothing left anywhere. Overrides every
+  // other hero line because 'bring more' is impossible.
+  const outOfStock = t.stockTotal === 0 && t.suggested > 0;
   // Overage rounded to the same precision as the target (0.5 for kg, 1 for pcs).
   const overRaw = Math.max(0, t.todaySold - t.suggested);
   const over =
@@ -135,21 +148,24 @@ function ThawRow({
   const soldPct =
     t.suggested > 0 ? Math.min(1, t.todaySold / t.suggested) : 0;
 
-  // The hero line is contextual to where in the day this product is:
+  // Hero line, in priority order:
+  // - out of stock:  "Out of stock"           (freezer empty, reorder — red)
   // - fresh morning: "Bring out 30 kg"        (call-to-action, blue)
   // - fresh stale:   "No sales yet"           (soft warning, amber)
-  // - partial:       "17 kg left"             (counting down, slate)
-  // - sold out:      "Sold out — bring more"  (urgent, red)
+  // - sold out:      "Sold out — bring more"  (hit target, freezer has more — red)
   // - over:          "Sold +5 kg over plan"   (reserves drawn, red)
-  const heroText = fresh
-    ? stale
-      ? "No sales yet"
-      : `Bring out ${t.suggested} ${unit}`
-    : soldOut
-      ? overSold
-        ? `Sold +${over} ${unit} over plan`
-        : "Sold out — bring more"
-      : `${t.remaining} ${unit} left`;
+  // - partial:       "17 kg left"             (counting down, slate)
+  const heroText = outOfStock
+    ? "Out of stock"
+    : fresh
+      ? stale
+        ? "No sales yet"
+        : `Bring out ${t.suggested} ${unit}`
+      : soldOut
+        ? overSold
+          ? `Sold +${over} ${unit} over plan`
+          : "Sold out — bring more"
+        : `${t.remaining} ${unit} left`;
 
   return (
     <li className="px-4 sm:px-5 py-3.5">
@@ -162,13 +178,14 @@ function ThawRow({
         {t.name}
       </p>
 
-      {/* Hero: red for sold-out urgency, amber for "no sales yet" stale rows
-         after 9am Accra, accent (brand blue) for the morning bring-out CTA,
-         slate once the row is counting down a partially-sold product. */}
+      {/* Hero colour mirrors the state ladder in heroText above. Red for
+         "cannot sell more" states (out of stock, sold out, over), amber for
+         stale, accent-blue for the morning CTA, slate for the counting-down
+         default. */}
       <p
         className={cn(
           "mt-0.5 text-2xl sm:text-3xl font-display-black tabular-nums leading-[1.1]",
-          soldOut
+          outOfStock || soldOut
             ? "text-destructive"
             : stale
               ? "text-amber-600"
@@ -181,14 +198,16 @@ function ThawRow({
         {heroText}
       </p>
 
-      {/* Progress bar: fills with sold %. Red once sold out. */}
+      {/* Progress bar: fills with sold %. Red when sold out or out of stock;
+         out-of-stock bar is forced full so the row reads as "done" visually
+         even if today's sales didn't reach target. */}
       <div className="mt-2.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-500 ease-out",
-            soldOut ? "bg-destructive" : "bg-accent"
+            outOfStock || soldOut ? "bg-destructive" : "bg-accent"
           )}
-          style={{ width: `${soldPct * 100}%` }}
+          style={{ width: `${(outOfStock ? 1 : soldPct) * 100}%` }}
         />
       </div>
 
