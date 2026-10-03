@@ -39,7 +39,6 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cashier submissions
   const [submissions, setSubmissions] = useState<CashierSubmission[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(true);
 
@@ -50,14 +49,18 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
     });
   }, []);
 
-  const expensesTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
-  const netRevenue = grossSales - expensesTotal - todayExpenses;
-
-  // Use the cashier's submitted values for the admin reconciliation record
   const lastSubmission = submissions.length > 0 ? submissions[submissions.length - 1] : null;
   const cashCountedForRecord = lastSubmission?.cash_counted ?? 0;
   const momoChangeForRecord = lastSubmission?.momo_change ?? 0;
   const posChangeForRecord = lastSubmission?.pos_change ?? 0;
+
+  const expensesTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
+  const netRevenue = grossSales - expensesTotal - todayExpenses;
+  const cashExpected = Math.max(0, cashSales - momoChangeForRecord - posChangeForRecord);
+  const netCashToCollect = cashCountedForRecord - expensesTotal;
+  // Variance = how much the manager collects vs what cash sales predicted.
+  // Expenses reduce what's collected, so a GHC500 expense turns a +252.50 surplus into −247.50.
+  const collectVariance = netCashToCollect - cashExpected;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -100,6 +103,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl flex flex-col my-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
@@ -121,8 +125,20 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
         </div>
 
         <form id="admin-recon-form" onSubmit={handleSubmit}>
-          {/* Cashier cash count — read-only */}
-          <div className="px-5 py-4 border-b border-border space-y-2.5">
+
+          {/* Revenue — single compact row */}
+          <div className="px-5 py-3.5 border-b border-border">
+            <div className="flex items-baseline justify-between">
+              <p className={LABEL}>Revenue</p>
+              <p className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(grossSales)}</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+              Cash {formatCurrency(cashExpected)} · MoMo {formatCurrency(momoSales)} · POS {formatCurrency(posSales)}
+            </p>
+          </div>
+
+          {/* Cashier cash count */}
+          <div className="px-5 py-4 border-b border-border space-y-2">
             <div className="flex items-center gap-1.5">
               <UserCheck className="w-3.5 h-3.5 text-muted-foreground" aria-hidden />
               <p className={LABEL}>Cashier Cash Count</p>
@@ -131,26 +147,20 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             {loadingSubmissions ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Loading submissions…
+                Loading…
               </div>
             ) : submissions.length === 0 ? (
-              <div className="rounded-xl bg-warning/8 border border-warning/25 px-3 py-3">
+              <div className="rounded-xl border border-warning/25 bg-warning/8 px-3 py-3">
                 <p className="text-xs text-warning font-semibold">No cashier submission yet</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">The cashier must count cash and submit before you confirm.</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">The cashier must count cash and submit first.</p>
               </div>
             ) : (
               <div className="space-y-1.5">
                 {submissions.map((s) => {
-                  // Recompute expected against the current live totals so the variance
-                  // reflects today's true numbers, not whatever was stored when the
-                  // cashier submitted (which may be stale if fixes have shipped since).
                   const expected = Math.max(0, cashSales - s.momo_change - s.pos_change);
                   const variance = s.cash_counted - expected;
                   return (
-                    <div
-                      key={s.cashier_id}
-                      className="rounded-xl bg-success/8 border border-success/20 px-3 py-3"
-                    >
+                    <div key={s.cashier_id} className="rounded-xl bg-success/8 border border-success/20 px-3 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-bold text-foreground">{s.cashier_name}</p>
@@ -168,12 +178,10 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-base font-bold tabular-nums text-foreground">{formatCurrency(s.cash_counted)}</p>
-                          <p className={cn(
-                            "text-[11px] tabular-nums font-semibold mt-0.5",
-                            variance >= 0 ? "text-success" : "text-destructive"
-                          )}>
-                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)} vs expected {formatCurrency(expected)}
+                          <p className={cn("text-xs tabular-nums font-bold mt-0.5", variance >= 0 ? "text-success" : "text-destructive")}>
+                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)}
                           </p>
+                          <p className="text-[10px] text-muted-foreground">vs expected {formatCurrency(expected)}</p>
                         </div>
                       </div>
                     </div>
@@ -183,33 +191,10 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             )}
           </div>
 
-          {/* Today's revenue */}
-          <div className="px-5 py-4 border-b border-border space-y-2">
-            <p className={LABEL}>Today&apos;s Revenue</p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground">Cash expected</p>
-                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(Math.max(0, cashSales - momoChangeForRecord - posChangeForRecord))}</p>
-              </div>
-              <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground">MoMo</p>
-                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(momoSales)}</p>
-              </div>
-              <div className="rounded-xl bg-secondary/60 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground">POS Machine</p>
-                <p className="font-semibold tabular-nums mt-0.5">{formatCurrency(posSales)}</p>
-              </div>
-              <div className="rounded-xl bg-primary/10 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground">Gross Total</p>
-                <p className="font-bold tabular-nums text-primary mt-0.5">{formatCurrency(grossSales)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Additional expenses */}
+          {/* Expenses */}
           <div className="px-5 py-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className={LABEL}>Additional Expenses</p>
+              <p className={LABEL}>Expenses</p>
               {todayExpenses > 0 && (
                 <span className="text-[11px] text-muted-foreground">{formatCurrency(todayExpenses)} already recorded</span>
               )}
@@ -256,28 +241,57 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
             </button>
           </div>
 
-          {/* Net revenue summary */}
-          <div className="mx-5 mb-4 rounded-xl bg-secondary/50 px-4 py-3 space-y-1.5 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Gross sales</span>
-              <span className="tabular-nums">{formatCurrency(grossSales)}</span>
-            </div>
-            {todayExpenses > 0 && (
+          {/* Summary — one flat ledger card, two zones separated by divider */}
+          <div className="mx-5 mb-5 rounded-xl bg-secondary/40 overflow-hidden text-sm divide-y divide-border">
+
+            {/* P&L */}
+            <div className="px-4 py-3 space-y-1.5">
               <div className="flex justify-between text-muted-foreground">
-                <span>Expenses (recorded)</span>
-                <span className="tabular-nums text-destructive">−{formatCurrency(todayExpenses)}</span>
+                <span>Gross sales</span>
+                <span className="tabular-nums">{formatCurrency(grossSales)}</span>
+              </div>
+              {todayExpenses > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Expenses (recorded)</span>
+                  <span className="tabular-nums text-destructive">−{formatCurrency(todayExpenses)}</span>
+                </div>
+              )}
+              {expensesTotal > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Expenses</span>
+                  <span className="tabular-nums text-destructive">−{formatCurrency(expensesTotal)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-foreground pt-0.5 border-t border-border">
+                <span>Net Revenue</span>
+                <span className="tabular-nums">{formatCurrency(netRevenue)}</span>
+              </div>
+            </div>
+
+            {/* Cash settlement */}
+            {lastSubmission && (
+              <div className="px-4 py-3 space-y-1.5">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Cash counted</span>
+                  <span className="tabular-nums">{formatCurrency(cashCountedForRecord)}</span>
+                </div>
+                {expensesTotal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Expenses</span>
+                    <span className="tabular-nums text-destructive">−{formatCurrency(expensesTotal)}</span>
+                  </div>
+                )}
+                <div className="flex items-end justify-between pt-0.5 border-t border-border">
+                  <p className={cn(LABEL, "text-foreground")}>Collect from till</p>
+                  <div className="text-right">
+                    <p className="text-lg font-bold tabular-nums text-foreground">{formatCurrency(netCashToCollect)}</p>
+                    <p className={cn("text-[11px] tabular-nums font-semibold", collectVariance >= 0 ? "text-success" : "text-destructive")}>
+                      {collectVariance >= 0 ? "+" : ""}{formatCurrency(collectVariance)} vs expected {formatCurrency(cashExpected)}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
-            {expensesTotal > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span>Expenses (this form)</span>
-                <span className="tabular-nums text-destructive">−{formatCurrency(expensesTotal)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-semibold text-foreground pt-1.5 border-t border-border">
-              <span>Net Revenue</span>
-              <span className="tabular-nums">{formatCurrency(netRevenue)}</span>
-            </div>
           </div>
 
           {error && (
