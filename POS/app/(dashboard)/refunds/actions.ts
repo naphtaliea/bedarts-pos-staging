@@ -72,6 +72,8 @@ export async function voidSale(
 
   revalidatePath("/refunds");
   revalidatePath("/inventory");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
   return {};
 }
 
@@ -150,5 +152,7 @@ export async function processRefund(
 
   revalidatePath("/refunds");
   revalidatePath("/inventory");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
   return { refundId: refund!.id };
 }

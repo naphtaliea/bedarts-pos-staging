@@ -1,7 +1,7 @@
 "use server";
 
 import { requireManagerOrAdmin } from "@/lib/auth-guards";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 type ProductData = {
   name: string;
@@ -40,6 +40,7 @@ export async function createProduct(
   ]);
 
   revalidatePath("/inventory");
+  updateTag("pos-packages");
   return {};
 }
 
@@ -86,6 +87,7 @@ export async function updateProduct(
   }
 
   revalidatePath("/inventory");
+  updateTag("pos-packages");
   return {};
 }
 
@@ -130,6 +132,7 @@ export async function createCategory(
   if (error) return { error: error.message };
 
   revalidatePath("/inventory");
+  updateTag("pos-categories");
   return data;
 }
 
@@ -145,6 +148,7 @@ export async function deleteCategory(id: string): Promise<{ error?: string }> {
   }
 
   revalidatePath("/inventory");
+  updateTag("pos-categories");
   return {};
 }
 
@@ -303,6 +307,7 @@ export async function createProductPackage(data: {
   const { error } = await supabase.from("product_packages").insert(data);
   if (error) return { error: error.message };
   revalidatePath("/inventory");
+  updateTag("pos-packages");
   return {};
 }
 
@@ -311,6 +316,7 @@ export async function deleteProductPackage(id: string): Promise<{ error?: string
   const { error } = await supabase.from("product_packages").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/inventory");
+  updateTag("pos-packages");
   return {};
 }
 
@@ -371,6 +377,7 @@ export async function upsertBoxPackages(
   }
 
   revalidatePath("/inventory");
+  updateTag("pos-packages");
   return {};
 }
 

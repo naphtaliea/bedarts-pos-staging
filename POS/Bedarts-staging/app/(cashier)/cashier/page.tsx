@@ -13,7 +13,7 @@ const getCachedCategories = unstable_cache(
     return (data ?? []) as Category[];
   },
   ["pos-categories"],
-  { revalidate: 300 }
+  { revalidate: 300, tags: ["pos-categories"] }
 );
 
 const getCachedPackages = unstable_cache(
@@ -23,7 +23,7 @@ const getCachedPackages = unstable_cache(
     return (data ?? []) as ProductPackage[];
   },
   ["pos-packages"],
-  { revalidate: 300 }
+  { revalidate: 300, tags: ["pos-packages"] }
 );
 
 export default async function CashierPage() {

@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { ThawGuide } from "@/components/thaw-guide";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +57,6 @@ interface DashboardClientProps {
     unit: string;
   }[];
   revenueByDay: { day: string; label: string; revenue: number; count: number }[];
-  thawTargets: { name: string; unit: string; suggested: number; todaySold: number; remaining: number; stockTotal: number }[];
   peakHours: { hour: number; label: string; count: number; revenue: number }[];
   topProducts: { name: string; revenue: number; units: number }[];
   outstandingPayablesTotal: number;
@@ -133,7 +131,6 @@ export function DashboardClient({
   activeProductCount,
   lowStockItems,
   revenueByDay,
-  thawTargets,
   peakHours,
   topProducts,
   outstandingPayablesTotal,
@@ -273,11 +270,6 @@ export function DashboardClient({
           expensesByCategory={expensesByCategory}
           sevenDayExpenses={sevenDayExpenses}
         />
-
-        {/* ── Daily thaw guide (below P&L) ──────────────────────── */}
-        <ThawGuide thawTargets={thawTargets} />
-
-
 
         {/* ── Revenue trend (7-day, full-width) ────────────────── */}
         <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">

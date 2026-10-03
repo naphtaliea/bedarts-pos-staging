@@ -206,6 +206,34 @@ export function CashierPOSClient({
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Live price and is_active sync — receives product UPDATE events so cashiers
+  // see price changes and deactivations within seconds, not at the next
+  // hourly router.refresh(). Requires products realtime to be enabled in DB.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("products-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "products" },
+        (payload) => {
+          const updated = payload.new as { id: string; selling_price: number; is_active: boolean };
+          setProducts((prev) => {
+            if (!updated.is_active) {
+              return prev.filter((p) => p.id !== updated.id);
+            }
+            return prev.map((p) =>
+              p.id === updated.id
+                ? { ...p, selling_price: updated.selling_price, is_active: updated.is_active }
+                : p
+            );
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const subtotalVal = subtotal();
   const totalVal    = total();
   const discountVal = subtotalVal - totalVal;

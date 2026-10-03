@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { readCashierSession } from "@/lib/cashier-session";
 import type { CartItem, PaymentEntry } from "@/lib/types";
 
@@ -47,21 +48,44 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
 
   const { items, payments, subtotal, discount, total, pendingPickup, pickupNote, stockOverrideReason } = args;
 
-  // Early stock guard — skipped for pre-orders and approved overrides.
-  // Collects ALL violations so the client can surface them all at once.
+  // Fetch authoritative server state: stock, price, and active status.
+  // selling_price is used server-side to prevent stale-price financial errors.
+  // is_active blocks sales of deactivated products regardless of cashier screen state.
   const { data: stocks } = await supabase
     .from("product_stock")
-    .select("id, stock_quantity, name, unit")
+    .select("id, stock_quantity, name, unit, selling_price, is_active")
     .in("id", items.map((i) => i.product.id));
 
   const stockMap = Object.fromEntries((stocks ?? []).map((s) => [s.id, s]));
   for (const item of items) {
-    const stock = stockMap[item.product.id];
-    if (!stock) throw new Error(`Product not found: ${item.product.name}`);
+    if (!stockMap[item.product.id]) throw new Error(`Product not found: ${item.product.name}`);
   }
 
+  // Block deactivated products — not override-able. A product pulled for
+  // quality or safety must be reactivated before it can be sold.
+  const inactiveItems = items.filter((item) => !stockMap[item.product.id]?.is_active);
+  if (inactiveItems.length > 0) {
+    throw new Error(
+      `Cannot sell deactivated product${inactiveItems.length > 1 ? "s" : ""}: ${inactiveItems.map((i) => i.product.name).join(", ")}`
+    );
+  }
+
+  // Replace stale client prices with the authoritative server price at time of
+  // sale. Discount amounts and quantities are unchanged.
+  const correctedItems = items.map((item) => ({
+    ...item,
+    unit_price: stockMap[item.product.id]?.selling_price ?? item.unit_price,
+  }));
+
+  // Recompute totals from the corrected prices.
+  const correctedSubtotal = correctedItems.reduce(
+    (sum, item) => sum + Math.max(0, item.quantity * item.unit_price - (item.discount_amount ?? 0)),
+    0
+  );
+  const correctedTotal = Math.max(0, correctedSubtotal - discount);
+
   if (!pendingPickup && !stockOverrideReason) {
-    const violations = items
+    const violations = correctedItems
       .filter((item) => (stockMap[item.product.id]?.stock_quantity ?? 0) < item.quantity)
       .map((item) => item.product.name);
     if (violations.length > 0) {
@@ -69,7 +93,7 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
     }
   }
 
-  const p_items = items.map((item) => ({
+  const p_items = correctedItems.map((item) => ({
     product_id: item.product.id,
     quantity: item.quantity,
     unit_price: item.unit_price,
@@ -87,9 +111,9 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
   const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v5", {
     p_cashier_id: cashierId,
     p_customer_id: null,
-    p_subtotal: subtotal,
+    p_subtotal: correctedSubtotal,
     p_discount: discount,
-    p_total: total,
+    p_total: correctedTotal,
     p_items: p_items,
     p_payments: p_payments,
     p_pending_pickup: pendingPickup ?? false,
@@ -98,6 +122,9 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
   });
 
   if (rpcErr) throw new Error(rpcErr.message);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
 
   return { ok: true as const, saleId: saleId as string };
 }

@@ -13,19 +13,27 @@ export default async function ButcherPage() {
   const { data } = await supabase.rpc("get_thaw_targets_v1");
 
   const thawTargets = ((data ?? []) as Array<{
+    product_id: string;
     name: string;
     unit: string;
+    demand: number | string;
     suggested: number | string;
     today_sold: number | string;
     remaining: number | string;
     stock_total: number | string;
+    brought_out: number | string | null;
+    active_days: number | string;
   }>).map((row) => ({
+    productId: row.product_id,
     name: row.name,
     unit: row.unit,
+    demand: Number(row.demand),
     suggested: Number(row.suggested),
     todaySold: Number(row.today_sold),
     remaining: Number(row.remaining),
     stockTotal: Number(row.stock_total),
+    broughtOut: row.brought_out != null ? Number(row.brought_out) : null,
+    activeDays: Number(row.active_days),
   }));
 
   return <ButcherClient thawTargets={thawTargets} />;
