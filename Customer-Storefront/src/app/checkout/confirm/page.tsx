@@ -83,14 +83,30 @@ function ConfirmContent() {
             This usually takes a few seconds.
           </p>
           {attemptCount >= 10 && (
-            <p className="text-xs text-muted-foreground mt-4 bg-card rounded-xl px-4 py-3 border border-border">
-              Taking longer than expected. If you completed payment, your order
-              will be confirmed shortly and you&apos;ll see it in{" "}
-              <Link href="/account" className="text-primary font-semibold">
-                My orders
-              </Link>
-              .
-            </p>
+            <div className="mt-4 bg-card rounded-xl px-4 py-4 border border-border text-left space-y-2">
+              <p className="text-xs font-semibold text-foreground">
+                Taking longer than expected.
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If you completed payment, your order will appear in{" "}
+                <Link href="/account" className="text-primary font-semibold">My orders</Link>.
+                If it doesn&apos;t show up within a few minutes, contact us with your reference:
+              </p>
+              <p className="text-sm font-bold tabular-nums text-foreground bg-background rounded-lg px-3 py-2 border border-border">
+                {ref}
+              </p>
+              {settings?.phone && extractWhatsAppNumber(settings.phone) && (
+                <a
+                  href={`https://wa.me/${extractWhatsAppNumber(settings.phone)}?text=${encodeURIComponent(`Hi, I just paid but my order isn't confirmed yet. Reference: ${ref}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-success bg-success/10 hover:bg-success/20 transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                  Message us on WhatsApp
+                </a>
+              )}
+            </div>
           )}
         </>
       )}

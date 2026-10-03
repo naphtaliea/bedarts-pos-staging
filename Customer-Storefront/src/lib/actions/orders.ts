@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/src/lib/supabase/server";
-import type { CartItem, DeliveryDetails, OnlineOrder } from "@/src/lib/types";
+import { computeDispatch } from "@/src/lib/dispatch-estimate";
+import type { CartItem, DeliveryDetails, OnlineOrder, StoreSettings } from "@/src/lib/types";
 
 // Generates a reference like BDS-1748291234567-AB3X7
 function generateRef(): string {
@@ -40,6 +41,16 @@ export async function initializeOrder(
 
   const ref = generateRef();
 
+  // Check dispatch window server-side and annotate the order so staff can see it.
+  const settingsRes = await supabase.rpc("get_storefront_settings");
+  const settings = (settingsRes.data?.[0] ?? null) as StoreSettings | null;
+  const dispatch = computeDispatch(settings);
+  const dispatchNote = dispatch.isSameDay ? null : "[NEXT-DAY DISPATCH]";
+  const rawNotes = delivery.notes ?? null;
+  const resolvedNotes = dispatchNote
+    ? (rawNotes ? `${rawNotes} | ${dispatchNote}` : dispatchNote)
+    : rawNotes;
+
   // Create the order row
   const { data: order, error: orderErr } = await supabase
     .from("online_orders")
@@ -49,7 +60,7 @@ export async function initializeOrder(
       delivery_name:    delivery.name,
       delivery_phone:   delivery.phone,
       delivery_address: delivery.fulfillmentType === "pickup" ? null : (delivery.address ?? null),
-      delivery_notes:   delivery.notes ?? null,
+      delivery_notes:   resolvedNotes,
       fulfillment_type: delivery.fulfillmentType ?? "delivery",
       paystack_ref:     ref,
     })

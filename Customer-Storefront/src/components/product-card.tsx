@@ -76,7 +76,7 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
   }
 
   return (
-    <article className="bg-card rounded-2xl shadow-card flex flex-col overflow-hidden border border-border hover:shadow-raised transition-shadow duration-200">
+    <article className={cn("bg-card rounded-2xl shadow-card flex flex-col overflow-hidden border border-border transition-shadow duration-200", outOfStock ? "opacity-55" : "hover:shadow-raised")}>
       {/* Image + product body — clickable region opens detail */}
       <button
         type="button"
