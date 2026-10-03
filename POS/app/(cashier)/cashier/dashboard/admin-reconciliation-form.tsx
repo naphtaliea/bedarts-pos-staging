@@ -57,11 +57,10 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   const expensesTotal = lines.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
   const netRevenue = grossSales - expensesTotal - todayExpenses;
   const cashExpected = Math.max(0, cashSales - momoChangeForRecord - posChangeForRecord);
-  const netCashToCollect = cashCountedForRecord - expensesTotal;
-  // Expenses come out of the till, so they reduce both sides equally.
-  // Variance = count variance only; expenses cancel out and must not inflate the shortfall.
-  const expectedNetCollect = Math.max(0, cashExpected - expensesTotal);
-  const collectVariance = netCashToCollect - expectedNetCollect;
+  // Expenses were paid from the till during the day, so the cashier's count already has them removed.
+  // Expected in till = cashExpected − expenses; variance improves as expenses are entered.
+  const expectedInTill = Math.max(0, cashExpected - expensesTotal);
+  const collectVariance = cashCountedForRecord - expectedInTill;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -183,6 +182,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                             {variance >= 0 ? "+" : ""}{formatCurrency(variance)}
                           </p>
                           <p className="text-[10px] text-muted-foreground">vs expected {formatCurrency(expected)}</p>
+                          <p className="text-[10px] text-muted-foreground">(before expenses)</p>
                         </div>
                       </div>
                     </div>
@@ -195,7 +195,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
           {/* Expenses */}
           <div className="px-5 py-4 space-y-3">
             <div className="flex items-center justify-between">
-              <p className={LABEL}>Expenses</p>
+              <p className={LABEL}>Expenses paid from till today</p>
               {todayExpenses > 0 && (
                 <span className="text-[11px] text-muted-foreground">{formatCurrency(todayExpenses)} already recorded</span>
               )}
@@ -278,16 +278,16 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                 </div>
                 {expensesTotal > 0 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Expenses</span>
-                    <span className="tabular-nums text-destructive">−{formatCurrency(expensesTotal)}</span>
+                    <span>Settled from till</span>
+                    <span className="tabular-nums">−{formatCurrency(expensesTotal)}</span>
                   </div>
                 )}
                 <div className="flex items-end justify-between pt-0.5 border-t border-border">
                   <p className={cn(LABEL, "text-foreground")}>Collect from till</p>
                   <div className="text-right">
-                    <p className="text-lg font-bold tabular-nums text-foreground">{formatCurrency(netCashToCollect)}</p>
+                    <p className="text-lg font-bold tabular-nums text-foreground">{formatCurrency(cashCountedForRecord)}</p>
                     <p className={cn("text-[11px] tabular-nums font-semibold", collectVariance >= 0 ? "text-success" : "text-destructive")}>
-                      {collectVariance >= 0 ? "+" : ""}{formatCurrency(collectVariance)} vs expected {formatCurrency(expectedNetCollect)}
+                      {collectVariance >= 0 ? "+" : ""}{formatCurrency(collectVariance)} vs expected{expensesTotal > 0 ? " after expenses" : ""} {formatCurrency(expectedInTill)}
                     </p>
                   </div>
                 </div>
