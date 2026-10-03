@@ -598,7 +598,7 @@ export function DashboardClient({
               <Clock className="w-4 h-4 text-slate-400" strokeWidth={STROKE_STANDARD} />
               <div>
                 <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-                  Peak hours
+                  Peak hours (last 7 days)
                 </p>
                 <h3 className="text-slate-900 text-base sm:text-lg font-display-heading">
                   Sales volume · 7-day average
@@ -636,7 +636,7 @@ export function DashboardClient({
 
           <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
-              Top products
+              Top products (last 7 days)
             </p>
             <h3 className="text-slate-900 text-base sm:text-lg mt-0.5 mb-4 font-display-heading">
               By revenue · Last 7 days
