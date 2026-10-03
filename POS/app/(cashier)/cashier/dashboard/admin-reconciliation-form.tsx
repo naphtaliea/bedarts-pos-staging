@@ -58,9 +58,10 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
   const netRevenue = grossSales - expensesTotal - todayExpenses;
   const cashExpected = Math.max(0, cashSales - momoChangeForRecord - posChangeForRecord);
   const netCashToCollect = cashCountedForRecord - expensesTotal;
-  // Variance = how much the manager collects vs what cash sales predicted.
-  // Expenses reduce what's collected, so a GHC500 expense turns a +252.50 surplus into −247.50.
-  const collectVariance = netCashToCollect - cashExpected;
+  // Expenses come out of the till, so they reduce both sides equally.
+  // Variance = count variance only; expenses cancel out and must not inflate the shortfall.
+  const expectedNetCollect = Math.max(0, cashExpected - expensesTotal);
+  const collectVariance = netCashToCollect - expectedNetCollect;
 
   function updateLine(key: string, field: keyof ExpenseLine, value: string) {
     setLines(prev => prev.map(l => l.key === key ? { ...l, [field]: value } : l));
@@ -286,7 +287,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                   <div className="text-right">
                     <p className="text-lg font-bold tabular-nums text-foreground">{formatCurrency(netCashToCollect)}</p>
                     <p className={cn("text-[11px] tabular-nums font-semibold", collectVariance >= 0 ? "text-success" : "text-destructive")}>
-                      {collectVariance >= 0 ? "+" : ""}{formatCurrency(collectVariance)} vs expected {formatCurrency(cashExpected)}
+                      {collectVariance >= 0 ? "+" : ""}{formatCurrency(collectVariance)} vs expected {formatCurrency(expectedNetCollect)}
                     </p>
                   </div>
                 </div>
