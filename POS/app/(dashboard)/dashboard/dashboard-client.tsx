@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   BarChart,
@@ -16,6 +16,9 @@ import {
   ArrowRight,
   ArrowUpRight,
   BarChart3,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
   Clock,
   Package,
   Receipt,
@@ -26,8 +29,14 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { fetchCustomDayStats } from "./actions";
+import type { DayStats } from "./actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+// "today" | "d1"–"d6" = named day offsets | "7d" = aggregate | "custom" = arbitrary past date
+type Range = "today" | "d1" | "d2" | "d3" | "d4" | "d5" | "d6" | "7d" | "custom";
+type Tone = "neutral" | "warning" | "success" | "destructive";
 
 interface DashboardClientProps {
   todayRevenue: number;
@@ -61,26 +70,26 @@ interface DashboardClientProps {
   topProducts: { name: string; revenue: number; units: number }[];
   outstandingPayablesTotal: number;
   outstandingPayablesCount: number;
+  /** Per-day stats for the 7-day window; index 0 = today, 6 = 6 days ago. */
+  perDayStats: DayStats[];
+  /** Human-readable labels: index 0 = "Today", 1–6 = "Fri Oct 2" etc. */
+  dayLabels: string[];
+  /** YYYY-MM-DD date strings for each offset; used as date-input bounds. */
+  dayDateStrs: string[];
 }
-
-type Range = "today" | "7d";
-type Tone = "neutral" | "warning" | "success" | "destructive";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-// Muted, print-friendly, colour-blind-safe palette. Brand red is reserved for
-// destructive states and CTAs — never accent decoration.
 const DONUT_COLORS = [
-  "#1B50C0", // brand blue
-  "#0D9448", // success green
-  "#C07C00", // warning amber
-  "#7C3AED", // violet
-  "#0891B2", // teal
-  "#DB2777", // pink
-  "#475569", // slate
+  "#1B50C0",
+  "#0D9448",
+  "#C07C00",
+  "#7C3AED",
+  "#0891B2",
+  "#DB2777",
+  "#475569",
 ];
 
-// Standard stroke widths — used consistently so icons feel like one set.
 const STROKE_STANDARD = 2;
 const STROKE_MUTED = 1.75;
 
@@ -135,33 +144,170 @@ export function DashboardClient({
   topProducts,
   outstandingPayablesTotal,
   outstandingPayablesCount,
+  perDayStats,
+  dayLabels,
+  dayDateStrs,
 }: DashboardClientProps) {
   const [range, setRange] = useState<Range>("today");
-  const isToday = range === "today";
 
-  const revenue     = isToday ? todayRevenue     : sevenDayRevenue;
-  const cogs        = isToday ? todayCogs        : sevenDayCogs;
-  const grossProfit = isToday ? todayGrossProfit : sevenDayGrossProfit;
-  const expenses    = isToday ? todayExpenses    : sevenDayExpenses;
-  const netProfit   = isToday ? todayNetProfit   : sevenDayNetProfit;
+  // Dropdown state
+  const [dropOpen, setDropOpen] = useState(false);
+  const [dropMode, setDropMode] = useState<"list" | "picker">("list");
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  // Custom date state
+  const [customDate, setCustomDate] = useState("");
+  const [customStats, setCustomStats] = useState<DayStats | null>(null);
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customError, setCustomError] = useState<string | null>(null);
+
+  // Close dropdown on click-outside or Escape
+  useEffect(() => {
+    if (!dropOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!dropRef.current?.contains(e.target as Node)) {
+        setDropOpen(false);
+        setDropMode("list");
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setDropOpen(false);
+        setDropMode("list");
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [dropOpen]);
+
+  // ── Derive current period stats ──────────────────────────────────────────
+
+  const isToday = range === "today";
+  const isSevenDay = range === "7d";
+  const isCustom = range === "custom";
+  // dayIdx: 1–6 for d1–d6 named offsets; -1 otherwise
+  const dayIdx = range.startsWith("d") && range.length === 2 ? parseInt(range[1]) : -1;
+  const isDayOffset = dayIdx >= 1;
+
+  const ds: DayStats | null = isDayOffset
+    ? perDayStats[dayIdx]
+    : isCustom
+    ? customStats
+    : null;
+
+  const revenue     = isSevenDay ? sevenDayRevenue     : isToday ? todayRevenue     : ds?.revenue     ?? 0;
+  const cogs        = isSevenDay ? sevenDayCogs        : isToday ? todayCogs        : ds?.cogs        ?? 0;
+  const grossProfit = isSevenDay ? sevenDayGrossProfit : isToday ? todayGrossProfit : ds?.grossProfit ?? 0;
+  const expenses    = isSevenDay ? sevenDayExpenses    : isToday ? todayExpenses    : ds?.expenses    ?? 0;
+  const netProfit   = isSevenDay ? sevenDayNetProfit   : isToday ? todayNetProfit   : ds?.netProfit   ?? 0;
+
+  const payBreakdown = isSevenDay
+    ? { cash: sevenDayCash, momo: sevenDayMomo, pos: sevenDayPos }
+    : isToday
+    ? { cash: todayCash, momo: todayMomo, pos: todayPos }
+    : { cash: ds?.cash ?? 0, momo: ds?.momo ?? 0, pos: ds?.pos ?? 0 };
 
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
   const netMargin   = revenue > 0 ? (netProfit   / revenue) * 100 : 0;
 
-  // Use the prop directly — no redundant recomputation from revenueByDay.
   const sevenDaySalesCount = revenueByDay.reduce((s, d) => s + d.count, 0);
+  const currentTransactions = isSevenDay
+    ? sevenDaySalesCount
+    : isToday
+    ? todayTransactions
+    : ds?.transactions ?? 0;
 
-  const avgTicket7d = sevenDaySalesCount > 0 ? sevenDayRevenue / sevenDaySalesCount : 0;
-  const avgTicketToday = todayTransactions > 0 ? todayRevenue / todayTransactions : 0;
-  const avgTicket = isToday ? avgTicketToday : avgTicket7d;
+  const avgTicket = currentTransactions > 0 ? revenue / currentTransactions : 0;
+
+  // ── Labels ───────────────────────────────────────────────────────────────
+
+  // Human-readable label for the selected custom date (client-side, Accra tz)
+  const customDateLabel = customDate
+    ? new Date(`${customDate}T00:00:00Z`)
+        .toLocaleDateString("en-US", {
+          timeZone: "Africa/Accra",
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })
+        .replace(",", "")
+    : "Custom";
+
+  const selectedLabel = isSevenDay
+    ? "Last 7 days"
+    : isToday
+    ? "Today"
+    : isDayOffset
+    ? dayLabels[dayIdx]
+    : customDate
+    ? customDateLabel
+    : "Custom…";
+
+  const periodLabel = isSevenDay
+    ? "Last 7 days"
+    : isToday
+    ? "Today"
+    : isDayOffset
+    ? dayLabels[dayIdx]
+    : customDateLabel;
+
+  const rangeLabel = isSevenDay
+    ? "7-day revenue"
+    : isToday
+    ? "Today's revenue"
+    : isDayOffset
+    ? dayLabels[dayIdx]
+    : customDateLabel;
+
+  const transactionsSub = isSevenDay
+    ? `${sevenDaySalesCount} sales over 7 days`
+    : isToday
+    ? `${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""} today`
+    : `${currentTransactions} sale${currentTransactions !== 1 ? "s" : ""}`;
+
+  const avgTicketSub = isSevenDay ? "7-day average" : isToday ? "per sale today" : "per sale";
+
+  // ── Dropdown options ──────────────────────────────────────────────────────
+
+  const namedOptions: { value: Range; label: string }[] = [
+    { value: "today", label: "Today" },
+    { value: "d1",   label: dayLabels[1] },
+    { value: "d2",   label: dayLabels[2] },
+    { value: "d3",   label: dayLabels[3] },
+    { value: "d4",   label: dayLabels[4] },
+    { value: "d5",   label: dayLabels[5] },
+    { value: "d6",   label: dayLabels[6] },
+    { value: "7d",   label: "Last 7 days" },
+  ];
+
+  // Yesterday's date string — used as max bound on custom date picker
+  const yesterdayStr = dayDateStrs[1] ?? "";
+
+  async function handleCustomDate(dateStr: string) {
+    if (!dateStr) return;
+    setCustomDate(dateStr);
+    setCustomError(null);
+    setCustomLoading(true);
+    const result = await fetchCustomDayStats(dateStr);
+    setCustomLoading(false);
+    if ("error" in result) {
+      setCustomError(result.error);
+      return;
+    }
+    setCustomStats(result);
+    setRange("custom");
+    setDropOpen(false);
+    setDropMode("list");
+  }
 
   return (
     <PullToRefresh>
     <div className="min-h-full bg-slate-50">
-      {/* ── Page header (scrolls with content) ────────────────────
-         Sticky was fighting the mobile-navbar padding — see git history.
-         Plain non-sticky header keeps positioning predictable on every
-         breakpoint. */}
+      {/* ── Page header ─────────────────────────────────────────── */}
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -173,59 +319,129 @@ export function DashboardClient({
             </h1>
           </div>
 
-          {/* Range toggle — segmented control. h-11 = 44px min touch target. */}
-          <div
-            role="tablist"
-            aria-label="Time range for Revenue and P&amp;L"
-            className="inline-flex rounded-lg bg-slate-100 p-0.5 shrink-0"
-          >
-            {(["today", "7d"] as const).map((r) => (
-              <button
-                key={r}
-                role="tab"
-                aria-selected={range === r}
-                onClick={() => setRange(r)}
+          {/* ── Period selector dropdown ────────────────────────── */}
+          <div ref={dropRef} className="relative shrink-0">
+            <button
+              onClick={() => {
+                setDropOpen((o) => !o);
+                setDropMode("list");
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={dropOpen}
+              aria-label="Select time period"
+              className="h-11 min-w-[130px] max-w-[190px] px-3 rounded-lg bg-slate-100 text-xs font-bold text-slate-700 flex items-center justify-between gap-2 hover:bg-slate-200 transition-colors"
+            >
+              <span className="truncate">{selectedLabel}</span>
+              <ChevronDown
                 className={cn(
-                  "px-3 sm:px-4 h-11 rounded-md text-xs font-bold transition-all min-w-[72px]",
-                  range === r
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
+                  "w-3.5 h-3.5 shrink-0 transition-transform duration-150",
+                  dropOpen && "rotate-180"
                 )}
-              >
-                {r === "today" ? "Today" : "7 days"}
-              </button>
-            ))}
+                strokeWidth={2.5}
+              />
+            </button>
+
+            {dropOpen && (
+              <div className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[170px] rounded-xl bg-white border border-slate-200 shadow-lg overflow-hidden">
+                {dropMode === "list" ? (
+                  <ul role="listbox" aria-label="Time period options" className="py-1">
+                    {namedOptions.map((opt) => (
+                      <li key={opt.value} role="option" aria-selected={range === opt.value}>
+                        <button
+                          onClick={() => {
+                            setRange(opt.value);
+                            setDropOpen(false);
+                            setDropMode("list");
+                          }}
+                          className={cn(
+                            "w-full text-left px-4 py-2.5 text-xs transition-colors",
+                            range === opt.value
+                              ? "bg-slate-100 text-slate-900 font-bold"
+                              : "text-slate-700 font-medium hover:bg-slate-50"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      </li>
+                    ))}
+
+                    <li role="separator" aria-hidden className="border-t border-slate-100 my-1" />
+
+                    <li role="option" aria-selected={range === "custom"}>
+                      <button
+                        onClick={() => setDropMode("picker")}
+                        className={cn(
+                          "w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-2",
+                          range === "custom"
+                            ? "bg-slate-100 text-slate-900 font-bold"
+                            : "text-slate-700 hover:bg-slate-50"
+                        )}
+                      >
+                        <CalendarDays className="w-3.5 h-3.5 shrink-0 text-slate-400" strokeWidth={2} />
+                        {range === "custom" && customDate ? customDateLabel : "Custom…"}
+                      </button>
+                    </li>
+                  </ul>
+                ) : (
+                  /* ── Date picker panel ─── */
+                  <div className="p-4 w-64">
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => setDropMode("list")}
+                        aria-label="Back to period list"
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
+                      </button>
+                      <p className="text-xs font-semibold text-slate-700">Pick a date</p>
+                    </div>
+
+                    <input
+                      type="date"
+                      max={yesterdayStr}
+                      value={customDate}
+                      onChange={(e) => handleCustomDate(e.target.value)}
+                      className={cn(
+                        "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900",
+                        "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
+                        "disabled:opacity-50"
+                      )}
+                      disabled={customLoading}
+                    />
+
+                    {customLoading && (
+                      <p className="text-xs text-slate-500 mt-2 text-center">Loading…</p>
+                    )}
+                    {customError && (
+                      <p className="text-xs text-destructive mt-2">{customError}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
-        {/* ── Hero: Revenue + Net profit (range-driven) ──────────── */}
+        {/* ── Hero: Revenue + Net profit ─────────────────────────── */}
         <RevenueHero
-          rangeLabel={isToday ? "Today's revenue" : "7-day revenue"}
+          rangeLabel={rangeLabel}
           revenue={revenue}
-          transactionsSub={
-            isToday
-              ? `${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""} today`
-              : `${sevenDaySalesCount} sales over 7 days`
-          }
+          transactionsSub={transactionsSub}
           netProfit={netProfit}
           netMargin={netMargin}
-          paymentBreakdown={
-            isToday
-              ? { cash: todayCash, momo: todayMomo, pos: todayPos }
-              : { cash: sevenDayCash, momo: sevenDayMomo, pos: sevenDayPos }
-          }
+          paymentBreakdown={payBreakdown}
         />
 
-        {/* ── Key metrics grid ──────────────────────────────────── */}
+        {/* ── Key metrics grid ───────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             icon={Receipt}
             label="Avg Ticket"
             value={formatCurrency(avgTicket)}
-            sub={isToday ? "per sale today" : "7-day average"}
+            sub={avgTicketSub}
             tone="neutral"
           />
           <MetricCard
@@ -257,9 +473,9 @@ export function DashboardClient({
           />
         </div>
 
-        {/* ── P&L breakdown (range-driven) ─────────────────────── */}
+        {/* ── P&L breakdown ─────────────────────────────────────── */}
         <ProfitLossPanel
-          isToday={isToday}
+          periodLabel={periodLabel}
           revenue={revenue}
           cogs={cogs}
           grossProfit={grossProfit}
@@ -271,7 +487,7 @@ export function DashboardClient({
           sevenDayExpenses={sevenDayExpenses}
         />
 
-        {/* ── Revenue trend (7-day, full-width) ────────────────── */}
+        {/* ── Revenue trend (always 7-day) ───────────────────────── */}
         <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
             <div>
@@ -289,7 +505,6 @@ export function DashboardClient({
               <p className="text-[10px] text-slate-500">total</p>
             </div>
           </div>
-          {/* Responsive chart margin — 0 left on mobile so labels don't clip */}
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={revenueByDay} barSize={20} margin={{ top: 4, right: 6, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -325,9 +540,8 @@ export function DashboardClient({
           </ResponsiveContainer>
         </section>
 
-        {/* ── Peak hours + Top products ──────────────────────── */}
+        {/* ── Peak hours + Top products ──────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Peak hours */}
           <section className="lg:col-span-2 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-slate-400" strokeWidth={STROKE_STANDARD} />
@@ -369,7 +583,6 @@ export function DashboardClient({
             </ResponsiveContainer>
           </section>
 
-          {/* Top products */}
           <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
               Top products
@@ -410,7 +623,7 @@ export function DashboardClient({
           </section>
         </div>
 
-        {/* ── Low Stock ────────────────────────────────────────── */}
+        {/* ── Low Stock ─────────────────────────────────────────── */}
         <section className="rounded-2xl bg-white border border-slate-200 overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -447,12 +660,7 @@ export function DashboardClient({
                         {item.name}
                       </p>
                       <p className="text-xs text-slate-500 tabular-nums shrink-0">
-                        <span
-                          className={cn(
-                            "font-bold",
-                            critical ? "text-destructive" : "text-warning"
-                          )}
-                        >
+                        <span className={cn("font-bold", critical ? "text-destructive" : "text-warning")}>
                           {item.stock_quantity.toFixed(2)}
                         </span>
                         <span className="text-slate-400"> / {item.low_stock_threshold} {item.unit}</span>
@@ -460,10 +668,7 @@ export function DashboardClient({
                     </div>
                     <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                       <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          critical ? "bg-destructive" : "bg-warning"
-                        )}
+                        className={cn("h-full rounded-full transition-all", critical ? "bg-destructive" : "bg-warning")}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -501,9 +706,7 @@ function RevenueHero({
 
   return (
     <section className="rounded-2xl bg-white border border-slate-200 p-5 sm:p-6">
-      {/* 3fr : 2fr split gives revenue the weight it deserves on tablet+ */}
       <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-5 sm:gap-6 items-start">
-        {/* Revenue */}
         <div>
           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
             {rangeLabel}
@@ -526,7 +729,6 @@ function RevenueHero({
           </div>
         </div>
 
-        {/* Net profit */}
         <div className="border-t sm:border-t-0 sm:border-l border-slate-200 pt-4 sm:pt-0 sm:pl-6">
           <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
             Net profit
@@ -556,7 +758,6 @@ function RevenueHero({
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
 
-// Object-shaped tone map — safer than string-split on className strings.
 const TONE: Record<Tone, { icon: string; bg: string }> = {
   neutral:     { icon: "text-slate-500",  bg: "bg-slate-100" },
   warning:     { icon: "text-warning",    bg: "bg-warning/10" },
@@ -617,7 +818,7 @@ function MetricCard({
 // ─── P&L Panel ───────────────────────────────────────────────────────────────
 
 function ProfitLossPanel({
-  isToday,
+  periodLabel,
   revenue,
   cogs,
   grossProfit,
@@ -628,7 +829,7 @@ function ProfitLossPanel({
   expensesByCategory,
   sevenDayExpenses,
 }: {
-  isToday: boolean;
+  periodLabel: string;
   revenue: number;
   cogs: number;
   grossProfit: number;
@@ -649,7 +850,7 @@ function ProfitLossPanel({
             Profit &amp; loss
           </p>
           <h3 className="text-slate-900 text-base sm:text-lg font-display-heading">
-            {isToday ? "Today" : "Last 7 days"}
+            {periodLabel}
           </h3>
         </div>
       </div>
@@ -680,7 +881,6 @@ function ProfitLossPanel({
           </div>
         </div>
 
-        {/* Expense breakdown — always 7-day, clearly labelled */}
         <div className="p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
@@ -762,12 +962,7 @@ function PLRow({
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="flex items-center gap-1.5 min-w-0">
-        <span
-          className={cn(
-            "text-sm",
-            strong ? "font-bold text-slate-900" : "text-slate-600"
-          )}
-        >
+        <span className={cn("text-sm", strong ? "font-bold text-slate-900" : "text-slate-600")}>
           {label}
         </span>
         {sub && <span className="text-[11px] text-slate-500 truncate">{sub}</span>}
@@ -824,4 +1019,3 @@ function EmptyBlock({
     </div>
   );
 }
-

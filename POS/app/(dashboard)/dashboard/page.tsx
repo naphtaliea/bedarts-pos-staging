@@ -2,6 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./dashboard-client";
 
+// Africa/Accra is UTC+0 — explicit timezone keeps this correct if the offset ever changes.
+function accraDateStr(d: Date): string {
+  return d.toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+}
+
 export const revalidate = 0;
 
 export default async function DashboardPage() {
@@ -22,10 +27,10 @@ export default async function DashboardPage() {
   if (!["admin", "manager", "accountant"].includes(profile.role)) redirect("/pos");
 
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = accraDateStr(today);
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+  const sevenDaysAgoStr = accraDateStr(sevenDaysAgo);
 
   const [salesRes, productsRes, expensesRes, payablesRes, refundsRes] = await Promise.all([
     supabase
@@ -230,6 +235,80 @@ export default async function DashboardPage() {
 
   const activeProductCount = allProducts.length;
 
+  // ── Per-day stats for the period dropdown ────────────────────────────────
+  // Indices 0–6 map to today through 6 days ago. The computation mirrors the
+  // existing today/7-day aggregation above; index 0 is intentionally redundant
+  // with todayRevenue etc. so the client can route through one consistent path.
+  const perDayStats = Array.from({ length: 7 }, (_, offset) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - offset);
+    const dayStr = accraDateStr(d);
+
+    const ds = allSales.filter((s: any) => s.created_at.startsWith(dayStr));
+    const dayRevenue = round2(ds.reduce((sum: number, s: any) => sum + saleNet(s), 0));
+
+    let _dm = 0, _dp = 0;
+    for (const s of ds) {
+      let ref = refundMap[s.id] ?? 0;
+      let sm = 0, sp = 0;
+      for (const p of (s.payments ?? []) as { method: string; amount: number }[]) {
+        if (p.method === "momo") sm += Number(p.amount);
+        else if (p.method === "pos_machine") sp += Number(p.amount);
+      }
+      const md = Math.min(ref, sm); ref -= md;
+      const pd = Math.min(ref, sp);
+      _dm += sm - md; _dp += sp - pd;
+    }
+    const dayMomo = round2(_dm), dayPos = round2(_dp);
+    const dayCash = round2(Math.max(0, dayRevenue - dayMomo - dayPos));
+
+    const dayCogs = round2(ds.reduce((sum: number, s: any) => {
+      const refunded = refundMap[s.id] ?? 0;
+      const refundPct = Number(s.total_amount) > 0 ? Math.min(1, refunded / Number(s.total_amount)) : 0;
+      return sum + cogsOfSale(s) * (1 - refundPct);
+    }, 0));
+    const dayGP = round2(dayRevenue - dayCogs);
+    const dayExp = round2(
+      allExpenses
+        .filter((e: any) => e.expense_date === dayStr)
+        .reduce((sum: number, e: any) => sum + Number(e.amount), 0)
+    );
+
+    return {
+      revenue: dayRevenue,
+      cash: dayCash,
+      momo: dayMomo,
+      pos: dayPos,
+      cogs: dayCogs,
+      grossProfit: dayGP,
+      expenses: dayExp,
+      netProfit: round2(dayGP - dayExp),
+      transactions: ds.length,
+    };
+  });
+
+  // Dropdown option labels: index 0 = "Today", 1–6 = formatted weekday + date
+  const dayLabels = Array.from({ length: 7 }, (_, i) => {
+    if (i === 0) return "Today";
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    return d
+      .toLocaleDateString("en-US", {
+        timeZone: "Africa/Accra",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      })
+      .replace(",", "");
+  });
+
+  // YYYY-MM-DD strings for each day offset (used as date-input bounds in client)
+  const dayDateStrs = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    return accraDateStr(d);
+  });
+
   return (
     <DashboardClient
       todayRevenue={todayRevenue}
@@ -258,6 +337,9 @@ export default async function DashboardPage() {
       topProducts={topProducts}
       outstandingPayablesTotal={outstandingPayablesTotal}
       outstandingPayablesCount={outstandingPayablesCount}
+      perDayStats={perDayStats}
+      dayLabels={dayLabels}
+      dayDateStrs={dayDateStrs}
     />
   );
 }
