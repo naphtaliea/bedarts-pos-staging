@@ -182,7 +182,7 @@ export function AdminReconciliationForm({ onClose, onSuccess, grossSales, cashSa
                             {variance >= 0 ? "+" : ""}{formatCurrency(variance)}
                           </p>
                           <p className="text-[10px] text-muted-foreground">vs expected {formatCurrency(expected)}</p>
-                          <p className="text-[10px] text-muted-foreground">(before expenses)</p>
+                          {expensesTotal > 0 && <p className="text-[10px] text-muted-foreground">(before expenses)</p>}
                         </div>
                       </div>
                     </div>
