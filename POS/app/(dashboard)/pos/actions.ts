@@ -48,6 +48,10 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
 
   const { items, payments, subtotal, discount, total, pendingPickup, pickupNote, stockOverrideReason } = args;
 
+  if (stockOverrideReason && !["admin", "manager"].includes(profile.role)) {
+    throw new Error("Stock override requires manager or admin authorisation");
+  }
+
   // Fetch authoritative server state: stock, price, and active status.
   // selling_price is used server-side to prevent stale-price financial errors.
   // is_active blocks sales of deactivated products regardless of cashier screen state.
@@ -71,18 +75,27 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
   }
 
   // Replace stale client prices with the authoritative server price at time of
-  // sale. Discount amounts and quantities are unchanged.
-  const correctedItems = items.map((item) => ({
-    ...item,
-    unit_price: stockMap[item.product.id]?.selling_price ?? item.unit_price,
-  }));
+  // sale. Per-item discount is capped at the line total so a client-supplied
+  // discount_amount can never exceed what was actually charged.
+  const correctedItems = items.map((item) => {
+    const serverPrice = stockMap[item.product.id]?.selling_price ?? item.unit_price;
+    const cappedDiscount = Math.min(item.discount_amount ?? 0, item.quantity * serverPrice);
+    return {
+      ...item,
+      unit_price: serverPrice,
+      discount_amount: cappedDiscount,
+    };
+  });
 
   // Recompute totals from the corrected prices.
   const correctedSubtotal = correctedItems.reduce(
     (sum, item) => sum + Math.max(0, item.quantity * item.unit_price - (item.discount_amount ?? 0)),
     0
   );
-  const correctedTotal = Math.max(0, correctedSubtotal - discount);
+  if (discount < 0 || discount > correctedSubtotal) {
+    throw new Error("Invalid discount amount");
+  }
+  const correctedTotal = correctedSubtotal - discount;
 
   if (!pendingPickup && !stockOverrideReason) {
     const violations = correctedItems
