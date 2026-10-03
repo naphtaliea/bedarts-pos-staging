@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ReceiptText, CheckCircle2, AlertTriangle, ChevronRight,
+  ReceiptText, CheckCircle2, AlertTriangle, ChevronRight, ChevronLeft,
   Minus, Plus, X, Search, Loader2, PackageX,
   History, Banknote, Smartphone, CreditCard,
 } from "lucide-react";
+
+const PAGE_SIZE = 50;
 import { cn, formatCurrency, formatSaleRef } from "@/lib/utils";
 import { voidSale, processRefund } from "./actions";
 import type { RefundItem } from "./actions";
@@ -508,10 +510,13 @@ export function RefundsClient({ sales }: { sales: any[] }) {
   const [filter, setFilter] = useState<"all" | "completed" | "refunded" | "voided">("completed");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "warning" } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+  // Reset to first page whenever filter or search changes
+  useEffect(() => { setCurrentPage(0); setSelectedId(null); }, [filter, search]);
 
   const typedSales = sales as Sale[];
 
@@ -543,6 +548,8 @@ export function RefundsClient({ sales }: { sales: any[] }) {
     return true;
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedSales = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
   const selectedSale = selectedId ? typedSales.find((s) => s.id === selectedId) ?? null : null;
 
   function handleSelect(sale: Sale) {
@@ -660,13 +667,14 @@ export function RefundsClient({ sales }: { sales: any[] }) {
             </div>
           ) : (
             <>
-              {filtered.length > 0 && (
-                <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-[0.12em] pb-1">
-                  {filtered.length} {filtered.length === 1 ? "sale" : "sales"}
-                  {searchTrimmed ? ` for "${search}"` : ""}
-                </p>
-              )}
-              {filtered.map((sale) => (
+              <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-[0.12em] pb-1">
+                {filtered.length} {filtered.length === 1 ? "sale" : "sales"}
+                {searchTrimmed ? ` for "${search}"` : ""}
+                {totalPages > 1 && (
+                  <span> · {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)}</span>
+                )}
+              </p>
+              {pagedSales.map((sale) => (
                 <SaleCard
                   key={sale.id}
                   sale={sale}
@@ -674,6 +682,32 @@ export function RefundsClient({ sales }: { sales: any[] }) {
                   onSelect={() => handleSelect(sale)}
                 />
               ))}
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-3 pb-1">
+                  <button
+                    onClick={() => { setCurrentPage((p) => p - 1); setSelectedId(null); }}
+                    disabled={currentPage === 0}
+                    aria-label="Previous page"
+                    className="flex items-center gap-1.5 h-11 px-4 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" aria-hidden />
+                    Prev
+                  </button>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {currentPage + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => { setCurrentPage((p) => p + 1); setSelectedId(null); }}
+                    disabled={currentPage >= totalPages - 1}
+                    aria-label="Next page"
+                    className="flex items-center gap-1.5 h-11 px-4 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" aria-hidden />
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

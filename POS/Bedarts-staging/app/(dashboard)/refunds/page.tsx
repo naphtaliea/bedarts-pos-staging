@@ -24,7 +24,7 @@ export default async function RefundsPage() {
        refunds(id, refund_amount, created_at)`
     )
     .order("created_at", { ascending: false })
-    .limit(200);
+    .range(0, 1999);
 
   if (salesError) console.error("[refunds] query error:", salesError);
 

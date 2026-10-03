@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
 
-  const [salesRes, productsRes, expensesRes, payablesRes, refundsRes, thawRes] = await Promise.all([
+  const [salesRes, productsRes, expensesRes, payablesRes, refundsRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
@@ -61,10 +61,6 @@ export default async function DashboardPage() {
       .from("refunds")
       .select("sale_id, refund_amount")
       .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`),
-
-    // Thaw guide targets — server-side p75 over the last 14 days. Same RPC
-    // the /butcher page uses, so the algorithm lives in one place.
-    supabase.rpc("get_thaw_targets_v1"),
   ]);
 
   // ── Aggregations ──────────────────────────────────────────────────────────
@@ -182,34 +178,6 @@ export default async function DashboardPage() {
     };
   });
 
-  // Daily thaw guide — computed server-side by `get_thaw_targets_v1()` so the
-  // exact same rows are shown to both admins here and butchers on /butcher.
-  // See supabase/migrations/20260930010000_butcher_role_and_thaw_rpc.sql for
-  // the algorithm (p75 over 14 days, rounded up, grouped by Africa/Accra day).
-  const thawTargets = ((thawRes.data ?? []) as Array<{
-    product_id: string;
-    name: string;
-    unit: string;
-    demand: number | string;
-    suggested: number | string;
-    today_sold: number | string;
-    remaining: number | string;
-    stock_total: number | string;
-    brought_out: number | string | null;
-    active_days: number | string;
-  }>).map((row) => ({
-    productId: row.product_id ?? "",
-    name: row.name,
-    unit: row.unit,
-    demand: Number(row.demand),
-    suggested: Number(row.suggested),
-    todaySold: Number(row.today_sold),
-    remaining: Number(row.remaining),
-    stockTotal: Number(row.stock_total),
-    broughtOut: row.brought_out != null ? Number(row.brought_out) : null,
-    activeDays: Number(row.active_days),
-  }));
-
   // Top 5 products (7-day)
   const productMap: Record<string, { revenue: number; units: number }> = {};
   for (const sale of allSales) {
@@ -286,7 +254,6 @@ export default async function DashboardPage() {
       activeProductCount={activeProductCount}
       lowStockItems={lowStockItems}
       revenueByDay={revenueByDay}
-      thawTargets={thawTargets}
       peakHours={peakHours}
       topProducts={topProducts}
       outstandingPayablesTotal={outstandingPayablesTotal}
