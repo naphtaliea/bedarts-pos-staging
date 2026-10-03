@@ -161,10 +161,13 @@ export function DashboardClient({
   const [customLoading, setCustomLoading] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
 
-  // Close dropdown on click-outside or Escape
+  // Close dropdown on click-outside or Escape.
+  // In picker mode the native date-picker overlay renders outside our DOM node,
+  // so mousedown outside-click is disabled — only Escape or explicit Back/commit closes it.
   useEffect(() => {
     if (!dropOpen) return;
     function onDown(e: MouseEvent) {
+      if (dropMode === "picker") return;
       if (!dropRef.current?.contains(e.target as Node)) {
         setDropOpen(false);
         setDropMode("list");
@@ -182,7 +185,7 @@ export function DashboardClient({
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [dropOpen]);
+  }, [dropOpen, dropMode]);
 
   // ── Derive current period stats ──────────────────────────────────────────
 
@@ -354,7 +357,7 @@ export function DashboardClient({
                             setDropMode("list");
                           }}
                           className={cn(
-                            "w-full text-left px-4 py-2.5 text-xs transition-colors",
+                            "w-full text-left px-4 py-2.5 min-h-[44px] text-xs transition-colors",
                             range === opt.value
                               ? "bg-slate-100 text-slate-900 font-bold"
                               : "text-slate-700 font-medium hover:bg-slate-50"
@@ -371,7 +374,7 @@ export function DashboardClient({
                       <button
                         onClick={() => setDropMode("picker")}
                         className={cn(
-                          "w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-2",
+                          "w-full text-left px-4 py-2.5 min-h-[44px] text-xs font-medium transition-colors flex items-center gap-2",
                           range === "custom"
                             ? "bg-slate-100 text-slate-900 font-bold"
                             : "text-slate-700 hover:bg-slate-50"
@@ -389,7 +392,7 @@ export function DashboardClient({
                       <button
                         onClick={() => setDropMode("list")}
                         aria-label="Back to period list"
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                        className="h-11 w-11 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
                       >
                         <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
                       </button>
@@ -402,7 +405,7 @@ export function DashboardClient({
                       value={customDate}
                       onChange={(e) => handleCustomDate(e.target.value)}
                       className={cn(
-                        "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900",
+                        "w-full rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-900",
                         "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
                         "disabled:opacity-50"
                       )}
