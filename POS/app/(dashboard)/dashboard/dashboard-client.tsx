@@ -34,8 +34,8 @@ import type { DayStats } from "./actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// "today" | "d1"–"d6" = named day offsets | "7d" = aggregate | "custom" = arbitrary past date
-type Range = "today" | "d1" | "d2" | "d3" | "d4" | "d5" | "d6" | "7d" | "custom";
+// "today" | "d1"–"d6" = named day offsets | "7d" / "30d" = aggregates | "custom" = arbitrary past date
+type Range = "today" | "d1" | "d2" | "d3" | "d4" | "d5" | "d6" | "7d" | "30d" | "custom";
 type Tone = "neutral" | "warning" | "success" | "destructive";
 
 interface DashboardClientProps {
@@ -143,6 +143,14 @@ export function DashboardClient({
   sevenDayGrossProfit,
   sevenDayExpenses,
   sevenDayNetProfit,
+  thirtyDayRevenue,
+  thirtyDayCash,
+  thirtyDayMomo,
+  thirtyDayPos,
+  thirtyDayCogs,
+  thirtyDayGrossProfit,
+  thirtyDayExpenses,
+  thirtyDayNetProfit,
   expensesByCategory,
   stockValue,
   activeProductCount,
@@ -164,7 +172,7 @@ export function DashboardClient({
   const dropRef = useRef<HTMLDivElement>(null);
 
   // Custom date state
-  const [customDate, setCustomDate] = useState("");
+  const [customDate, setCustomDate] = useState(dayDateStrs[0]);
   const [customStats, setCustomStats] = useState<DayStats | null>(null);
   const [customLoading, setCustomLoading] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
@@ -183,8 +191,12 @@ export function DashboardClient({
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setDropOpen(false);
-        setDropMode("list");
+        if (dropMode === "picker") {
+          setDropMode("list");
+        } else {
+          setDropOpen(false);
+          setDropMode("list");
+        }
       }
     }
     document.addEventListener("mousedown", onDown);
@@ -199,6 +211,7 @@ export function DashboardClient({
 
   const isToday = range === "today";
   const isSevenDay = range === "7d";
+  const isThirtyDay = range === "30d";
   const isCustom = range === "custom";
   // dayIdx: 1–6 for d1–d6 named offsets; -1 otherwise
   const dayIdx = range.startsWith("d") && range.length === 2 ? parseInt(range[1]) : -1;
@@ -210,13 +223,15 @@ export function DashboardClient({
     ? customStats
     : null;
 
-  const revenue     = isSevenDay ? sevenDayRevenue     : isToday ? todayRevenue     : ds?.revenue     ?? 0;
-  const cogs        = isSevenDay ? sevenDayCogs        : isToday ? todayCogs        : ds?.cogs        ?? 0;
-  const grossProfit = isSevenDay ? sevenDayGrossProfit : isToday ? todayGrossProfit : ds?.grossProfit ?? 0;
-  const expenses    = isSevenDay ? sevenDayExpenses    : isToday ? todayExpenses    : ds?.expenses    ?? 0;
-  const netProfit   = isSevenDay ? sevenDayNetProfit   : isToday ? todayNetProfit   : ds?.netProfit   ?? 0;
+  const revenue     = isThirtyDay ? thirtyDayRevenue     : isSevenDay ? sevenDayRevenue     : isToday ? todayRevenue     : ds?.revenue     ?? 0;
+  const cogs        = isThirtyDay ? thirtyDayCogs        : isSevenDay ? sevenDayCogs        : isToday ? todayCogs        : ds?.cogs        ?? 0;
+  const grossProfit = isThirtyDay ? thirtyDayGrossProfit : isSevenDay ? sevenDayGrossProfit : isToday ? todayGrossProfit : ds?.grossProfit ?? 0;
+  const expenses    = isThirtyDay ? thirtyDayExpenses    : isSevenDay ? sevenDayExpenses    : isToday ? todayExpenses    : ds?.expenses    ?? 0;
+  const netProfit   = isThirtyDay ? thirtyDayNetProfit   : isSevenDay ? sevenDayNetProfit   : isToday ? todayNetProfit   : ds?.netProfit   ?? 0;
 
-  const payBreakdown = isSevenDay
+  const payBreakdown = isThirtyDay
+    ? { cash: thirtyDayCash, momo: thirtyDayMomo, pos: thirtyDayPos }
+    : isSevenDay
     ? { cash: sevenDayCash, momo: sevenDayMomo, pos: sevenDayPos }
     : isToday
     ? { cash: todayCash, momo: todayMomo, pos: todayPos }
@@ -234,6 +249,12 @@ export function DashboardClient({
 
   const avgTicket = currentTransactions > 0 ? revenue / currentTransactions : 0;
 
+  const displayStockValue =
+    isDayOffset ? (perDayStats[dayIdx]?.stockValue ?? stockValue) :
+    isCustom    ? (customStats?.stockValue ?? stockValue) :
+    stockValue;
+  const stockValueLabel = isDayOffset || isCustom ? "Stock value (approx.)" : "Stock Value";
+
   // ── Labels ───────────────────────────────────────────────────────────────
 
   // Human-readable label for the selected custom date (client-side, Accra tz)
@@ -248,7 +269,9 @@ export function DashboardClient({
         .replace(",", "")
     : "Custom";
 
-  const selectedLabel = isSevenDay
+  const selectedLabel = isThirtyDay
+    ? "Last 30 days"
+    : isSevenDay
     ? "Last 7 days"
     : isToday
     ? "Today"
@@ -258,7 +281,9 @@ export function DashboardClient({
     ? customDateLabel
     : "Custom…";
 
-  const periodLabel = isSevenDay
+  const periodLabel = isThirtyDay
+    ? "Last 30 days"
+    : isSevenDay
     ? "Last 7 days"
     : isToday
     ? "Today"
@@ -266,7 +291,9 @@ export function DashboardClient({
     ? dayLabels[dayIdx]
     : customDateLabel;
 
-  const rangeLabel = isSevenDay
+  const rangeLabel = isThirtyDay
+    ? "30-day revenue"
+    : isSevenDay
     ? "7-day revenue"
     : isToday
     ? "Today's revenue"
@@ -274,13 +301,15 @@ export function DashboardClient({
     ? dayLabels[dayIdx]
     : customDateLabel;
 
-  const transactionsSub = isSevenDay
+  const transactionsSub = isThirtyDay
+    ? "Last 30 days"
+    : isSevenDay
     ? `${sevenDaySalesCount} sales over 7 days`
     : isToday
     ? `${todayTransactions} sale${todayTransactions !== 1 ? "s" : ""} today`
     : `${currentTransactions} sale${currentTransactions !== 1 ? "s" : ""}`;
 
-  const avgTicketSub = isSevenDay ? "7-day average" : isToday ? "per sale today" : "per sale";
+  const avgTicketSub = isThirtyDay ? "30-day average" : isSevenDay ? "7-day average" : isToday ? "per sale today" : "per sale";
 
   // ── Dropdown options ──────────────────────────────────────────────────────
 
@@ -293,17 +322,19 @@ export function DashboardClient({
     { value: "d5",   label: dayLabels[5] },
     { value: "d6",   label: dayLabels[6] },
     { value: "7d",   label: "Last 7 days" },
+    { value: "30d",  label: "Last 30 days" },
   ];
 
-  // Yesterday's date string — used as max bound on custom date picker
-  const yesterdayStr = dayDateStrs[1] ?? "";
-
-  async function handleCustomDate(dateStr: string) {
-    if (!dateStr) return;
+  function onDateInputChange(dateStr: string) {
     setCustomDate(dateStr);
     setCustomError(null);
+  }
+
+  async function confirmCustomDate() {
+    if (!customDate) return;
+    setCustomError(null);
     setCustomLoading(true);
-    const result = await fetchCustomDayStats(dateStr);
+    const result = await fetchCustomDayStats(customDate);
     setCustomLoading(false);
     if ("error" in result) {
       setCustomError(result.error);
@@ -353,7 +384,7 @@ export function DashboardClient({
             </button>
 
             {dropOpen && (
-              <div className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[170px] rounded-xl bg-white border border-slate-200 shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-[calc(100%+4px)] z-50 w-64 max-w-[calc(100vw-1rem)] rounded-xl bg-white border border-slate-200 shadow-lg overflow-hidden">
                 {dropMode === "list" ? (
                   <ul role="listbox" aria-label="Time period options" className="py-1">
                     {namedOptions.map((opt) => (
@@ -409,9 +440,9 @@ export function DashboardClient({
 
                     <input
                       type="date"
-                      max={yesterdayStr}
+                      max={dayDateStrs[0]}
                       value={customDate}
-                      onChange={(e) => handleCustomDate(e.target.value)}
+                      onChange={(e) => onDateInputChange(e.target.value)}
                       className={cn(
                         "w-full rounded-lg border border-slate-200 px-3 py-3 text-sm text-slate-900",
                         "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
@@ -420,9 +451,18 @@ export function DashboardClient({
                       disabled={customLoading}
                     />
 
-                    {customLoading && (
-                      <p className="text-xs text-slate-500 mt-2 text-center">Loading…</p>
-                    )}
+                    <button
+                      onClick={confirmCustomDate}
+                      disabled={!customDate || customLoading}
+                      className={cn(
+                        "mt-3 w-full h-11 rounded-lg text-sm font-semibold transition-colors",
+                        "bg-primary text-white hover:bg-primary/90",
+                        "disabled:opacity-40 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      {customLoading ? "Loading…" : "View"}
+                    </button>
+
                     {customError && (
                       <p className="text-xs text-destructive mt-2">{customError}</p>
                     )}
@@ -457,8 +497,8 @@ export function DashboardClient({
           />
           <MetricCard
             icon={Package}
-            label="Stock Value"
-            value={formatCurrency(stockValue)}
+            label={stockValueLabel}
+            value={formatCurrency(displayStockValue)}
             sub={`${activeProductCount} active products`}
             tone="neutral"
           />
