@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* ── Brand palette — identical to POS ───────────────── */
+  --color-background:           #E4ECFF;
+  --color-foreground:           #080F3A;
+  --color-card:                 #FFFFFF;
+  --color-card-foreground:      #080F3A;
+
+  --color-primary:              #CC1B14;
+  --color-primary-foreground:   #FFFFFF;
+
+  --color-secondary:            #C8D4F5;
+  --color-secondary-foreground: #080F3A;
+
+  --color-muted:                #C8D4F5;
+  --color-muted-foreground:     #566299;
+
+  --color-accent:               #1B50C0;
+  --color-accent-foreground:    #FFFFFF;
+
+  --color-border:               #C8D4F5;
+  --color-input:                #FFFFFF;
+
+  --color-destructive:          #CC1B14;
+  --color-success:              #0A7A3B;
+  --color-warning:              #8F5B00;
+
+  --color-navy:                 #060F40;
+  --color-navy-muted:           #8CB0E0;
+
+  /* ── Geometry ────────────────────────────────────────── */
+  --radius: 0.75rem;
+
+  /* ── Typography ──────────────────────────────────────── */
+  --font-sans:    var(--font-archivo);
+  --font-display: var(--font-big-shoulders);
+}
+
+/* Sticky offset shared by any element that pins under the nav.
+   Change once, everywhere follows. */
+:root {
+  --nav-height: 4rem;   /* h-16 */
+  --nav-height-sm: 3.5rem; /* h-14 for sub-page navs */
+}
+
+/* ── Shadows ─────────────────────────────────────────── */
+.shadow-card {
+  box-shadow: 0 1px 3px rgba(8,15,58,0.06), 0 2px 12px rgba(8,15,58,0.08);
+}
+.shadow-raised {
+  box-shadow: 0 4px 20px rgba(8,15,58,0.12), 0 1px 4px rgba(8,15,58,0.06);
+}
+.shadow-float {
+  box-shadow: 0 8px 40px rgba(8,15,58,0.18), 0 2px 8px rgba(8,15,58,0.08);
+}
+
+/* ── Base ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* iOS Safari auto-zooms text inputs under 16px */
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+h1, h2, h3 {
+  font-family: var(--font-big-shoulders), system-ui, sans-serif;
+  font-weight: 900;
+}
+
+/* ── Display utilities ───────────────────────────────── */
+.font-display-black {
+  font-family: var(--font-big-shoulders), system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+/* Compact reading face for product/cart/order line items —
+   Archivo bold uppercase reads better at 14–16px than Big Shoulders,
+   which is optimised for headline sizes. */
+.font-item-title {
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+}
+
+/* ── Focus indicators ────────────────────────────────── */
+/* Tailwind v4's preflight removes browser default outlines. Restore a
+   visible focus ring on every interactive element for keyboard users. */
+:where(button, a, [role="button"], summary):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* ── Screen-reader-only text ─────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #8CB0E0; border-radius: 99px; }
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Right-edge fade for horizontal-scrolling regions. Applied on the
+   parent; the scroll region stays underneath. */
+.scroll-fade-right {
+  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+          mask-image: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
+}
+
+/* ── Animations ──────────────────────────────────────── */
+/* One motion curve for the whole app so overlays share a rhythm. */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+
+.animate-slide-up    { animation: slide-up    0.22s cubic-bezier(0.32,0.72,0,1) both; }
+.animate-slide-right { animation: slide-right 0.24s cubic-bezier(0.32,0.72,0,1) both; }
+.animate-fade-in     { animation: fade-in     0.18s cubic-bezier(0.32,0.72,0,1) both; }
+.animate-sheet-up    { animation: sheet-up    0.28s cubic-bezier(0.32,0.72,0,1) both; }
+.animate-pulse-soft  { animation: pulse-soft  1.6s ease-in-out infinite; }
+
+/* Respect reduced motion: kill entrance animations but keep short
+   state transitions (hover, focus, press) so feedback remains legible. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
