@@ -31,6 +31,9 @@ export default async function DashboardPage() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
   const sevenDaysAgoStr = accraDateStr(sevenDaysAgo);
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  const thirtyDaysAgoStr = accraDateStr(thirtyDaysAgo);
 
   const [salesRes, productsRes, expensesRes, payablesRes, refundsRes] = await Promise.all([
     supabase
@@ -41,7 +44,7 @@ export default async function DashboardPage() {
          payments(method, amount),
          sale_items(total_price, quantity, cost_at_sale, product:products(name, cost_price))`
       )
-      .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`)
+      .gte("created_at", `${thirtyDaysAgoStr}T00:00:00.000Z`)
       .eq("status", "completed")
       .order("created_at", { ascending: false }),
 
@@ -53,7 +56,7 @@ export default async function DashboardPage() {
     supabase
       .from("expenses")
       .select("amount, expense_date, category:expense_categories(name)")
-      .gte("expense_date", sevenDaysAgoStr)
+      .gte("expense_date", thirtyDaysAgoStr)
       .lte("expense_date", todayStr)
       .eq("is_deleted", false),
 
@@ -65,7 +68,7 @@ export default async function DashboardPage() {
     supabase
       .from("refunds")
       .select("sale_id, refund_amount")
-      .gte("created_at", `${sevenDaysAgoStr}T00:00:00.000Z`),
+      .gte("created_at", `${thirtyDaysAgoStr}T00:00:00.000Z`),
   ]);
 
   // ── Aggregations ──────────────────────────────────────────────────────────
@@ -159,6 +162,41 @@ export default async function DashboardPage() {
   const todayNetProfit = round2(todayGrossProfit - todayExpenses);
   const sevenDayNetProfit = round2(sevenDayGrossProfit - sevenDayExpenses);
 
+  // 30-day aggregations — same pattern as sevenDay*
+  const thirtyDaySales = allSales.filter((s: any) => s.created_at >= thirtyDaysAgoStr + "T");
+
+  const thirtyDayRevenue = round2(thirtyDaySales.reduce((sum: number, s: any) => sum + saleNet(s), 0));
+
+  let _thirtyMomo = 0, _thirtyPos = 0;
+  for (const s of thirtyDaySales) {
+    let refAmt = refundMap[s.id] ?? 0;
+    let sm = 0, sp = 0;
+    for (const p of (s.payments ?? []) as { method: string; amount: number }[]) {
+      if (p.method === "momo") sm += Number(p.amount);
+      else if (p.method === "pos_machine") sp += Number(p.amount);
+    }
+    const md = Math.min(refAmt, sm); refAmt -= md;
+    const pd = Math.min(refAmt, sp);
+    _thirtyMomo += sm - md; _thirtyPos += sp - pd;
+  }
+  const thirtyDayMomo = round2(_thirtyMomo);
+  const thirtyDayPos = round2(_thirtyPos);
+  const thirtyDayCash = round2(Math.max(0, thirtyDayRevenue - thirtyDayMomo - thirtyDayPos));
+
+  const thirtyDayCogs = round2(thirtyDaySales.reduce((sum: number, s: any) => {
+    const refunded = refundMap[s.id] ?? 0;
+    const refundPct = Number(s.total_amount) > 0 ? Math.min(1, refunded / Number(s.total_amount)) : 0;
+    return sum + cogsOfSale(s) * (1 - refundPct);
+  }, 0));
+  const thirtyDayGrossProfit = round2(thirtyDayRevenue - thirtyDayCogs);
+
+  const thirtyDayExpenses = round2(
+    allExpenses
+      .filter((e: any) => e.expense_date >= thirtyDaysAgoStr)
+      .reduce((sum: number, e: any) => sum + Number(e.amount), 0)
+  );
+  const thirtyDayNetProfit = round2(thirtyDayGrossProfit - thirtyDayExpenses);
+
   // Expense breakdown by category (7-day) for a small chart on the dashboard
   const expenseCategoryMap: Record<string, number> = {};
   for (const e of allExpenses) {
@@ -239,6 +277,29 @@ export default async function DashboardPage() {
   // Indices 0–6 map to today through 6 days ago. The computation mirrors the
   // existing today/7-day aggregation above; index 0 is intentionally redundant
   // with todayRevenue etc. so the client can route through one consistent path.
+
+  // Historic stock value at EOD of day i:
+  //   current stockValue + sum of sale_items.total_price for all days newer than i.
+  // revenueByOffset[i] accumulates that running sum as i increases.
+  const revenueByOffset: number[] = [];
+  {
+    let running = 0;
+    for (let i = 0; i < 7; i++) {
+      revenueByOffset.push(running);
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dayStr = accraDateStr(d);
+      const daySalesRevenue = allSales
+        .filter((s: any) => s.created_at.startsWith(dayStr))
+        .reduce(
+          (sum: number, s: any) =>
+            sum + (s.sale_items ?? []).reduce((ss: number, ii: any) => ss + Number(ii.total_price ?? 0), 0),
+          0
+        );
+      running += daySalesRevenue;
+    }
+  }
+
   const perDayStats = Array.from({ length: 7 }, (_, offset) => {
     const d = new Date(today);
     d.setDate(d.getDate() - offset);
@@ -284,6 +345,7 @@ export default async function DashboardPage() {
       expenses: dayExp,
       netProfit: round2(dayGP - dayExp),
       transactions: ds.length,
+      stockValue: round2(stockValue + revenueByOffset[offset]),
     };
   });
 
@@ -328,6 +390,14 @@ export default async function DashboardPage() {
       sevenDayGrossProfit={sevenDayGrossProfit}
       sevenDayExpenses={sevenDayExpenses}
       sevenDayNetProfit={sevenDayNetProfit}
+      thirtyDayRevenue={thirtyDayRevenue}
+      thirtyDayCash={thirtyDayCash}
+      thirtyDayMomo={thirtyDayMomo}
+      thirtyDayPos={thirtyDayPos}
+      thirtyDayCogs={thirtyDayCogs}
+      thirtyDayGrossProfit={thirtyDayGrossProfit}
+      thirtyDayExpenses={thirtyDayExpenses}
+      thirtyDayNetProfit={thirtyDayNetProfit}
       expensesByCategory={expensesByCategory}
       stockValue={stockValue}
       activeProductCount={activeProductCount}

@@ -56,6 +56,14 @@ interface DashboardClientProps {
   sevenDayGrossProfit: number;
   sevenDayExpenses: number;
   sevenDayNetProfit: number;
+  thirtyDayRevenue: number;
+  thirtyDayCash: number;
+  thirtyDayMomo: number;
+  thirtyDayPos: number;
+  thirtyDayCogs: number;
+  thirtyDayGrossProfit: number;
+  thirtyDayExpenses: number;
+  thirtyDayNetProfit: number;
   expensesByCategory: { name: string; total: number }[];
   stockValue: number;
   activeProductCount: number;

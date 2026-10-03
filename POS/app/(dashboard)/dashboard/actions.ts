@@ -12,6 +12,7 @@ export interface DayStats {
   expenses: number;
   netProfit: number;
   transactions: number;
+  stockValue: number;
 }
 
 export async function fetchCustomDayStats(
@@ -26,7 +27,7 @@ export async function fetchCustomDayStats(
   nextD.setUTCDate(nextD.getUTCDate() + 1);
   const nextDayStr = nextD.toISOString().split("T")[0];
 
-  const [salesRes, refundsRes, expensesRes] = await Promise.all([
+  const [salesRes, refundsRes, expensesRes, currentStockRes, salesAfterRes] = await Promise.all([
     supabase
       .from("sales")
       .select(
@@ -49,6 +50,17 @@ export async function fetchCustomDayStats(
       .select("amount")
       .eq("expense_date", dateStr)
       .eq("is_deleted", false),
+
+    supabase
+      .from("product_stock")
+      .select("id, selling_price, stock_quantity")
+      .eq("is_active", true),
+
+    supabase
+      .from("sales")
+      .select("id, sale_items(total_price)")
+      .gte("created_at", `${nextDayStr}T00:00:00.000Z`)
+      .eq("status", "completed"),
   ]);
 
   if (salesRes.error) return { error: salesRes.error.message };
@@ -104,6 +116,20 @@ export async function fetchCustomDayStats(
     (expensesRes.data ?? []).reduce((sum, e: any) => sum + Number(e.amount), 0)
   );
 
+  // Historic stock value at EOD of dateStr:
+  //   current stock value + revenue from all sales that happened AFTER dateStr
+  //   (those sales reduced inventory after the snapshot date, so we add them back)
+  const currentStockValue = (currentStockRes.data ?? []).reduce(
+    (sum: number, p: any) => sum + Number(p.stock_quantity ?? 0) * Number(p.selling_price ?? 0),
+    0
+  );
+  const revenueAfterD = (salesAfterRes.data ?? []).reduce(
+    (sum: number, s: any) =>
+      sum + (s.sale_items ?? []).reduce((ss: number, i: any) => ss + Number(i.total_price ?? 0), 0),
+    0
+  );
+  const stockValue = round2(currentStockValue + revenueAfterD);
+
   return {
     revenue,
     cash,
@@ -114,5 +140,6 @@ export async function fetchCustomDayStats(
     expenses,
     netProfit: round2(grossProfit - expenses),
     transactions: allSales.length,
+    stockValue,
   };
 }
