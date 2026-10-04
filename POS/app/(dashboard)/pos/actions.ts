@@ -48,10 +48,6 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
 
   const { items, payments, subtotal, discount, total, pendingPickup, pickupNote, stockOverrideReason } = args;
 
-  if (stockOverrideReason && !["admin", "manager"].includes(profile.role)) {
-    throw new Error("Stock override requires manager or admin authorisation");
-  }
-
   // Fetch authoritative server state: stock, price, and active status.
   // selling_price is used server-side to prevent stale-price financial errors.
   // is_active blocks sales of deactivated products regardless of cashier screen state.
