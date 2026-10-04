@@ -70,11 +70,28 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
     );
   }
 
+  // Box / half-box lines are sold at their package price, not quantity x the
+  // per-unit selling price, so look those up too. Same rule as submit_sale_v5.
+  const packageProductIds = items.filter((i) => i.packageLabel).map((i) => i.product.id);
+  const { data: packages } = packageProductIds.length
+    ? await supabase
+        .from("product_packages")
+        .select("product_id, label, quantity, price")
+        .in("product_id", packageProductIds)
+    : { data: [] as { product_id: string; label: string; quantity: number; price: number }[] };
+  const packageMap = Object.fromEntries(
+    (packages ?? []).map((p) => [`${p.product_id}:${p.label}`, p])
+  );
+
   // Replace stale client prices with the authoritative server price at time of
   // sale. Per-item discount is capped at the line total so a client-supplied
   // discount_amount can never exceed what was actually charged.
   const correctedItems = items.map((item) => {
-    const serverPrice = stockMap[item.product.id]?.selling_price ?? item.unit_price;
+    const pkg = item.packageLabel ? packageMap[`${item.product.id}:${item.packageLabel}`] : undefined;
+    const serverPrice =
+      pkg && Number(pkg.quantity) > 0
+        ? Number(pkg.price) / Number(pkg.quantity)
+        : stockMap[item.product.id]?.selling_price ?? item.unit_price;
     const cappedDiscount = Math.min(item.discount_amount ?? 0, item.quantity * serverPrice);
     return {
       ...item,
