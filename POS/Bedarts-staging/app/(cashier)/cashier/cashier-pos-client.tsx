@@ -239,7 +239,7 @@ export function CashierPOSClient({
   const discountVal = subtotalVal - totalVal;
 
   const [selectedLineId,   setSelectedLineId]   = useState<string | null>(null);
-  const [mode,             setMode]             = useState<"Qty" | "Disc" | "Price">("Qty");
+  const [mode,             setMode]             = useState<"Qty" | "Disc">("Qty");
   const [buffer,           setBuffer]           = useState("");
   const [search,           setSearch]           = useState("");
   const [category,         setCategory]         = useState<string | null>(null);
@@ -302,8 +302,6 @@ export function CashierPOSClient({
         setTimeout(() => setDiscCapId(null), 2500);
       }
       updateItemDiscount(selectedLineId, capped);
-    } else {
-      updateItemPrice(selectedLineId, Math.max(0, value));
     }
   };
 
@@ -368,8 +366,7 @@ export function CashierPOSClient({
         const raw = buffer !== ""
           ? buffer
           : mode === "Qty" ? String(selectedLine.quantity)
-          : mode === "Disc" ? String(selectedLine.discount_amount)
-          : selectedLine.unit_price.toFixed(2);
+          : String(selectedLine.discount_amount);
         return mode === "Qty" && selectedUnit === "kg" ? raw + " kg" : raw;
       })()
     : "";
@@ -844,24 +841,15 @@ export function CashierPOSClient({
                 Disc
               </button>
 
-              {/* Row 3: 7 8 9  Price */}
+              {/* Row 3: 7 8 9 */}
               {["7","8","9"].map(k => (
                 <button key={k} onClick={() => pressKey(k)}
                   className="h-12 rounded-xl btn-tactile active:btn-tactile-active text-foreground font-display font-black text-xl">
                   {k}
                 </button>
               ))}
-              <button
-                onClick={() => { setMode("Price"); setBuffer(""); }}
-                className={cn(
-                  "h-12 rounded-xl text-xs font-black uppercase tracking-wider",
-                  mode === "Price"
-                    ? "btn-tactile-primary active:btn-tactile-primary-active"
-                    : "btn-tactile active:btn-tactile-active text-muted-foreground"
-                )}
-              >
-                Price
-              </button>
+              {/* Prices come from the catalog; typing a price here is not supported. */}
+              <div aria-hidden="true" />
 
               {/* Row 4: 00 0 .  ⌫ */}
               {["00","0","."].map(k => (

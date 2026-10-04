@@ -17,12 +17,30 @@ interface SubmitSaleArgs {
   pendingPickup?: boolean;
   pickupNote?: string;
   stockOverrideReason?: string;
+  // Unique id of a queued offline sale; a repeat submission returns the sale
+  // already saved instead of recording it twice.
+  clientRef?: string;
 }
 
-export async function submitSale(args: SubmitSaleArgs): Promise<
+export type SubmitSaleResult =
   | { ok: true; saleId: string }
   | { ok: false; stockInsufficient: string[] }
-> {
+  | { ok: false; error: string; code: "pin" | "rejected" };
+
+// Thrown errors from a server action are masked in production (the till shows
+// "Minified React error #441"), so failures are returned as values instead.
+// Network failures never reach this code and still throw on the client.
+export async function submitSale(args: SubmitSaleArgs): Promise<SubmitSaleResult> {
+  try {
+    return await submitSaleInner(args);
+  } catch (e) {
+    const message = e instanceof Error && e.message ? e.message : "The sale could not be saved.";
+    const needsPin = /PIN session required|Not authenticated/i.test(message);
+    return { ok: false, error: message, code: needsPin ? "pin" : "rejected" };
+  }
+}
+
+async function submitSaleInner(args: SubmitSaleArgs): Promise<SubmitSaleResult> {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -46,7 +64,7 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
   }
   const cashierId = pinCashierId ?? user.id;
 
-  const { items, payments, subtotal, discount, total, pendingPickup, pickupNote, stockOverrideReason } = args;
+  const { items, payments, subtotal, discount, total, pendingPickup, pickupNote, stockOverrideReason, clientRef } = args;
 
   // Fetch authoritative server state: stock, price, and active status.
   // selling_price is used server-side to prevent stale-price financial errors.
@@ -134,7 +152,7 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
     reference: p.reference?.trim() || "",
   }));
 
-  const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v5", {
+  const { data: saleId, error: rpcErr } = await supabase.rpc("submit_sale_v6", {
     p_cashier_id: cashierId,
     p_customer_id: null,
     p_subtotal: correctedSubtotal,
@@ -145,6 +163,7 @@ export async function submitSale(args: SubmitSaleArgs): Promise<
     p_pending_pickup: pendingPickup ?? false,
     p_pickup_note: pickupNote ?? null,
     p_stock_override_reason: stockOverrideReason ?? null,
+    p_client_ref: clientRef ?? null,
   });
 
   if (rpcErr) throw new Error(rpcErr.message);

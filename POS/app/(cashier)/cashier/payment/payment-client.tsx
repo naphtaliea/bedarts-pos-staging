@@ -9,15 +9,9 @@ import { submitSale } from "@/app/(dashboard)/pos/actions";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { PaymentMethod, PaymentEntry, Sale } from "@/lib/types";
-
-// Only "Stock received but not yet entered in system" tracks a deficit that
-// gets auto-deducted from the next stock arrival. "Miscount" assumes physical
-// stock is actually available (system count wrong). See stock_deficits table.
-const TRACKED_REASON = "Stock received but not yet entered in system";
-const OVERRIDE_REASONS = [
-  TRACKED_REASON,
-  "Miscount",
-] as const;
+import { OVERRIDE_REASONS, TRACKED_REASON } from "@/lib/override-reasons";
+import { isStaleDeployError } from "@/lib/sync-core";
+import { reloadForUpdate } from "@/lib/reload-for-update";
 
 const METHOD_OPTIONS: { value: PaymentMethod; label: string; icon: React.ElementType }[] = [
   { value: "cash",        label: "Cash",       icon: Banknote   },
@@ -126,16 +120,116 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
   const doSubmit = async (payload: Parameters<typeof submitSale>[0]) => {
     const result = await submitSale(payload);
     if (!result.ok) {
-      pendingPayloadRef.current = payload;
+      if ("stockInsufficient" in result) {
+        pendingPayloadRef.current = payload;
+        setIsProcessing(false);
+        setOverrideReason(OVERRIDE_REASONS[0]);
+        setOverrideModal({ items: result.stockInsufficient });
+        return;
+      }
+      // The server refused the sale — say why instead of a generic failure.
       setIsProcessing(false);
-      setOverrideReason(OVERRIDE_REASONS[0]);
-      setOverrideModal({ items: result.stockInsufficient });
+      setError(result.code === "pin" ? "Your PIN session ended. Enter your PIN again." : result.error);
       return;
     }
     leavingForReceipt.current = true;
     clearCart();
     if (onComplete) onComplete(result.saleId);
     else router.push(`/cashier/receipt?sale=${result.saleId}`);
+  };
+
+  // Stock the till last knew about. Offline there is no server to say stock is
+  // short, so check locally; sums quantities per product across all lines.
+  const localStockShortfall = (cartItems: typeof items): string[] => {
+    const byProduct = new Map<string, { name: string; qty: number; stock: number | undefined }>();
+    for (const i of cartItems) {
+      const cur = byProduct.get(i.product.id) ?? { name: i.product.name, qty: 0, stock: i.product.stock_quantity };
+      cur.qty += i.quantity;
+      byProduct.set(i.product.id, cur);
+    }
+    return [...byProduct.values()].filter((p) => p.stock !== undefined && p.qty > p.stock).map((p) => p.name);
+  };
+
+  // Save the sale on the device to send when the connection is back.
+  const queueOffline = async (queued: Parameters<typeof submitSale>[0]) => {
+    const { saveOfflineSale } = await import("@/lib/sync-queue");
+    await saveOfflineSale(queued);
+    clearCart();
+    if (onOfflineComplete) {
+      const now = new Date().toISOString();
+      const offlineSale: Sale = {
+        id: crypto.randomUUID(),
+        cashier_id: "",
+        cashier: { id: "", full_name: cashierName, avatar_url: avatarUrl ?? null, role: "cashier", is_active: true, created_at: now, pin: null },
+        subtotal: queued.subtotal,
+        discount_amount: queued.discount,
+        total_amount: queued.total,
+        status: "completed",
+        voided_by: null,
+        void_reason: null,
+        created_at: now,
+        sale_items: queued.items.map((item) => ({
+          id: crypto.randomUUID(),
+          sale_id: "",
+          product_id: item.product.id,
+          product: item.product,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.discount_amount,
+          total_price: item.quantity * item.unit_price - item.discount_amount,
+          cost_at_sale: null,
+          package_label: item.packageLabel ?? null,
+        })),
+        payments: queued.payments.map((p) => ({
+          id: crypto.randomUUID(),
+          sale_id: "",
+          method: p.method,
+          amount: p.amount,
+          reference: p.reference ?? "",
+          created_at: now,
+        })),
+      };
+      onOfflineComplete(offlineSale);
+    } else {
+      setOfflineSaved(true);
+      setTimeout(() => { if (onBack) onBack(); else router.push("/cashier"); }, 3000);
+    }
+  };
+
+  // Offline (or the request never reached the server): if the till thinks stock
+  // is short, ask for the override reason now — same as online — then queue.
+  const finishOffline = async (payload: Parameters<typeof submitSale>[0]) => {
+    const short = localStockShortfall(payload.items);
+    if (short.length > 0 && !payload.stockOverrideReason) {
+      pendingPayloadRef.current = payload;
+      setIsProcessing(false);
+      setOverrideReason(OVERRIDE_REASONS[0]);
+      setOverrideModal({ items: short });
+      return;
+    }
+    await queueOffline(payload);
+  };
+
+  const handleSubmitError = async (e: unknown, payload: Parameters<typeof submitSale>[0]) => {
+    const msg = e instanceof Error ? e.message : "";
+    // This page is older than the server (the till was updated). Reload onto
+    // the new build — the cart is saved on the device and comes back.
+    if (isStaleDeployError(msg)) {
+      setError("The till was just updated. Reloading…");
+      const reloaded = await reloadForUpdate();
+      if (!reloaded) {
+        setIsProcessing(false);
+        setError("The till needs updating. Close and reopen the app, then try again.");
+      }
+      return;
+    }
+    const isOffline = !navigator.onLine || msg === "OFFLINE_MODE" || msg.includes("fetch");
+    if (isOffline) {
+      await finishOffline(payload);
+      return;
+    }
+    setIsProcessing(false);
+    setError(msg || "Payment failed. Please try again.");
   };
 
   const handleConfirm = async () => {
@@ -173,69 +267,26 @@ export function PaymentClient({ cashierName, avatarUrl, onBack, onComplete, onOf
       }
       await doSubmit(payload);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-
-      const isOffline = !navigator.onLine || msg === "OFFLINE_MODE" || msg.includes("fetch");
-      if (isOffline) {
-        const { saveOfflineSale } = await import("@/lib/sync-queue");
-        await saveOfflineSale(payload);
-        clearCart();
-        if (onOfflineComplete) {
-          const now = new Date().toISOString();
-          const offlineSale: Sale = {
-            id: crypto.randomUUID(),
-            cashier_id: "",
-            cashier: { id: "", full_name: cashierName, avatar_url: avatarUrl ?? null, role: "cashier", is_active: true, created_at: now, pin: null },
-            subtotal: payload.subtotal,
-            discount_amount: payload.discount,
-            total_amount: payload.total,
-            status: "completed",
-            voided_by: null,
-            void_reason: null,
-            created_at: now,
-            sale_items: payload.items.map((item) => ({
-              id: crypto.randomUUID(),
-              sale_id: "",
-              product_id: item.product.id,
-              product: item.product,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              discount_amount: item.discount_amount,
-              total_price: item.quantity * item.unit_price - item.discount_amount,
-              cost_at_sale: null,
-              package_label: item.packageLabel ?? null,
-            })),
-            payments: payload.payments.map((p) => ({
-              id: crypto.randomUUID(),
-              sale_id: "",
-              method: p.method,
-              amount: p.amount,
-              reference: p.reference ?? "",
-              created_at: now,
-            })),
-          };
-          onOfflineComplete(offlineSale);
-        } else {
-          setOfflineSaved(true);
-          setTimeout(() => { if (onBack) onBack(); else router.push("/cashier"); }, 3000);
-        }
-      } else {
-        setIsProcessing(false);
-        setError(msg || "Payment failed. Please try again.");
-      }
+      await handleSubmitError(e, payload);
     }
   };
 
   const handleOverrideConfirm = async () => {
-    if (!pendingPayloadRef.current) return;
+    const base = pendingPayloadRef.current;
+    if (!base) return;
+    const payload = { ...base, stockOverrideReason: overrideReason };
     setOverrideModal(null);
     setIsProcessing(true);
     setError(null);
+    // Offline: the reason travels with the queued sale and is sent when it syncs.
+    if (!navigator.onLine) {
+      await queueOffline(payload);
+      return;
+    }
     try {
-      await doSubmit({ ...pendingPayloadRef.current, stockOverrideReason: overrideReason });
+      await doSubmit(payload);
     } catch (e) {
-      setIsProcessing(false);
-      setError(e instanceof Error ? e.message : "Payment failed. Please try again.");
+      await handleSubmitError(e, payload);
     }
   };
 

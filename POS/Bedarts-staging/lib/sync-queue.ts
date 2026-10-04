@@ -1,7 +1,10 @@
 import { openDB } from "idb";
 import type { CartItem, PaymentEntry } from "@/lib/types";
+import type { SyncStatus } from "@/lib/sync-core";
 
 export interface OfflineSale {
+  // Also the idempotency key sent to the server (client_ref), so a retry can
+  // never record the same sale twice.
   id: string;
   timestamp: number;
   payload: {
@@ -10,7 +13,15 @@ export interface OfflineSale {
     subtotal: number;
     discount: number;
     total: number;
+    // Chosen at the till when the sale was made offline against stock the till
+    // thought was short. Sent with the sale when it syncs.
+    stockOverrideReason?: string;
   };
+  // Sync state. Absent on sales queued before this existed = "pending".
+  status?: SyncStatus;
+  lastError?: string;
+  shortItems?: string[];
+  lastAttemptAt?: number;
 }
 
 export interface CachedOrder {
@@ -63,6 +74,16 @@ export async function saveOfflineSale(payload: OfflineSale["payload"]): Promise<
 export async function getOfflineSales(): Promise<OfflineSale[]> {
   const db = await getDB();
   return db.getAll(STORE_NAME);
+}
+
+export async function updateOfflineSale(
+  id: string,
+  patch: Partial<Pick<OfflineSale, "status" | "lastError" | "shortItems" | "lastAttemptAt">>
+): Promise<void> {
+  const db = await getDB();
+  const existing = (await db.get(STORE_NAME, id)) as OfflineSale | undefined;
+  if (!existing) return;
+  await db.put(STORE_NAME, { ...existing, ...patch });
 }
 
 export async function removeOfflineSale(id: string): Promise<void> {
