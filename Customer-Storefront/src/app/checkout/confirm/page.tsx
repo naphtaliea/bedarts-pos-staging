@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, XCircle, Loader2, MessageCircle } from "lucide-rea
 import Link from "next/link";
 import { getOrderByRef } from "@/src/lib/actions/orders";
 import { getStoreSettings } from "@/src/lib/actions/settings";
+import { useCart } from "@/src/lib/cart-store";
 import { formatCurrency, formatDate } from "@/src/lib/utils";
 import { extractWhatsAppNumber, buildOrderChatUrl } from "@/src/lib/whatsapp";
 import type { OnlineOrder, StoreSettings } from "@/src/lib/types";
@@ -16,8 +17,10 @@ function ConfirmContent() {
   const [order, setOrder] = useState<OnlineOrder | null>(null);
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
   const attemptsRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { clear } = useCart();
 
   useEffect(() => {
     getStoreSettings().then(setSettings);
@@ -31,13 +34,20 @@ function ConfirmContent() {
 
     async function poll() {
       if (cancelled) return;
-      const o = await getOrderByRef(ref);
+      let o: OnlineOrder | null = null;
+      try {
+        o = await getOrderByRef(ref);
+      } catch {
+        // Network error — retry unless cancelled or at limit
+      }
       if (cancelled) return;
-      setOrder(o);
+      if (o) setOrder(o);
       attemptsRef.current += 1;
       setAttemptCount(attemptsRef.current);
-      if (o && o.status === "pending_payment" && attemptsRef.current < MAX) {
+      if (o?.status === "pending_payment" && attemptsRef.current < MAX) {
         timerRef.current = setTimeout(poll, 2000);
+      } else if ((!o || o.status === "pending_payment") && attemptsRef.current >= MAX) {
+        setTimedOut(true);
       }
     }
 
@@ -47,6 +57,14 @@ function ConfirmContent() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [ref]);
+
+  // Clear the cart once we know payment succeeded.
+  const orderStatus = order?.status;
+  useEffect(() => {
+    if (orderStatus === "paid" || orderStatus === "dispatched" || orderStatus === "delivered") {
+      clear();
+    }
+  }, [orderStatus, clear]);
 
   if (!ref) {
     return (
@@ -62,7 +80,7 @@ function ConfirmContent() {
     );
   }
 
-  const isPending = !order || order.status === "pending_payment";
+  const isPending = !timedOut && (!order || order.status === "pending_payment");
   const isPaid =
     order?.status === "paid" ||
     order?.status === "dispatched" ||
@@ -82,32 +100,38 @@ function ConfirmContent() {
           <p className="text-sm text-muted-foreground mt-2">
             This usually takes a few seconds.
           </p>
-          {attemptCount >= 10 && (
-            <div className="mt-4 bg-card rounded-xl px-4 py-4 border border-border text-left space-y-2">
-              <p className="text-xs font-semibold text-foreground">
-                Taking longer than expected.
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                If you completed payment, your order will appear in{" "}
-                <Link href="/account" className="text-primary font-semibold">My orders</Link>.
-                If it doesn&apos;t show up within a few minutes, contact us with your reference:
-              </p>
-              <p className="text-sm font-bold tabular-nums text-foreground bg-background rounded-lg px-3 py-2 border border-border">
-                {ref}
-              </p>
-              {settings?.phone && extractWhatsAppNumber(settings.phone) && (
-                <a
-                  href={`https://wa.me/${extractWhatsAppNumber(settings.phone)}?text=${encodeURIComponent(`Hi, I just paid but my order isn't confirmed yet. Reference: ${ref}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-success bg-success/10 hover:bg-success/20 transition-colors"
-                >
-                  <MessageCircle className="w-4 h-4" aria-hidden="true" />
-                  Message us on WhatsApp
-                </a>
-              )}
-            </div>
-          )}
+        </>
+      )}
+
+      {timedOut && !isPaid && !isCancelled && (
+        <>
+          <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-5">
+            <Clock className="w-8 h-8 text-warning" aria-hidden="true" />
+          </div>
+          <h1 className="font-display-black text-2xl uppercase text-foreground">
+            Still confirming…
+          </h1>
+          <div className="mt-4 bg-card rounded-xl px-4 py-4 border border-border text-left space-y-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              If you completed payment, your order will appear in{" "}
+              <Link href="/account" className="text-primary font-semibold">My orders</Link>{" "}
+              within a few minutes. Save your reference in case you need to reach us:
+            </p>
+            <p className="text-sm font-bold tabular-nums text-foreground bg-background rounded-lg px-3 py-2 border border-border">
+              {ref}
+            </p>
+            {settings?.phone && extractWhatsAppNumber(settings.phone) && (
+              <a
+                href={`https://wa.me/${extractWhatsAppNumber(settings.phone)}?text=${encodeURIComponent(`Hi, I just paid but my order isn't confirmed yet. Reference: ${ref}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-success bg-success/10 hover:bg-success/20 transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                Message us on WhatsApp
+              </a>
+            )}
+          </div>
         </>
       )}
 

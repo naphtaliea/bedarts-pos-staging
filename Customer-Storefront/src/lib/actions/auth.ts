@@ -43,12 +43,6 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
-export async function getSession() {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
-}
-
 export async function getCustomerProfile() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

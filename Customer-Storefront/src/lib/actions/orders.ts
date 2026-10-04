@@ -1,12 +1,13 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { createClient } from "@/src/lib/supabase/server";
 import { computeDispatch } from "@/src/lib/dispatch-estimate";
 import type { CartItem, DeliveryDetails, OnlineOrder, StoreSettings } from "@/src/lib/types";
 
 // Generates a reference like BDS-1748291234567-AB3X7
 function generateRef(): string {
-  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+  const rand = randomBytes(4).toString("hex").toUpperCase();
   return `BDS-${Date.now()}-${rand}`;
 }
 
@@ -149,7 +150,8 @@ export async function initializeOrder(
 
   if (itemsErr) {
     // Roll back the order header — items are the source of truth
-    await supabase.from("online_orders").delete().eq("id", order.id);
+    const { error: rollbackErr } = await supabase.from("online_orders").delete().eq("id", order.id);
+    if (rollbackErr) console.error(`Failed to roll back order ${order.id}:`, rollbackErr.message);
     return { ok: false, error: "Failed to save order items. Please try again." };
   }
 
@@ -186,7 +188,8 @@ export async function initializeOrder(
   });
 
   if (!paystackRes.ok) {
-    await supabase.from("online_orders").delete().eq("id", order.id);
+    const { error: rb1 } = await supabase.from("online_orders").delete().eq("id", order.id);
+    if (rb1) console.error(`Failed to roll back order ${order.id}:`, rb1.message);
     return { ok: false, error: "Could not reach payment provider. Please try again." };
   }
 
@@ -196,7 +199,8 @@ export async function initializeOrder(
   };
 
   if (!ps.status) {
-    await supabase.from("online_orders").delete().eq("id", order.id);
+    const { error: rb2 } = await supabase.from("online_orders").delete().eq("id", order.id);
+    if (rb2) console.error(`Failed to roll back order ${order.id}:`, rb2.message);
     return { ok: false, error: "Payment provider rejected the request." };
   }
 
@@ -250,10 +254,13 @@ export async function getCustomerOrders(): Promise<OnlineOrder[]> {
 // Paystack redirect happens before the webhook fires, so we poll briefly.
 export async function getOrderByRef(ref: string): Promise<OnlineOrder | null> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
   const { data } = await supabase
     .from("online_orders")
     .select(`*, items:online_order_items(*)`)
     .eq("paystack_ref", ref)
+    .eq("customer_id", user.id)
     .single();
   return data as OnlineOrder | null;
 }

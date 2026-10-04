@@ -16,7 +16,7 @@ type Fulfillment = "delivery" | "pickup";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, total, clear } = useCart();
+  const { items, total } = useCart();
   const { user, ready } = useAuth();
 
   const [fulfillment, setFulfillment] = useState<Fulfillment>("delivery");
@@ -92,7 +92,8 @@ export default function CheckoutPage() {
         return;
       }
 
-      clear();
+      // Cart is cleared on the confirm page once payment is confirmed,
+      // so it survives if the redirect fails.
       window.location.href = res.data.authorizationUrl;
     } catch {
       setError("Something went wrong. Please try again.");
@@ -338,8 +339,8 @@ export default function CheckoutPage() {
             className="w-full h-12 rounded-xl text-sm font-semibold text-primary-foreground bg-primary flex items-center justify-center gap-2 transition-transform hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
-            Pay {formatCurrency(orderTotal)}
-            {dispatch?.ctaSuffix && (
+            {loading ? "Processing…" : "Continue to payment"}
+            {!loading && dispatch?.ctaSuffix && (
               <span className="opacity-90 font-normal">
                 &nbsp;· {dispatch.ctaSuffix}
               </span>
