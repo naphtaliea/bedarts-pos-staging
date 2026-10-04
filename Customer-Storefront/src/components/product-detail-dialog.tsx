@@ -51,14 +51,6 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
   const box = product.units_per_box ?? 0;
   const halfBox = Math.floor(box / 2);
 
-  function pctSavings(boxPrice: number | null, units: number): number | null {
-    if (!boxPrice || !units) return null;
-    const looseTotal = product.selling_price * units;
-    if (looseTotal <= 0) return null;
-    const diff = looseTotal - boxPrice;
-    if (diff <= 0) return null;
-    return Math.round((diff / looseTotal) * 100);
-  }
 
   function handleAdd() {
     add({
@@ -82,9 +74,6 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
     }
     setQty(product.id, units);
   }
-
-  const fullBoxSavings = pctSavings(product.full_box_price, box);
-  const halfBoxSavings = pctSavings(product.half_box_price, halfBox);
 
   return (
     <Dialog
@@ -147,8 +136,8 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
                 Out of stock
               </p>
             ) : (
-              <p className="mt-2 text-xs font-semibold text-success">
-                {product.stock_quantity} {unitLabel} available
+              <p className={cn("mt-2 text-xs font-semibold", product.stock_quantity <= 5 ? "text-warning" : "text-success")}>
+                {product.stock_quantity <= 5 ? "Few left" : "In stock"}
               </p>
             )}
           </div>
@@ -157,7 +146,7 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
           {(product.full_box_price || product.half_box_price) && (
             <div>
               <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground mb-2">
-                Bulk prices
+                Order by the box
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {product.half_box_price && halfBox > 0 && (
@@ -176,13 +165,8 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
                       Half box · {halfBox} {unitLabel}
                     </p>
                     <p className="text-lg font-bold text-foreground tabular-nums mt-0.5">
-                      {formatCurrency(product.half_box_price)}
+                      {formatCurrency(halfBox * product.selling_price)}
                     </p>
-                    {halfBoxSavings !== null && (
-                      <p className="text-[11px] font-semibold text-success mt-0.5">
-                        Save {halfBoxSavings}%
-                      </p>
-                    )}
                   </button>
                 )}
                 {product.full_box_price && box > 0 && (
@@ -201,13 +185,8 @@ function DetailInner({ product, onClose }: { product: StorefrontProduct; onClose
                       Full box · {box} {unitLabel}
                     </p>
                     <p className="text-lg font-bold text-foreground tabular-nums mt-0.5">
-                      {formatCurrency(product.full_box_price)}
+                      {formatCurrency(box * product.selling_price)}
                     </p>
-                    {fullBoxSavings !== null && (
-                      <p className="text-[11px] font-semibold text-success mt-0.5">
-                        Save {fullBoxSavings}%
-                      </p>
-                    )}
                   </button>
                 )}
               </div>

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // 2. Parse event
-  let event: { event: string; data: { reference: string } };
+  let event: { event: string; data: { reference: string; amount: number } };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // 3. Look up the order
   const { data: order, error: lookupErr } = await supabase
     .from("online_orders")
-    .select("id, status")
+    .select("id, status, total_amount, delivery_notes")
     .eq("paystack_ref", ref)
     .single();
 
@@ -68,7 +68,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ received: true });
   }
 
-  // 4. Process the order — deduct stock and create the POS sale
+  // 4. Guard: paid amount must match the server-computed order total (±1 pesewa).
+  //    If it doesn't, leave the order pending_payment, flag it in delivery_notes,
+  //    and do NOT deduct stock — someone paid less than the server price.
+  const paidPesewas     = event.data.amount;
+  const expectedPesewas = Math.round(order.total_amount * 100);
+  if (Math.abs(paidPesewas - expectedPesewas) > 1) {
+    console.error(
+      `[AMOUNT_MISMATCH] order=${order.id} paid=${paidPesewas} expected=${expectedPesewas} ref=${ref}`
+    );
+    const mismatchTag = `[AMOUNT MISMATCH paid=${paidPesewas} expected=${expectedPesewas}]`;
+    const currentNotes = order.delivery_notes ?? "";
+    if (!currentNotes.includes("[AMOUNT MISMATCH")) {
+      await supabase
+        .from("online_orders")
+        .update({
+          delivery_notes: currentNotes ? `${currentNotes} | ${mismatchTag}` : mismatchTag,
+        })
+        .eq("id", order.id);
+    }
+    return NextResponse.json({ received: true, warning: "amount_mismatch" });
+  }
+
+  // 5. Process the order — deduct stock and create the POS sale
   const { error: rpcErr } = await supabase.rpc("submit_online_order_v1", {
     p_order_id: order.id,
   });

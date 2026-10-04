@@ -102,7 +102,7 @@ export default async function AboutPage() {
             Delivery
           </h2>
           <p className="mt-2 text-sm text-foreground leading-relaxed">
-            We use Bolt to send your order to your address. The Bolt fare is separate — we&apos;ll confirm it with you by phone before we dispatch. You can also collect at the store or send your own Bolt driver.
+            We use Bolt to deliver your order. A Bolt driver will bring your order to your address and you pay the driver directly for delivery. You can also collect at the store or send your own Bolt driver.
           </p>
         </div>
 

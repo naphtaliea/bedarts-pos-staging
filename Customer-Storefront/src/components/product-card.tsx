@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Package } from "lucide-react";
 import { useCart } from "@/src/lib/cart-store";
 import { formatCurrency, cn } from "@/src/lib/utils";
 import type { StorefrontProduct } from "@/src/lib/types";
@@ -12,23 +12,16 @@ interface ProductCardProps {
 }
 
 function StockBadge({ qty }: { qty: number }) {
-  if (qty <= 0) {
-    return (
-      <span className="text-xs font-semibold text-muted-foreground">
-        Out of stock
-      </span>
-    );
-  }
-  if (qty <= 5) {
-    return (
-      <span className="text-xs font-semibold text-warning">
-        Only {qty} left
-      </span>
-    );
-  }
+  const state =
+    qty <= 0
+      ? { label: "Out of stock", dot: "bg-muted-foreground", text: "text-muted-foreground" }
+      : qty <= 5
+        ? { label: "Few left", dot: "bg-warning", text: "text-warning" }
+        : { label: "In stock", dot: "bg-success", text: "text-success" };
   return (
-    <span className="text-xs font-semibold text-success">
-      In stock
+    <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold", state.text)}>
+      <span aria-hidden="true" className={cn("w-1.5 h-1.5 rounded-full", state.dot)} />
+      {state.label}
     </span>
   );
 }
@@ -67,6 +60,23 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
     });
   }
 
+  const box = product.units_per_box ?? 0;
+  const canBuyBox = hasBoxPrice && box > 0 && box <= product.stock_quantity;
+
+  function handleAddBox(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!cartItem) {
+      add({
+        product_id: product.id,
+        product_name: product.name,
+        unit: product.unit,
+        unit_price: product.selling_price,
+        image_url: product.image_url,
+      });
+    }
+    setQty(product.id, box);
+  }
+
   function stopClick(e: React.MouseEvent) {
     e.stopPropagation();
   }
@@ -76,7 +86,7 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
   }
 
   return (
-    <article className={cn("bg-card rounded-2xl shadow-card flex flex-col overflow-hidden border border-border transition-shadow duration-200", outOfStock ? "opacity-55" : "hover:shadow-raised")}>
+    <article className={cn("bg-card rounded-2xl shadow-card flex flex-col overflow-hidden border border-border transition-shadow duration-200", outOfStock ? "opacity-50" : "hover:shadow-raised")}>
       {/* Image + product body — clickable region opens detail */}
       <button
         type="button"
@@ -115,21 +125,13 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
             {product.name}
           </h2>
 
-          <div className="flex items-center justify-between mt-0.5">
-            <span className="text-base font-bold text-primary">
-              {formatCurrency(product.selling_price)}
-              <span className="text-xs font-medium ml-0.5 text-muted-foreground">
-                {unitLabel}
-              </span>
+          <span className="text-base font-bold text-primary mt-0.5">
+            {formatCurrency(product.selling_price)}
+            <span className="text-xs font-medium ml-0.5 text-muted-foreground">
+              {unitLabel}
             </span>
-            <StockBadge qty={product.stock_quantity} />
-          </div>
-
-          {hasBoxPrice && product.full_box_price && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Box: <span className="font-semibold text-foreground tabular-nums">{formatCurrency(product.full_box_price)}</span>
-            </p>
-          )}
+          </span>
+          <StockBadge qty={product.stock_quantity} />
         </div>
       </button>
 
@@ -179,6 +181,18 @@ export function ProductCard({ product, onOpenDetail }: ProductCardProps) {
               <Plus className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
+        )}
+
+        {canBuyBox && qty !== box && (
+          <button
+            type="button"
+            onClick={handleAddBox}
+            aria-label={`Order a full box of ${product.name}: ${box} ${product.unit === "kg" ? "kg" : "pieces"}`}
+            className="mt-2 w-full h-10 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition-transform hover:bg-primary/10 active:scale-[0.97]"
+          >
+            <Package className="w-4 h-4" aria-hidden="true" />
+            Order a full box · {box} {product.unit === "kg" ? "kg" : "pcs"}
+          </button>
         )}
       </div>
     </article>

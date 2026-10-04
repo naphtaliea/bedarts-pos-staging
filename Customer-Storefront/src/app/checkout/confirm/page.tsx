@@ -122,7 +122,7 @@ function ConfirmContent() {
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
             {order.fulfillment_type === "pickup"
               ? "We'll call to confirm when your order is ready. Send a Bolt driver with your order number, or come by yourself."
-              : "We'll call to confirm your Bolt fare and dispatch time. The Bolt fare is separate from what you paid here."}
+              : "We'll call to confirm your order and dispatch time. A Bolt driver will deliver to your address — pay the driver directly for delivery."}
           </p>
 
           <div className="mt-6 bg-card rounded-2xl border border-border shadow-card text-left overflow-hidden">

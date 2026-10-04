@@ -22,8 +22,7 @@ export async function initializeOrder(
     fulfillmentType?: "delivery" | "pickup";
     /** Guest email — used only when the auth user has no email of its own (anonymous sign-in). */
     guestEmail?: string;
-  },
-  totalAmount: number
+  }
 ): Promise<{ ok: true; data: InitializeOrderResult } | { ok: false; error: string }> {
   if (!items.length) return { ok: false, error: "Cart is empty." };
 
@@ -38,6 +37,68 @@ export async function initializeOrder(
     .eq("id", user.id)
     .single();
   if (!profile) return { ok: false, error: "Customer profile not found." };
+
+  // ── Server-side pricing — never trust client unit_price / total_price ───────
+  // Re-fetch authoritative selling_price for every product in the cart before
+  // any DB write or Paystack call. Client-supplied prices are ignored entirely.
+  const productIds = [...new Set(items.map((i) => i.product_id))];
+  const { data: dbProducts, error: productErr } = await supabase
+    .from("products")
+    .select("id, selling_price, is_active, name, unit")
+    .in("id", productIds);
+
+  if (productErr || !dbProducts) {
+    return { ok: false, error: "Failed to verify product prices. Please try again." };
+  }
+
+  const productMap = new Map(dbProducts.map((p) => [p.id, p]));
+
+  // Merge duplicate product lines (a tampered cart could repeat a product_id to
+  // slip past the per-line stock check in submit_online_order_v1).
+  const qtyByProduct = new Map<string, number>();
+  for (const item of items) {
+    qtyByProduct.set(item.product_id, (qtyByProduct.get(item.product_id) ?? 0) + Number(item.quantity));
+  }
+
+  const MAX_QTY = 10000;
+  const serverItems: {
+    product_id: string; product_name: string; unit: string;
+    quantity: number; unit_price: number; total_price: number;
+  }[] = [];
+
+  for (const [productId, rawQty] of qtyByProduct) {
+    const product = productMap.get(productId);
+    if (!product) {
+      return { ok: false, error: "One or more products were not found. Please refresh and try again." };
+    }
+    if (!product.is_active) {
+      return { ok: false, error: `"${product.name}" is no longer available.` };
+    }
+    const qty = Math.round(rawQty * 1000) / 1000;
+    const validQty =
+      Number.isFinite(qty) && qty > 0 && qty <= MAX_QTY &&
+      (product.unit === "kg" || Number.isInteger(qty));
+    if (!validQty) {
+      return { ok: false, error: `Invalid quantity for "${product.name}".` };
+    }
+    const price = Number(product.selling_price);
+    const lineTotal = Math.round(qty * price * 100) / 100;
+    serverItems.push({
+      product_id:   productId,
+      product_name: product.name,
+      unit:         product.unit,
+      quantity:     qty,
+      unit_price:   price,
+      total_price:  lineTotal,
+    });
+  }
+
+  // Sum pesewa integers to avoid float drift, then convert back to GHS.
+  const serverTotalPesewas = serverItems.reduce(
+    (s, i) => s + Math.round(i.total_price * 100),
+    0
+  );
+  const serverTotal = serverTotalPesewas / 100;
 
   const ref = generateRef();
 
@@ -56,7 +117,7 @@ export async function initializeOrder(
     .from("online_orders")
     .insert({
       customer_id:      user.id,
-      total_amount:     totalAmount,
+      total_amount:     serverTotal,
       delivery_name:    delivery.name,
       delivery_phone:   delivery.phone,
       delivery_address: delivery.fulfillmentType === "pickup" ? null : (delivery.address ?? null),
@@ -71,11 +132,11 @@ export async function initializeOrder(
     return { ok: false, error: "Failed to create order. Please try again." };
   }
 
-  // Insert line items
+  // Insert line items using server-computed prices (not client-supplied values)
   const { error: itemsErr } = await supabase
     .from("online_order_items")
     .insert(
-      items.map((item) => ({
+      serverItems.map((item) => ({
         order_id:     order.id,
         product_id:   item.product_id,
         product_name: item.product_name,
@@ -109,7 +170,7 @@ export async function initializeOrder(
     },
     body: JSON.stringify({
       email:        paystackEmail,
-      amount:       Math.round(totalAmount * 100), // GHS → kobo/pesewas
+      amount:       serverTotalPesewas, // GHS → pesewas, server-computed
       currency:     "GHS",
       reference:    ref,
       callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/confirm`,

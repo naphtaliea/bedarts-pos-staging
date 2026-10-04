@@ -83,8 +83,7 @@ export default function CheckoutPage() {
           notes: fulfillment === "pickup" ? "PICKUP ORDER" : notes || undefined,
           fulfillmentType: fulfillment,
           guestEmail: isGuest ? guestEmail : undefined,
-        },
-        orderTotal
+        }
       );
 
       if (!res.ok) {
@@ -224,10 +223,10 @@ export default function CheckoutPage() {
               {fulfillment === "delivery" ? (
                 <>
                   <p className="text-foreground font-semibold">
-                    We arrange a Bolt driver to your address.
+                    A Bolt driver delivers to your address.
                   </p>
                   <p className="mt-1">
-                    The Bolt fare is charged separately based on your location — we&apos;ll confirm it by phone before dispatch. You only pay for the goods here.
+                    You pay the driver directly for delivery. You only pay us for the goods here.
                   </p>
                 </>
               ) : (
